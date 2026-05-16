@@ -43,15 +43,43 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       const me = await this.bot.api.getMe();
       this.logger.log(`Bot @${me.username} connected (id=${me.id})`);
       if (this.useWebhook) {
-        this.logger.log('Webhook mode enabled — webhook must be set via /telegram/webhook URL');
+        // Webhook'ni avtomatik o'rnatamiz (deploy/restart paytida)
+        await this.ensureWebhook();
       } else {
-        // Start long polling without blocking
+        // Polling rejimida webhook'ni o'chirish kerak (gibrid bo'lmasin)
+        await this.bot.api.deleteWebhook({ drop_pending_updates: false }).catch(() => undefined);
         void this.bot.start({
           onStart: (info) => this.logger.log(`Polling started as @${info.username}`),
         });
       }
     } catch (err) {
       this.logger.error(`Bot init failed: ${(err as Error).message}`);
+    }
+  }
+
+  private async ensureWebhook(): Promise<void> {
+    const appUrl = this.config.get<string>('APP_URL') ?? '';
+    if (!appUrl.startsWith('https://')) {
+      this.logger.warn(`APP_URL HTTPS emas — webhook o'rnatilmadi: ${appUrl}`);
+      return;
+    }
+    const webhookUrl = `${appUrl.replace(/\/$/, '')}/telegram/webhook`;
+    const secret = this.config.getOrThrow<string>('TELEGRAM_WEBHOOK_SECRET');
+
+    try {
+      const info = await this.bot.api.getWebhookInfo();
+      if (info.url !== webhookUrl) {
+        await this.bot.api.setWebhook(webhookUrl, {
+          secret_token: secret,
+          allowed_updates: ['message', 'callback_query'],
+          drop_pending_updates: false,
+        });
+        this.logger.log(`Webhook o'rnatildi: ${webhookUrl}`);
+      } else {
+        this.logger.log(`Webhook allaqachon to'g'ri: ${webhookUrl}`);
+      }
+    } catch (err) {
+      this.logger.error(`Webhook setup error: ${(err as Error).message}`);
     }
   }
 
