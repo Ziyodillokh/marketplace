@@ -40,13 +40,16 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit(): Promise<void> {
     try {
-      const me = await this.bot.api.getMe();
-      this.logger.log(`Bot @${me.username} connected (id=${me.id})`);
+      // Webhook rejimida bot.init() majburiy — bot.handleUpdate uni talab qiladi.
+      // Polling rejimida bot.start() avtomatik chaqiradi, lekin biz xohlamaymiz duplicate.
       if (this.useWebhook) {
-        // Webhook'ni avtomatik o'rnatamiz (deploy/restart paytida)
+        await this.bot.init();
+        const me = this.bot.botInfo;
+        this.logger.log(`Bot @${me.username} initialized (id=${me.id})`);
         await this.ensureWebhook();
       } else {
-        // Polling rejimida webhook'ni o'chirish kerak (gibrid bo'lmasin)
+        const me = await this.bot.api.getMe();
+        this.logger.log(`Bot @${me.username} connected (id=${me.id})`);
         await this.bot.api.deleteWebhook({ drop_pending_updates: false }).catch(() => undefined);
         void this.bot.start({
           onStart: (info) => this.logger.log(`Polling started as @${info.username}`),
