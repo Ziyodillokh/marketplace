@@ -39,12 +39,12 @@ export function BannerCarousel() {
   }, [active, banners.length]);
 
   if (isLoading) {
-    return <Skeleton className="aspect-[2.4/1] w-full" />;
+    return <Skeleton className="aspect-[2.2/1] w-full rounded-2xl" />;
   }
   if (banners.length === 0) return null;
 
   return (
-    <div className="relative">
+    <div className="relative rounded-2xl overflow-hidden">
       <div
         ref={trackRef}
         className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
@@ -60,11 +60,11 @@ export function BannerCarousel() {
         ))}
       </div>
       {banners.length > 1 && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 px-2 py-1 rounded-full bg-black/20 backdrop-blur-sm">
           {banners.map((_, i) => (
             <span
               key={i}
-              className={`h-1.5 rounded-full transition-all ${i === active ? 'w-5 bg-[var(--color-primary)]' : 'w-1.5 bg-white/70'}`}
+              className={`h-1.5 rounded-full transition-all ${i === active ? 'w-5 bg-white' : 'w-1.5 bg-white/60'}`}
             />
           ))}
         </div>
@@ -75,15 +75,8 @@ export function BannerCarousel() {
 
 function BannerSlide({ banner }: { banner: BannerView }) {
   const inner = (
-    <div className="relative aspect-[2.4/1] w-full shrink-0 snap-center bg-gray-100">
-      <Image
-        src={banner.imageUrl}
-        alt=""
-        fill
-        sizes="100vw"
-        className="object-cover"
-        priority
-      />
+    <div className="relative aspect-[2.2/1] w-full shrink-0 snap-center bg-gray-100">
+      <Image src={banner.imageUrl} alt="" fill sizes="100vw" className="object-cover" priority />
     </div>
   );
 

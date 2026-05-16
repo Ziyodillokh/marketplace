@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Module, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IsIn, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { PrismaService } from '@/prisma/prisma.service';
 import { buildCursorPage } from '@/common/helpers/pagination';
@@ -26,7 +27,11 @@ class StatusDto {
 @Controller('admin/support/tickets')
 @UseGuards(AdminJwtGuard, RolesGuard)
 class AdminSupportController {
-  constructor(private readonly prisma: PrismaService, private readonly bot: TelegramBotService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly bot: TelegramBotService,
+    private readonly events: EventEmitter2,
+  ) {}
 
   @Get()
   async list(@Query() q: ListTicketsDto) {
@@ -82,6 +87,11 @@ class AdminSupportController {
       ticket.user.telegramId,
       `📨 <b>Support javobi:</b>\n\n${dto.message}\n\n<i>Sizning tiketingiz: ${ticket.subject}</i>`,
     );
+    // Real-time: user'ga WebApp orqali ham xabar yuborish
+    this.events.emit('user.support.response', {
+      userId: ticket.userId,
+      ticketId: id,
+    });
     return { ok: true };
   }
 

@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { buildCursorPage, type CursorPage } from '@/common/helpers/pagination';
@@ -68,7 +69,7 @@ function slugify(s: string): string {
 
 @Injectable()
 export class AdminProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly events: EventEmitter2) {}
 
   async list(params: AdminListProductsParams): Promise<CursorPage<unknown>> {
     const limit = Math.min(Math.max(params.limit ?? 20, 1), 100);
@@ -197,6 +198,7 @@ export class AdminProductsService {
         },
       },
     });
+    this.events.emit('product.created', { productId: created.id });
     return this.getById(created.id);
   }
 
@@ -298,11 +300,13 @@ export class AdminProductsService {
       });
     }
 
+    this.events.emit('product.updated', { productId: id });
     return this.getById(id);
   }
 
   async delete(id: string) {
     await this.prisma.product.update({ where: { id }, data: { isActive: false } });
+    this.events.emit('product.deleted', { productId: id });
     return { ok: true };
   }
 

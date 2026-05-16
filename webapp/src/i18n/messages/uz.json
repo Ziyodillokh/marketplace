@@ -114,7 +114,8 @@
     "subject": "Mavzu",
     "message": "Xabar",
     "send": "Yuborish",
-    "sent": "Xabaringiz qabul qilindi"
+    "sent": "Xabaringiz qabul qilindi",
+    "newResponse": "Sizga support javob keldi"
   },
   "language": {
     "title": "Til tanlash",

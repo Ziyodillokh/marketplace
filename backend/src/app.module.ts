@@ -36,6 +36,7 @@ import { AdminSettingsModule } from './modules/admin/admin-settings.module';
 import { AdminAdminsModule } from './modules/admin/admin-admins.module';
 import { AdminStatsModule } from './modules/admin/admin-stats.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
+import { WebAppNotificationsModule } from './modules/webapp-notifications/webapp-notifications.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
     BannersModule,
     TelegramBotModule,
     NotificationsModule,
+    WebAppNotificationsModule,
     SettingsModule,
     // Admin
     AdminAuthModule,

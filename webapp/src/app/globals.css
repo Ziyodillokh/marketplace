@@ -24,11 +24,21 @@ html, body {
   color: var(--color-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  /* Gorizontal scroll'ni butunlay yopish */
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 body {
   min-height: 100dvh;
   overscroll-behavior: none;
+  /* Touch'da silkitishni mahkam ushlash */
+  touch-action: pan-y;
+}
+
+/* Container wrapper */
+#__next, main, .max-w-md {
+  overflow-x: clip;
 }
 
 /* Hide scrollbars on horizontal scrollers */

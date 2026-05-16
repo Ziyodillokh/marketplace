@@ -1,10 +1,11 @@
 'use client';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState, useRef } from 'react';
 import Script from 'next/script';
 import { useTelegramInit } from '@/hooks/use-telegram';
 import { useFlushOnUnload } from '@/hooks/use-track';
+import { useRealtime } from '@/hooks/use-realtime';
 import { useLocaleStore } from '@/stores/locale-store';
 import { setApiLocale } from '@/lib/api';
 import { ToastContainer } from '@/components/ui/toast';
@@ -29,10 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <Script
-        src="https://telegram.org/js/telegram-web-app.js"
-        strategy="beforeInteractive"
-      />
+      <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
       <QueryClientProvider client={client}>
         <InnerInit>{children}</InnerInit>
         <ToastContainer />
@@ -44,12 +42,21 @@ export function Providers({ children }: { children: React.ReactNode }) {
 function InnerInit({ children }: { children: React.ReactNode }) {
   useTelegramInit();
   useFlushOnUnload();
+  useRealtime();
+
+  const qc = useQueryClient();
   const locale = useLocaleStore((s) => s.locale);
+  const prevLocale = useRef(locale);
 
   useEffect(() => {
     setApiLocale(locale);
     document.documentElement.lang = locale;
-  }, [locale]);
+    // Til o'zgarganda — barcha cached so'rovlarni qaytadan oling
+    if (prevLocale.current !== locale) {
+      qc.invalidateQueries();
+      prevLocale.current = locale;
+    }
+  }, [locale, qc]);
 
   return <>{children}</>;
 }

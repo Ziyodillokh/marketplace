@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { EventType, Prisma } from '@prisma/client';
-import { PrismaService } from '@/prisma/prisma.service';
-import { buildCursorPage, type CursorPage } from '@/common/helpers/pagination';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { EventType, Prisma } from "@prisma/client";
+import { PrismaService } from "@/prisma/prisma.service";
+import { buildCursorPage, type CursorPage } from "@/common/helpers/pagination";
 
 export interface ListUsersParams {
   q?: string;
@@ -18,21 +18,23 @@ export class AdminUsersService {
     const limit = Math.min(Math.max(params.limit ?? 30, 1), 100);
     const take = limit + 1;
     const where: Prisma.UserWhereInput = {
-      ...(params.isBlocked !== undefined ? { isBlocked: params.isBlocked } : {}),
+      ...(params.isBlocked !== undefined
+        ? { isBlocked: params.isBlocked }
+        : {}),
       ...(params.q
         ? {
             OR: [
-              { username: { contains: params.q, mode: 'insensitive' } },
-              { firstName: { contains: params.q, mode: 'insensitive' } },
-              { lastName: { contains: params.q, mode: 'insensitive' } },
-              { phone: { contains: params.q, mode: 'insensitive' } },
+              { username: { contains: params.q, mode: "insensitive" } },
+              { firstName: { contains: params.q, mode: "insensitive" } },
+              { lastName: { contains: params.q, mode: "insensitive" } },
+              { phone: { contains: params.q, mode: "insensitive" } },
             ],
           }
         : {}),
     };
     const rows = await this.prisma.user.findMany({
       where,
-      orderBy: [{ lastSeenAt: 'desc' }, { id: 'desc' }],
+      orderBy: [{ lastSeenAt: "desc" }, { id: "desc" }],
       take,
       ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
       include: {
@@ -62,13 +64,15 @@ export class AdminUsersService {
     const u = await this.prisma.user.findUnique({
       where: { id },
       include: {
-        _count: { select: { orders: true, cart: true, favorites: true, events: true } },
+        _count: {
+          select: { orders: true, cart: true, favorites: true, events: true },
+        },
       },
     });
-    if (!u) throw new NotFoundException('User not found');
-
+    if (!u) throw new NotFoundException("User not found");
+ 
     const totals = await this.prisma.order.aggregate({
-      where: { userId: id, status: { not: 'CANCELLED' } },
+      where: { userId: id, status: { not: "CANCELLED" } },
       _sum: { total: true },
       _count: true,
       _avg: { total: true },
@@ -92,7 +96,16 @@ export class AdminUsersService {
     return this.prisma.user.update({ where: { id }, data: { isBlocked } });
   }
 
-  async timeline(userId: string, params: { type?: EventType; from?: string; to?: string; cursor?: string; limit?: number }): Promise<CursorPage<unknown>> {
+  async timeline(
+    userId: string,
+    params: {
+      type?: EventType;
+      from?: string;
+      to?: string;
+      cursor?: string;
+      limit?: number;
+    },
+  ): Promise<CursorPage<unknown>> {
     const limit = Math.min(Math.max(params.limit ?? 50, 1), 200);
     const take = limit + 1;
     const where: Prisma.UserEventWhereInput = {
@@ -109,11 +122,17 @@ export class AdminUsersService {
     };
     const rows = await this.prisma.userEvent.findMany({
       where,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take,
       ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
       include: {
-        product: { select: { id: true, titleUz: true, images: { take: 1, orderBy: { position: 'asc' } } } },
+        product: {
+          select: {
+            id: true,
+            titleUz: true,
+            images: { take: 1, orderBy: { position: "asc" } },
+          },
+        },
       },
     });
     const items = rows.map((e) => ({
@@ -137,7 +156,16 @@ export class AdminUsersService {
   async interests(userId: string) {
     // Top categories by weighted score
     const categoryRows = await this.prisma.$queryRaw<
-      Array<{ categoryId: string; titleUz: string; titleRu: string; score: number; views: number; cartAdds: number; favorites: number; orders: number }>
+      Array<{
+        categoryId: string;
+        titleUz: string;
+        titleRu: string;
+        score: number;
+        views: number;
+        cartAdds: number;
+        favorites: number;
+        orders: number;
+      }>
     >`
       SELECT
         c.id as "categoryId",
@@ -164,24 +192,31 @@ export class AdminUsersService {
 
     // Top viewed products
     const viewedProducts = await this.prisma.userEvent.groupBy({
-      by: ['productId'],
+      by: ["productId"],
       where: {
         userId,
-        type: 'VIEW_PRODUCT',
+        type: "VIEW_PRODUCT",
         productId: { not: null },
         createdAt: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
       },
       _count: { _all: true },
-      orderBy: { _count: { productId: 'desc' } },
+      orderBy: { _count: { productId: "desc" } },
       take: 10,
     });
-    const productIds = viewedProducts.map((v) => v.productId).filter((id): id is string => Boolean(id));
+    const productIds = viewedProducts
+      .map((v) => v.productId)
+      .filter((id): id is string => Boolean(id));
     const products = await this.prisma.product.findMany({
       where: { id: { in: productIds } },
-      include: { images: { orderBy: { position: 'asc' }, take: 1 } },
+      include: { images: { orderBy: { position: "asc" }, take: 1 } },
     });
     const productMap = new Map(products.map((p) => [p.id, p]));
-    const topProducts: Array<{ id: string; title: string; imageUrl: string | null; viewCount: number }> = [];
+    const topProducts: Array<{
+      id: string;
+      title: string;
+      imageUrl: string | null;
+      viewCount: number;
+    }> = [];
     for (const v of viewedProducts) {
       const p = v.productId ? productMap.get(v.productId) : null;
       if (!p) continue;
@@ -194,7 +229,9 @@ export class AdminUsersService {
     }
 
     // Cart abandonment for this user
-    const abandonedProductIds = await this.prisma.$queryRaw<Array<{ productId: string; titleUz: string; addCount: number }>>`
+    const abandonedProductIds = await this.prisma.$queryRaw<
+      Array<{ productId: string; titleUz: string; addCount: number }>
+    >`
       SELECT
         p.id as "productId",
         p."titleUz" as "titleUz",
@@ -227,12 +264,15 @@ export class AdminUsersService {
     };
   }
 
-  async orders(userId: string, params: { cursor?: string; limit?: number }): Promise<CursorPage<unknown>> {
+  async orders(
+    userId: string,
+    params: { cursor?: string; limit?: number },
+  ): Promise<CursorPage<unknown>> {
     const limit = Math.min(Math.max(params.limit ?? 20, 1), 100);
     const take = limit + 1;
     const rows = await this.prisma.order.findMany({
       where: { userId },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take,
       ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
       include: { _count: { select: { items: true } } },

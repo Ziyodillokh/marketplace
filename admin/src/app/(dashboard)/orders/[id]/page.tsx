@@ -11,23 +11,14 @@ import { Sheet } from '@/components/ui/sheet';
 import { Field, Textarea } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { OrderStatusBadge, ORDER_STATUS_LABEL } from '@/components/order-status-badge';
-import { apiGetAdminOrder, apiSendOrderMessage, apiUpdateOrderStatus } from '@/lib/endpoints';
+import { OrderStatusChanger } from '@/components/orders/status-changer';
+import { apiGetAdminOrder, apiSendOrderMessage } from '@/lib/endpoints';
 import { formatDateTime, formatMoney } from '@/lib/format';
 import { toast } from '@/stores/toast-store';
-import type { OrderStatus } from '@/lib/types';
 import { useAuthStore } from '@/stores/auth-store';
-
-const STATUS_FLOW: Record<OrderStatus, OrderStatus[]> = {
-  PENDING: ['CONFIRMED', 'CANCELLED'],
-  CONFIRMED: ['ON_THE_WAY', 'CANCELLED'],
-  ON_THE_WAY: ['DELIVERED', 'CANCELLED'],
-  DELIVERED: [],
-  CANCELLED: [],
-};
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const qc = useQueryClient();
   const admin = useAuthStore((s) => s.admin);
   const [msgOpen, setMsgOpen] = useState(false);
   const [msg, setMsg] = useState('');
@@ -35,16 +26,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { data: order, isLoading } = useQuery({
     queryKey: ['order', id],
     queryFn: () => apiGetAdminOrder(id),
-  });
-
-  const updateStatus = useMutation({
-    mutationFn: ({ status }: { status: OrderStatus }) => apiUpdateOrderStatus(id, status),
-    onSuccess: (data) => {
-      qc.setQueryData(['order', id], data);
-      qc.invalidateQueries({ queryKey: ['orders'] });
-      toast.success('Status yangilandi');
-    },
-    onError: (err: Error) => toast.error(err.message),
   });
 
   const sendMessage = useMutation({
@@ -67,7 +48,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const nextStatuses = STATUS_FLOW[order.status];
   const canEdit = admin?.role === 'SUPERADMIN' || admin?.role === 'ADMIN' || admin?.role === 'MANAGER';
 
   return (
@@ -85,41 +65,31 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
-          <Card>
-            <CardHeader title="Status" action={<OrderStatusBadge status={order.status} />} />
-            {canEdit && nextStatuses.length > 0 && (
-              <div className="p-4 flex flex-wrap gap-2">
-                {nextStatuses.map((s) => (
-                  <Button
-                    key={s}
-                    size="sm"
-                    variant={s === 'CANCELLED' ? 'danger' : 'primary'}
-                    loading={updateStatus.isPending}
-                    onClick={() => updateStatus.mutate({ status: s })}
-                  >
-                    {ORDER_STATUS_LABEL[s]}
-                  </Button>
-                ))}
-              </div>
-            )}
-            {order.events.length > 0 && (
-              <div className="px-4 pb-4">
-                <h4 className="text-xs font-semibold text-[var(--color-text-muted)] mb-2">Timeline</h4>
+          <OrderStatusChanger
+            orderId={order.id}
+            currentStatus={order.status}
+            canEdit={canEdit}
+          />
+
+          {order.events.length > 0 && (
+            <Card>
+              <CardHeader title="Status tarixi" />
+              <div className="px-4 py-3">
                 <ol className="space-y-2">
                   {order.events.map((e) => (
                     <li key={e.id} className="flex items-start gap-3 text-sm">
-                      <span className="inline-block h-2 w-2 mt-1.5 rounded-full bg-[var(--color-primary)]" />
+                      <span className="inline-block h-2 w-2 mt-1.5 rounded-full bg-[var(--color-primary)] shrink-0" />
                       <div className="flex-1">
                         <div className="font-medium">{ORDER_STATUS_LABEL[e.status]}</div>
                         {e.comment && <div className="text-xs text-[var(--color-text-muted)]">{e.comment}</div>}
                       </div>
-                      <span className="text-xs text-[var(--color-text-muted)]">{formatDateTime(e.createdAt)}</span>
+                      <span className="text-xs text-[var(--color-text-muted)] shrink-0">{formatDateTime(e.createdAt)}</span>
                     </li>
                   ))}
                 </ol>
               </div>
-            )}
-          </Card>
+            </Card>
+          )}
 
           <Card>
             <CardHeader title="Mahsulotlar" />
@@ -183,6 +153,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               >
                 Foydalanuvchini ko&apos;rish →
               </a>
+              <div className="pt-2">
+                <OrderStatusBadge status={order.status} />
+              </div>
             </div>
           </Card>
 

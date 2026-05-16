@@ -142,6 +142,13 @@ export class AdminOrdersService {
     });
 
     this.events.emit('order.status_changed', { orderId: id, status });
+    // Foydalanuvchining real-time WebApp uchun
+    this.events.emit('user.order.status_changed', {
+      userId: o.userId,
+      orderId: id,
+      status,
+      orderNumber: o.orderNumber,
+    });
     return this.getById(id);
   }
 

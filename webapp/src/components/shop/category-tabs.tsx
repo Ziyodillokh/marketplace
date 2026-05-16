@@ -42,7 +42,7 @@ export function CategoryTabs({
   }
 
   return (
-    <div ref={trackRef} className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-3 -mx-4">
+    <div ref={trackRef} className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-3">
       <Pill
         active={selectedId === null}
         onClick={() => {

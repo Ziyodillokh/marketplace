@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@/prisma/prisma.service';
 
 export interface UpsertCategoryInput {
@@ -23,7 +24,11 @@ function slugify(s: string): string {
 
 @Injectable()
 export class AdminCategoriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly events: EventEmitter2) {}
+
+  private invalidate(): void {
+    this.events.emit('categories.invalidate');
+  }
 
   async tree() {
     const rows = await this.prisma.category.findMany({
@@ -64,7 +69,7 @@ export class AdminCategoriesService {
 
   async create(input: UpsertCategoryInput) {
     const slug = input.slug || (await this.uniqueSlug(slugify(input.titleUz)));
-    return this.prisma.category.create({
+    const res = await this.prisma.category.create({
       data: {
         slug,
         titleUz: input.titleUz,
@@ -76,12 +81,14 @@ export class AdminCategoriesService {
         isVisible: input.isVisible ?? true,
       },
     });
+    this.invalidate();
+    return res;
   }
 
   async update(id: string, input: Partial<UpsertCategoryInput>) {
     const exists = await this.prisma.category.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('Category not found');
-    return this.prisma.category.update({
+    const res = await this.prisma.category.update({
       where: { id },
       data: {
         slug: input.slug,
@@ -94,10 +101,13 @@ export class AdminCategoriesService {
         isVisible: input.isVisible,
       },
     });
+    this.invalidate();
+    return res;
   }
 
   async delete(id: string) {
     await this.prisma.category.delete({ where: { id } });
+    this.invalidate();
     return { ok: true };
   }
 
@@ -108,6 +118,7 @@ export class AdminCategoriesService {
         data: { position: it.position, parentId: it.parentId ?? null },
       });
     }
+    this.invalidate();
     return { ok: true };
   }
 

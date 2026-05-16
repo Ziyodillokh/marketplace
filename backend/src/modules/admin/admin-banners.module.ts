@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Module, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IsBoolean, IsInt, IsOptional, IsString } from 'class-validator';
 import { AdminRole } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
@@ -22,7 +23,11 @@ class UpsertBannerDto {
 @UseGuards(AdminJwtGuard, RolesGuard)
 @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
 class AdminBannersController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly events: EventEmitter2) {}
+
+  private invalidate() {
+    this.events.emit('banners.invalidate');
+  }
 
   @Get()
   list(@Query('placement') placement?: string) {
@@ -33,8 +38,8 @@ class AdminBannersController {
   }
 
   @Post()
-  create(@Body() dto: UpsertBannerDto) {
-    return this.prisma.banner.create({
+  async create(@Body() dto: UpsertBannerDto) {
+    const res = await this.prisma.banner.create({
       data: {
         placement: dto.placement ?? 'home',
         imageUrlUz: dto.imageUrlUz,
@@ -47,11 +52,13 @@ class AdminBannersController {
         endsAt: dto.endsAt ? new Date(dto.endsAt) : null,
       },
     });
+    this.invalidate();
+    return res;
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: Partial<UpsertBannerDto>) {
-    return this.prisma.banner.update({
+  async update(@Param('id') id: string, @Body() dto: Partial<UpsertBannerDto>) {
+    const res = await this.prisma.banner.update({
       where: { id },
       data: {
         placement: dto.placement,
@@ -65,11 +72,14 @@ class AdminBannersController {
         endsAt: dto.endsAt ? new Date(dto.endsAt) : undefined,
       },
     });
+    this.invalidate();
+    return res;
   }
 
   @Delete(':id')
   async delete(@Param('id') id: string) {
     await this.prisma.banner.delete({ where: { id } });
+    this.invalidate();
     return { ok: true };
   }
 }
