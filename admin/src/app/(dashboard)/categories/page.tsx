@@ -129,20 +129,34 @@ export default function CategoriesPage() {
 
       <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title={editing ? "Tahrirlash" : "Yangi kategoriya"}>
         <div className="space-y-3">
-          <Field label="Nomi (uz)">
-            <Input value={form.titleUz} onChange={(e) => setForm({ ...form, titleUz: e.target.value })} />
+          <Field label="🇺🇿 Nomi (O'zbek) *">
+            <Input
+              value={form.titleUz}
+              onChange={(e) => setForm({ ...form, titleUz: e.target.value })}
+              placeholder="Telefonlar"
+              autoFocus
+            />
           </Field>
-          <Field label="Nomi (ru)">
-            <Input value={form.titleRu} onChange={(e) => setForm({ ...form, titleRu: e.target.value })} />
+          <Field label="🇷🇺 Название (Русский) *">
+            <Input
+              value={form.titleRu}
+              onChange={(e) => setForm({ ...form, titleRu: e.target.value })}
+              placeholder="Телефоны"
+            />
           </Field>
+          {!form.titleRu && form.titleUz && (
+            <p className="text-xs text-[var(--color-warning)] -mt-2">
+              ⚠️ Ruscha nom kiriting (foydalanuvchi til ruscha bo&apos;lganda ko&apos;rinadi)
+            </p>
+          )}
           <Field label="Icon URL">
             <Input value={form.iconUrl} onChange={(e) => setForm({ ...form, iconUrl: e.target.value })} placeholder="https://..." />
           </Field>
           <Field label="Banner URL">
-            <Input value={form.bannerUrl} onChange={(e) => setForm({ ...form, bannerUrl: e.target.value })} />
+            <Input value={form.bannerUrl} onChange={(e) => setForm({ ...form, bannerUrl: e.target.value })} placeholder="https://..." />
           </Field>
           <label className="flex items-center justify-between text-sm">
-            <span>Ko&apos;rsatish</span>
+            <span>Foydalanuvchilarga ko&apos;rsatish</span>
             <input
               type="checkbox"
               checked={form.isVisible}
@@ -150,7 +164,12 @@ export default function CategoriesPage() {
               className="h-5 w-9 appearance-none rounded-full bg-gray-200 checked:bg-[var(--color-primary)] relative cursor-pointer transition-colors before:content-[''] before:absolute before:top-0.5 before:left-0.5 before:h-4 before:w-4 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-4"
             />
           </label>
-          <Button fullWidth loading={saveMutation.isPending} disabled={!form.titleUz} onClick={() => saveMutation.mutate()}>
+          <Button
+            fullWidth
+            loading={saveMutation.isPending}
+            disabled={!form.titleUz || !form.titleRu}
+            onClick={() => saveMutation.mutate()}
+          >
             Saqlash
           </Button>
         </div>

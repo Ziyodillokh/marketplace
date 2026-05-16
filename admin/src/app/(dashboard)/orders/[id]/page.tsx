@@ -12,6 +12,7 @@ import { Field, Textarea } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { OrderStatusBadge, ORDER_STATUS_LABEL } from '@/components/order-status-badge';
 import { OrderStatusChanger } from '@/components/orders/status-changer';
+import { LocationPreview } from '@/components/orders/location-preview';
 import { apiGetAdminOrder, apiSendOrderMessage } from '@/lib/endpoints';
 import { formatDateTime, formatMoney } from '@/lib/format';
 import { toast } from '@/stores/toast-store';
@@ -158,6 +159,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
           </Card>
+
+          {order.latitude != null && order.longitude != null && (
+            <LocationPreview
+              latitude={order.latitude}
+              longitude={order.longitude}
+              address={order.address}
+            />
+          )}
 
           <Card>
             <CardHeader title="Hisob" />

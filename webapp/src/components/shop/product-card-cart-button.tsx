@@ -9,6 +9,7 @@ import { toast } from '@/stores/toast-store';
 import { track } from '@/hooks/use-track';
 import { useLocaleStore } from '@/stores/locale-store';
 import { getMessages, tr } from '@/i18n';
+import type { CartItem, CartView } from '@/lib/api/types';
 
 interface Props {
   productId: string;
@@ -17,8 +18,7 @@ interface Props {
 
 /**
  * Kartochka pastida "В корзину" / "− N +" controller.
- * Variantsiz mahsulot uchun darhol qo'shadi.
- * Variantli mahsulot uchun detail sahifaga yo'naltiradi.
+ * Performance: `select` faqat shu mahsulot uchun cart item — boshqa o'zgarishlarda re-render bo'lmaydi.
  */
 export function ProductCardCartButton({ productId, outOfStock }: Props) {
   const qc = useQueryClient();
@@ -26,13 +26,13 @@ export function ProductCardCartButton({ productId, outOfStock }: Props) {
   const locale = useLocaleStore((s) => s.locale);
   const messages = getMessages(locale);
 
-  // Cart'dan mavjudligini topish
-  const { data: cart } = useQuery({
+  const { data: cartItem } = useQuery<CartView, Error, CartItem | null>({
     queryKey: ['cart'],
     queryFn: apiGetCart,
+    select: (data) => data.items.find((i) => i.productId === productId) ?? null,
     staleTime: 30_000,
+    notifyOnChangeProps: ['data'],
   });
-  const cartItem = cart?.items.find((i) => i.productId === productId);
 
   const addMutation = useMutation({
     mutationFn: () => apiAddToCart({ productId, quantity: 1 }),
@@ -44,7 +44,6 @@ export function ProductCardCartButton({ productId, outOfStock }: Props) {
       track({ type: 'CART_ADD', productId });
     },
     onError: (err: Error) => {
-      // Variant kerak — detail sahifaga yo'naltirish
       if (err.message?.toLowerCase().includes('variant')) {
         router.push(`/product/${productId}`);
         return;
@@ -58,16 +57,15 @@ export function ProductCardCartButton({ productId, outOfStock }: Props) {
     mutationFn: (qty: number) => apiUpdateCartQty(cartItem!.id, qty),
     onMutate: async (qty) => {
       haptic('light');
-      // Optimistik update
       await qc.cancelQueries({ queryKey: ['cart'] });
-      const prev = qc.getQueryData(['cart']) as typeof cart | undefined;
+      const prev = qc.getQueryData<CartView>(['cart']);
       if (prev) {
         const items = prev.items.map((i) =>
           i.id === cartItem!.id ? { ...i, quantity: qty, lineTotal: i.unitPrice * qty } : i,
         );
         const count = items.reduce((a, x) => a + x.quantity, 0);
         const subtotal = items.reduce((a, x) => a + x.lineTotal, 0);
-        qc.setQueryData(['cart'], { items, summary: { count, subtotal } });
+        qc.setQueryData<CartView>(['cart'], { items, summary: { count, subtotal } });
       }
       return { prev };
     },
@@ -85,12 +83,12 @@ export function ProductCardCartButton({ productId, outOfStock }: Props) {
     onMutate: async () => {
       haptic('light');
       await qc.cancelQueries({ queryKey: ['cart'] });
-      const prev = qc.getQueryData(['cart']) as typeof cart | undefined;
+      const prev = qc.getQueryData<CartView>(['cart']);
       if (prev) {
         const items = prev.items.filter((i) => i.id !== cartItem!.id);
         const count = items.reduce((a, x) => a + x.quantity, 0);
         const subtotal = items.reduce((a, x) => a + x.lineTotal, 0);
-        qc.setQueryData(['cart'], { items, summary: { count, subtotal } });
+        qc.setQueryData<CartView>(['cart'], { items, summary: { count, subtotal } });
       }
       return { prev };
     },
@@ -126,12 +124,11 @@ export function ProductCardCartButton({ productId, outOfStock }: Props) {
         className="w-full h-9 rounded-xl bg-[var(--color-primary)] text-white text-xs font-semibold inline-flex items-center justify-center gap-1.5 active:scale-95 transition-transform disabled:opacity-60"
       >
         <ShoppingCart size={14} />
-        {locale === 'ru' ? 'В корзину' : "Savatga"}
+        {tr(messages, 'product.addToCartShort')}
       </button>
     );
   }
 
-  // Qty controller
   return (
     <div className="w-full h-9 rounded-xl bg-[var(--color-primary)]/10 inline-flex items-center justify-between px-1">
       <button

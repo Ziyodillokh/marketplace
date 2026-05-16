@@ -53,7 +53,9 @@ function InnerInit({ children }: { children: React.ReactNode }) {
     document.documentElement.lang = locale;
     // Til o'zgarganda — barcha cached so'rovlarni qaytadan oling
     if (prevLocale.current !== locale) {
-      qc.invalidateQueries();
+      // resetQueries — cache'ni tozalaydi va active queryni qaytadan fetch qiladi
+      // (refetchOnMount:false bo'lgani uchun invalidateQueries yetmaydi)
+      void qc.resetQueries();
       prevLocale.current = locale;
     }
   }, [locale, qc]);

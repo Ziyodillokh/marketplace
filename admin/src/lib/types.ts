@@ -105,6 +105,8 @@ export interface AdminOrderDetail {
   receiverName: string;
   receiverPhone: string;
   address: string;
+  latitude: number | null;
+  longitude: number | null;
   note: string | null;
   subtotal: number;
   discountAmount: number;

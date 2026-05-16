@@ -18,8 +18,9 @@ export function CategoryTabs({
 }) {
   const locale = useLocaleStore((s) => s.locale);
   const messages = getMessages(locale);
+  // Locale queryKey'ga ham qo'shildi — til o'zgarganda darhol yangi tarjima yuklanadi
   const { data: categories, isLoading } = useQuery({
-    queryKey: ['categories', 'root'],
+    queryKey: ['categories', 'root', locale],
     queryFn: () => apiListCategories({ onlyRoot: true }),
   });
 

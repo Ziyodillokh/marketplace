@@ -21,7 +21,7 @@
   "currency": "so'm",
   "nav": {
     "catalog": "Katalog",
-    "cart": "Korzina",
+    "cart": "Savat",
     "favorites": "Sevimlilar",
     "profile": "Profil"
   },
@@ -51,11 +51,12 @@
     "related": "Sizga yoqishi mumkin",
     "color": "Rang",
     "size": "O'lcham",
-    "stockShort": "qoldiq: {count}"
+    "stockShort": "qoldiq: {count}",
+    "addToCartShort": "Savatga"
   },
   "cart": {
-    "title": "Korzina",
-    "empty": "Korzina bo'sh",
+    "title": "Savat",
+    "empty": "Savat bo'sh",
     "goToCatalog": "Katalogga o'tish",
     "promoPlaceholder": "Promo kod kiriting",
     "applyPromo": "Qo'llash",

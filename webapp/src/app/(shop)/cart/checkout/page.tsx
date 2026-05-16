@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { MapPin } from 'lucide-react';
 import { PageHeader } from '@/components/shop/page-header';
 import { Input, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,8 +17,8 @@ import { usePromoStore } from '@/stores/promo-store';
 import { haptic } from '@/lib/telegram';
 import { track } from '@/hooks/use-track';
 import { toast } from '@/stores/toast-store';
+import { detectMyLocation } from '@/lib/geolocation';
 import { cn } from '@/lib/cn';
-import { useState } from 'react';
 
 interface CheckoutForm {
   receiverName: string;
@@ -34,10 +36,14 @@ export default function CheckoutPage() {
   const qc = useQueryClient();
   const { applied: promo, clear: clearPromo } = usePromoStore();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH_ON_DELIVERY');
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [detectingLocation, setDetectingLocation] = useState(false);
 
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isValid },
   } = useForm<CheckoutForm>({
     mode: 'onChange',
@@ -48,6 +54,23 @@ export default function CheckoutPage() {
       note: '',
     },
   });
+
+  const detectLocation = async () => {
+    setDetectingLocation(true);
+    try {
+      haptic('light');
+      const result = await detectMyLocation(locale);
+      setCoords({ lat: result.latitude, lng: result.longitude });
+      setValue('address', result.address, { shouldValidate: true });
+      haptic('success');
+      toast.success(locale === 'ru' ? 'Местоположение определено' : 'Joylashuv aniqlandi');
+    } catch (err) {
+      haptic('error');
+      toast.error((err as Error).message);
+    } finally {
+      setDetectingLocation(false);
+    }
+  };
 
   const createOrder = useMutation({
     mutationFn: (body: CreateOrderBody) => apiCreateOrder(body),
@@ -71,8 +94,12 @@ export default function CheckoutPage() {
       ...data,
       paymentMethod,
       promoCode: promo?.code,
+      latitude: coords?.lat,
+      longitude: coords?.lng,
     });
   };
+
+  const address = watch('address');
 
   return (
     <div>
@@ -97,16 +124,50 @@ export default function CheckoutPage() {
             type="tel"
           />
         </Field>
-        <Field label={tr(messages, 'checkout.address')} error={errors.address?.message}>
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-sm text-[var(--color-text-muted)]">{tr(messages, 'checkout.address')}</label>
+            <button
+              type="button"
+              onClick={detectLocation}
+              disabled={detectingLocation}
+              className="text-xs font-semibold text-[var(--color-primary)] inline-flex items-center gap-1 active:scale-95 transition-transform disabled:opacity-50"
+            >
+              {detectingLocation ? (
+                <span className="inline-block h-3 w-3 border-2 border-[var(--color-primary)]/30 border-t-[var(--color-primary)] rounded-full animate-spin" />
+              ) : (
+                <MapPin size={14} />
+              )}
+              {locale === 'ru' ? 'Определить' : 'Aniqlash'}
+            </button>
+          </div>
           <Textarea
             {...register('address', {
               required: tr(messages, 'common.error'),
               minLength: { value: 3, message: '?' },
             })}
-            placeholder={tr(messages, 'checkout.address')}
+            placeholder={locale === 'ru' ? 'Улица, дом, ориентир' : 'Ko\'cha, uy, mo\'ljal'}
             rows={3}
           />
-        </Field>
+          {coords && (
+            <p className="text-xs text-[var(--color-text-muted)] mt-1.5 flex items-center gap-1">
+              <MapPin size={11} className="text-[var(--color-success)]" />
+              {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
+              <button
+                type="button"
+                onClick={() => setCoords(null)}
+                className="ml-auto text-[var(--color-danger)] underline"
+              >
+                {locale === 'ru' ? 'Очистить' : 'Tozalash'}
+              </button>
+            </p>
+          )}
+          {errors.address?.message && (
+            <p className="text-xs text-[var(--color-danger)] mt-1">{errors.address.message}</p>
+          )}
+        </div>
+
         <Field label={tr(messages, 'checkout.note')}>
           <Textarea {...register('note')} placeholder={tr(messages, 'checkout.note')} rows={2} />
         </Field>
@@ -138,7 +199,7 @@ export default function CheckoutPage() {
             fullWidth
             size="lg"
             loading={createOrder.isPending}
-            disabled={!isValid}
+            disabled={!isValid || !address}
           >
             {tr(messages, 'checkout.submit')}
           </Button>

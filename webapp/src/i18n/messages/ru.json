@@ -51,7 +51,8 @@
     "related": "Вам может понравиться",
     "color": "Цвет",
     "size": "Размер",
-    "stockShort": "остаток: {count}"
+    "stockShort": "остаток: {count}",
+    "addToCartShort": "В корзину"
   },
   "cart": {
     "title": "Корзина",

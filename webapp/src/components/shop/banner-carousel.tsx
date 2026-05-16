@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ import { track } from '@/hooks/use-track';
 import type { BannerView } from '@/lib/api/types';
 
 const SLIDE_INTERVAL = 5000;
+const SWIPE_THRESHOLD = 50;
 
 export function BannerCarousel() {
   const { data: banners = [], isLoading } = useQuery({
@@ -17,26 +18,47 @@ export function BannerCarousel() {
     queryFn: () => apiListBanners('home'),
   });
   const [active, setActive] = useState(0);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const isAutoScrolling = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const startX = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
+  // Auto-slide
   useEffect(() => {
-    if (banners.length <= 1) return;
+    if (banners.length <= 1 || isDragging) return;
     const id = setInterval(() => {
       setActive((a) => (a + 1) % banners.length);
     }, SLIDE_INTERVAL);
     return () => clearInterval(id);
-  }, [banners.length]);
+  }, [banners.length, isDragging]);
 
-  useEffect(() => {
-    if (!trackRef.current || banners.length === 0) return;
-    const slide = trackRef.current.children[active] as HTMLElement;
-    if (slide) {
-      isAutoScrolling.current = true;
-      trackRef.current.scrollTo({ left: slide.offsetLeft, behavior: 'smooth' });
-      setTimeout(() => (isAutoScrolling.current = false), 400);
-    }
-  }, [active, banners.length]);
+  const goTo = useCallback(
+    (idx: number) => {
+      if (banners.length === 0) return;
+      setActive(((idx % banners.length) + banners.length) % banners.length);
+    },
+    [banners.length],
+  );
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0]!.clientX;
+    setIsDragging(true);
+    setDragOffset(0);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    const diff = e.touches[0]!.clientX - startX.current;
+    setDragOffset(diff);
+  };
+
+  const onTouchEnd = () => {
+    if (!isDragging) return;
+    if (dragOffset > SWIPE_THRESHOLD) goTo(active - 1);
+    else if (dragOffset < -SWIPE_THRESHOLD) goTo(active + 1);
+    setIsDragging(false);
+    setDragOffset(0);
+  };
 
   if (isLoading) {
     return <Skeleton className="aspect-[2.2/1] w-full rounded-2xl" />;
@@ -44,27 +66,34 @@ export function BannerCarousel() {
   if (banners.length === 0) return null;
 
   return (
-    <div className="relative rounded-2xl overflow-hidden">
+    <div
+      ref={containerRef}
+      className="relative rounded-2xl overflow-hidden touch-pan-y"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
       <div
-        ref={trackRef}
-        className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
-        onScroll={(e) => {
-          if (isAutoScrolling.current) return;
-          const el = e.currentTarget;
-          const idx = Math.round(el.scrollLeft / el.clientWidth);
-          if (idx !== active) setActive(idx);
+        className="flex"
+        style={{
+          transform: `translate3d(calc(${-active * 100}% + ${dragOffset}px), 0, 0)`,
+          transition: isDragging ? 'none' : 'transform 400ms cubic-bezier(0.22, 1, 0.36, 1)',
+          willChange: 'transform',
         }}
       >
-        {banners.map((b) => (
-          <BannerSlide key={b.id} banner={b} />
+        {banners.map((b, i) => (
+          <BannerSlide key={b.id} banner={b} isActive={i === active} />
         ))}
       </div>
+
       {banners.length > 1 && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 px-2 py-1 rounded-full bg-black/20 backdrop-blur-sm">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 px-2.5 py-1 rounded-full bg-black/25 backdrop-blur-sm pointer-events-none">
           {banners.map((_, i) => (
             <span
               key={i}
-              className={`h-1.5 rounded-full transition-all ${i === active ? 'w-5 bg-white' : 'w-1.5 bg-white/60'}`}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                i === active ? 'w-5 bg-white' : 'w-1.5 bg-white/60'
+              }`}
             />
           ))}
         </div>
@@ -73,10 +102,17 @@ export function BannerCarousel() {
   );
 }
 
-function BannerSlide({ banner }: { banner: BannerView }) {
+function BannerSlide({ banner, isActive }: { banner: BannerView; isActive: boolean }) {
   const inner = (
-    <div className="relative aspect-[2.2/1] w-full shrink-0 snap-center bg-gray-100">
-      <Image src={banner.imageUrl} alt="" fill sizes="100vw" className="object-cover" priority />
+    <div className="relative aspect-[2.2/1] w-full shrink-0 bg-gray-100">
+      <Image
+        src={banner.imageUrl}
+        alt=""
+        fill
+        sizes="100vw"
+        className="object-cover"
+        priority={isActive}
+      />
     </div>
   );
 
@@ -86,24 +122,34 @@ function BannerSlide({ banner }: { banner: BannerView }) {
 
   if (banner.targetType === 'product' && banner.targetValue) {
     return (
-      <Link href={`/product/${banner.targetValue}`} onClick={handleClick} className="shrink-0 w-full snap-center">
+      <Link href={`/product/${banner.targetValue}`} onClick={handleClick} className="shrink-0 w-full">
         {inner}
       </Link>
     );
   }
   if (banner.targetType === 'category' && banner.targetValue) {
     return (
-      <Link href={`/catalog?categoryId=${banner.targetValue}`} onClick={handleClick} className="shrink-0 w-full snap-center">
+      <Link
+        href={`/catalog?categoryId=${banner.targetValue}`}
+        onClick={handleClick}
+        className="shrink-0 w-full"
+      >
         {inner}
       </Link>
     );
   }
   if (banner.targetType === 'url' && banner.targetValue) {
     return (
-      <a href={banner.targetValue} onClick={handleClick} target="_blank" rel="noreferrer" className="shrink-0 w-full snap-center">
+      <a
+        href={banner.targetValue}
+        onClick={handleClick}
+        target="_blank"
+        rel="noreferrer"
+        className="shrink-0 w-full"
+      >
         {inner}
       </a>
     );
   }
-  return <div className="shrink-0 w-full snap-center">{inner}</div>;
+  return <div className="shrink-0 w-full">{inner}</div>;
 }
