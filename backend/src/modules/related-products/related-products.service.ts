@@ -117,6 +117,7 @@ export class RelatedProductsService {
       isFavorite: favIds.has(p.id),
       outOfStock:
         p.variants.length === 0 ? false : p.variants.every((v) => v.stock <= 0),
+      hasVariants: p.variants.length > 0,
     }));
   }
 }

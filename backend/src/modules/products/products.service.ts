@@ -30,6 +30,7 @@ export interface ProductCardDto {
   imageUrl: string | null;
   isFavorite?: boolean;
   outOfStock: boolean;
+  hasVariants: boolean;
 }
 
 export interface ProductDetailDto extends ProductCardDto {
@@ -140,6 +141,7 @@ export class ProductsService {
         p.variants.length === 0
           ? false
           : p.variants.every((v) => v.stock <= 0),
+      hasVariants: p.variants.length > 0,
     }));
 
     return buildCursorPage(items, limit);
@@ -181,6 +183,7 @@ export class ProductsService {
       imageUrl: p.images[0]?.url ?? null,
       isFavorite,
       outOfStock: p.variants.length === 0 ? false : p.variants.every((v) => v.stock <= 0),
+      hasVariants: p.variants.length > 0,
       description: localizeDescription(p, lang),
       images: p.images.map((img) => ({ id: img.id, url: img.url, position: img.position })),
       variants: p.variants.map((v) => ({

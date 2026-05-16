@@ -149,7 +149,11 @@ export function ProductCard({ product }: { product: ProductCardDto }) {
       </Link>
 
       <div className="px-3 pb-3">
-        <ProductCardCartButton productId={product.id} outOfStock={product.outOfStock} />
+        <ProductCardCartButton
+          productId={product.id}
+          outOfStock={product.outOfStock}
+          hasVariants={product.hasVariants}
+        />
       </div>
 
       <button

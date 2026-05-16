@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ShoppingCart, Plus, Minus } from 'lucide-react';
 import { apiAddToCart, apiGetCart, apiUpdateCartQty, apiRemoveCartItem } from '@/lib/api/endpoints';
@@ -14,15 +14,17 @@ import type { CartItem, CartView } from '@/lib/api/types';
 interface Props {
   productId: string;
   outOfStock: boolean;
+  hasVariants: boolean;
 }
 
 /**
- * Kartochka pastida "В корзину" / "− N +" controller.
- * Performance: `select` faqat shu mahsulot uchun cart item — boshqa o'zgarishlarda re-render bo'lmaydi.
+ * Kartochka pastida cart tugmasi.
+ * - outOfStock: disabled
+ * - hasVariants: Link → detail (variant tanlash)
+ * - else: direct add OR qty controller
  */
-export function ProductCardCartButton({ productId, outOfStock }: Props) {
+export function ProductCardCartButton({ productId, outOfStock, hasVariants }: Props) {
   const qc = useQueryClient();
-  const router = useRouter();
   const locale = useLocaleStore((s) => s.locale);
   const messages = getMessages(locale);
 
@@ -32,6 +34,7 @@ export function ProductCardCartButton({ productId, outOfStock }: Props) {
     select: (data) => data.items.find((i) => i.productId === productId) ?? null,
     staleTime: 30_000,
     notifyOnChangeProps: ['data'],
+    enabled: !hasVariants, // variant'li mahsulotlar uchun cart so'rovi shart emas
   });
 
   const addMutation = useMutation({
@@ -44,10 +47,6 @@ export function ProductCardCartButton({ productId, outOfStock }: Props) {
       track({ type: 'CART_ADD', productId });
     },
     onError: (err: Error) => {
-      if (err.message?.toLowerCase().includes('variant')) {
-        router.push(`/product/${productId}`);
-        return;
-      }
       haptic('error');
       toast.error(err.message);
     },
@@ -112,6 +111,21 @@ export function ProductCardCartButton({ productId, outOfStock }: Props) {
     );
   }
 
+  // Variant tanlash uchun detail sahifaga link
+  if (hasVariants) {
+    return (
+      <Link
+        href={`/product/${productId}`}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full h-9 rounded-xl bg-[var(--color-primary)] text-white text-xs font-semibold inline-flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
+      >
+        <ShoppingCart size={14} />
+        {locale === 'ru' ? 'Выбрать вариант' : 'Tanlash'}
+      </Link>
+    );
+  }
+
+  // Variantsiz — savatda emasligi (qo'shish)
   if (!cartItem) {
     return (
       <button
@@ -129,6 +143,7 @@ export function ProductCardCartButton({ productId, outOfStock }: Props) {
     );
   }
 
+  // Savatda bor — qty controller
   return (
     <div className="w-full h-9 rounded-xl bg-[var(--color-primary)]/10 inline-flex items-center justify-between px-1">
       <button

@@ -31,6 +31,7 @@ export class FavoritesService {
       discountPct: f.product.discountPct,
       imageUrl: f.product.images[0]?.url ?? null,
       isFavorite: true,
+      hasVariants: f.product.variants.length > 0,
       outOfStock:
         f.product.variants.length === 0
           ? false
