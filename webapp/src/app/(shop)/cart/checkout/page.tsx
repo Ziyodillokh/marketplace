@@ -126,22 +126,7 @@ export default function CheckoutPage() {
         </Field>
 
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-sm text-[var(--color-text-muted)]">{tr(messages, 'checkout.address')}</label>
-            <button
-              type="button"
-              onClick={detectLocation}
-              disabled={detectingLocation}
-              className="text-xs font-semibold text-[var(--color-primary)] inline-flex items-center gap-1 active:scale-95 transition-transform disabled:opacity-50"
-            >
-              {detectingLocation ? (
-                <span className="inline-block h-3 w-3 border-2 border-[var(--color-primary)]/30 border-t-[var(--color-primary)] rounded-full animate-spin" />
-              ) : (
-                <MapPin size={14} />
-              )}
-              {locale === 'ru' ? 'Определить' : 'Aniqlash'}
-            </button>
-          </div>
+          <label className="text-sm text-[var(--color-text-muted)] mb-1 block">{tr(messages, 'checkout.address')}</label>
           <Textarea
             {...register('address', {
               required: tr(messages, 'common.error'),
@@ -150,18 +135,41 @@ export default function CheckoutPage() {
             placeholder={locale === 'ru' ? 'Улица, дом, ориентир' : 'Ko\'cha, uy, mo\'ljal'}
             rows={3}
           />
+
+          {/* Joylashuvni aniqlash katta tugma — textarea ostida */}
+          <button
+            type="button"
+            onClick={detectLocation}
+            disabled={detectingLocation}
+            className="mt-2 w-full h-12 rounded-2xl border-2 border-dashed border-[var(--color-primary)] text-[var(--color-primary)] font-semibold text-sm inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50"
+          >
+            {detectingLocation ? (
+              <>
+                <span className="inline-block h-4 w-4 border-2 border-[var(--color-primary)]/30 border-t-[var(--color-primary)] rounded-full animate-spin" />
+                {locale === 'ru' ? 'Определяем...' : 'Aniqlanmoqda...'}
+              </>
+            ) : (
+              <>
+                <MapPin size={16} />
+                {locale === 'ru' ? 'Определить моё местоположение' : 'Joylashuvimni aniqlash'}
+              </>
+            )}
+          </button>
+
           {coords && (
-            <p className="text-xs text-[var(--color-text-muted)] mt-1.5 flex items-center gap-1">
-              <MapPin size={11} className="text-[var(--color-success)]" />
-              {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
+            <div className="mt-2 px-3 py-2 rounded-xl bg-[var(--color-success)]/10 flex items-center gap-2">
+              <MapPin size={14} className="text-[var(--color-success)] shrink-0" />
+              <span className="text-xs text-[var(--color-text)] font-mono flex-1 truncate">
+                {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
+              </span>
               <button
                 type="button"
                 onClick={() => setCoords(null)}
-                className="ml-auto text-[var(--color-danger)] underline"
+                className="text-xs text-[var(--color-danger)] font-medium"
               >
                 {locale === 'ru' ? 'Очистить' : 'Tozalash'}
               </button>
-            </p>
+            </div>
           )}
           {errors.address?.message && (
             <p className="text-xs text-[var(--color-danger)] mt-1">{errors.address.message}</p>

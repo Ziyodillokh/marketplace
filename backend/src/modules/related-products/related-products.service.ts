@@ -42,7 +42,7 @@ export class RelatedProductsService {
       oldPrice: unknown;
       discountPct: number | null;
       images: Array<{ url: string }>;
-      variants: Array<{ stock: number }>;
+      variants: Array<{ id: string; stock: number }>;
     }> = [];
 
     if (productIds.size > 0) {
@@ -50,7 +50,7 @@ export class RelatedProductsService {
         where: { id: { in: [...productIds] }, isActive: true, NOT: { id: productId } },
         include: {
           images: { orderBy: { position: 'asc' }, take: 1 },
-          variants: { where: { isActive: true }, select: { stock: true } },
+          variants: { where: { isActive: true }, select: { id: true, stock: true }, orderBy: { id: 'asc' } },
         },
         take: limit,
       });
@@ -68,7 +68,7 @@ export class RelatedProductsService {
         orderBy: [{ isFeatured: 'desc' }, { soldCount: 'desc' }],
         include: {
           images: { orderBy: { position: 'asc' }, take: 1 },
-          variants: { where: { isActive: true }, select: { stock: true } },
+          variants: { where: { isActive: true }, select: { id: true, stock: true }, orderBy: { id: 'asc' } },
         },
         take: limit - products.length,
       });
@@ -87,7 +87,7 @@ export class RelatedProductsService {
         orderBy: [{ isFeatured: 'desc' }, { soldCount: 'desc' }],
         include: {
           images: { orderBy: { position: 'asc' }, take: 1 },
-          variants: { where: { isActive: true }, select: { stock: true } },
+          variants: { where: { isActive: true }, select: { id: true, stock: true }, orderBy: { id: 'asc' } },
         },
         take: limit - products.length,
       });
@@ -118,6 +118,7 @@ export class RelatedProductsService {
       outOfStock:
         p.variants.length === 0 ? false : p.variants.every((v) => v.stock <= 0),
       hasVariants: p.variants.length > 0,
+      defaultVariantId: p.variants.find((v) => v.stock > 0)?.id ?? p.variants[0]?.id ?? null,
     }));
   }
 }

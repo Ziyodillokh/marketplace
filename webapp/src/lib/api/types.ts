@@ -36,6 +36,7 @@ export interface ProductCard {
   isFavorite: boolean;
   outOfStock: boolean;
   hasVariants: boolean;
+  defaultVariantId: string | null;
 }
 
 export interface ProductVariant {

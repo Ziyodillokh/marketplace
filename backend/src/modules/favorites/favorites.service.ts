@@ -15,7 +15,7 @@ export class FavoritesService {
         product: {
           include: {
             images: { orderBy: { position: 'asc' }, take: 1 },
-            variants: { where: { isActive: true }, select: { stock: true } },
+            variants: { where: { isActive: true }, select: { id: true, stock: true }, orderBy: { id: 'asc' } },
           },
         },
       },
@@ -32,6 +32,8 @@ export class FavoritesService {
       imageUrl: f.product.images[0]?.url ?? null,
       isFavorite: true,
       hasVariants: f.product.variants.length > 0,
+      defaultVariantId:
+        f.product.variants.find((v) => v.stock > 0)?.id ?? f.product.variants[0]?.id ?? null,
       outOfStock:
         f.product.variants.length === 0
           ? false

@@ -31,6 +31,8 @@ export interface ProductCardDto {
   isFavorite?: boolean;
   outOfStock: boolean;
   hasVariants: boolean;
+  /** Birinchi mavjud variantId — kartochkadan to'g'ridan savatga qo'shish uchun */
+  defaultVariantId: string | null;
 }
 
 export interface ProductDetailDto extends ProductCardDto {
@@ -112,7 +114,7 @@ export class ProductsService {
       ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
       include: {
         images: { orderBy: { position: 'asc' }, take: 1 },
-        variants: { where: { isActive: true }, select: { stock: true } },
+        variants: { where: { isActive: true }, select: { id: true, stock: true }, orderBy: { id: 'asc' } },
       },
     });
 
@@ -127,22 +129,26 @@ export class ProductsService {
         )
       : new Set<string>();
 
-    const items: ProductCardDto[] = rows.map((p) => ({
-      id: p.id,
-      slug: p.slug,
-      title: localizeTitle(p, lang),
-      brand: p.brand,
-      price: Number(p.basePrice),
-      oldPrice: p.oldPrice ? Number(p.oldPrice) : null,
-      discountPct: p.discountPct,
-      imageUrl: p.images[0]?.url ?? null,
-      isFavorite: favoriteIds.has(p.id),
-      outOfStock:
-        p.variants.length === 0
-          ? false
-          : p.variants.every((v) => v.stock <= 0),
-      hasVariants: p.variants.length > 0,
-    }));
+    const items: ProductCardDto[] = rows.map((p) => {
+      const firstAvailable = p.variants.find((v) => v.stock > 0) ?? p.variants[0];
+      return {
+        id: p.id,
+        slug: p.slug,
+        title: localizeTitle(p, lang),
+        brand: p.brand,
+        price: Number(p.basePrice),
+        oldPrice: p.oldPrice ? Number(p.oldPrice) : null,
+        discountPct: p.discountPct,
+        imageUrl: p.images[0]?.url ?? null,
+        isFavorite: favoriteIds.has(p.id),
+        outOfStock:
+          p.variants.length === 0
+            ? false
+            : p.variants.every((v) => v.stock <= 0),
+        hasVariants: p.variants.length > 0,
+        defaultVariantId: firstAvailable?.id ?? null,
+      };
+    });
 
     return buildCursorPage(items, limit);
   }
@@ -184,6 +190,8 @@ export class ProductsService {
       isFavorite,
       outOfStock: p.variants.length === 0 ? false : p.variants.every((v) => v.stock <= 0),
       hasVariants: p.variants.length > 0,
+      defaultVariantId:
+        p.variants.find((v) => v.stock > 0)?.id ?? p.variants[0]?.id ?? null,
       description: localizeDescription(p, lang),
       images: p.images.map((img) => ({ id: img.id, url: img.url, position: img.position })),
       variants: p.variants.map((v) => ({
