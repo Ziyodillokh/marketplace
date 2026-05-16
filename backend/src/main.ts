@@ -5,7 +5,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import { join } from 'path';
+import { resolve, isAbsolute } from 'path';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TraceIdInterceptor } from './common/interceptors/trace-id.interceptor';
@@ -54,7 +54,9 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new TraceIdInterceptor());
 
-  app.useStaticAssets(join(process.cwd(), process.env.UPLOAD_DIR ?? './uploads'), {
+  const uploadDirRaw = process.env.UPLOAD_DIR ?? './uploads';
+  const uploadDir = isAbsolute(uploadDirRaw) ? uploadDirRaw : resolve(process.cwd(), uploadDirRaw);
+  app.useStaticAssets(uploadDir, {
     prefix: '/uploads/',
   });
 

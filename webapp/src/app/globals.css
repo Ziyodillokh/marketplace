@@ -19,47 +19,30 @@
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-html, body {
+/*
+ * Asosiy: scroll'ni html'da ushlab turamiz, body'ga transform QO'SHMAYMIZ.
+ * `transform: translateZ(0)` body'da fixed elementlarni buzadi (bottom-nav yo'qolib qoladi).
+ */
+html {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  /* Gorizontal scroll'ni butunlay yopish */
   overflow-x: hidden;
-  max-width: 100vw;
-  /* Silliq vertikal scroll — momentum (iOS) + hardware acceleration */
+  overflow-y: auto;
+  /* Silliq scroll (anchor jumplar uchun) */
   scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
 }
 
 body {
+  background: var(--color-bg);
+  color: var(--color-text);
   min-height: 100dvh;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y;
-  /* GPU layer for smoother scroll */
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-}
-
-/* Container wrapper */
-#__next, main, .max-w-md {
-  overflow-x: clip;
-}
-
-/* Cards va boshqa elementlar GPU layer'da bo'lsin (smoother scroll) */
-.product-card {
-  transform: translateZ(0);
-  will-change: transform;
-}
-
-/* Smooth scroll for in-page scrolling */
-* {
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Mobile uchun image rendering tezligi */
-img {
-  content-visibility: auto;
+  overflow-x: hidden;
+  max-width: 100vw;
+  /* iOS momentum scroll — touch-friendly */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
 }
 
 /* Hide scrollbars on horizontal scrollers */
@@ -83,3 +66,8 @@ img {
 
 /* Disable iOS tap highlights */
 button, a { -webkit-tap-highlight-color: transparent; }
+
+/* Performance: reduce repaint on scroll for images */
+img {
+  content-visibility: auto;
+}
