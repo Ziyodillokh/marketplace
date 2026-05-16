@@ -90,24 +90,34 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   }
 
   private registerHandlers(): void {
+    // Universal error catcher — handler ichida xato bo'lsa loglarda ko'rinadi
+    this.bot.catch((err) => {
+      this.logger.error(`Bot handler error: ${err.error}`);
+    });
+
     this.bot.command('start', async (ctx) => {
       const url = this.getWebappUrl();
+      this.logger.log(`/start from user ${ctx.from?.id} (@${ctx.from?.username ?? '-'}) → WebApp URL: ${url}`);
       const text = `👋 Assalomu alaykum, ${ctx.from?.first_name ?? 'mehmon'}!\n\nMarketplace botiga xush kelibsiz. Quyidagi tugmadan do'konni oching:`;
-      this.logger.debug(`/start → WebApp URL: ${url}`);
-      // WebApp button only supports HTTPS (or t.me/<bot> deep-link). If we have https — use it; otherwise fallback to URL button.
       const isHttps = url.startsWith('https://');
-      if (isHttps) {
-        await ctx.reply(text, {
-          reply_markup: {
-            inline_keyboard: [[{ text: '🛍 Do\'konni ochish', web_app: { url } }]],
-          },
-        });
-      } else {
-        await ctx.reply(text + `\n\n${url}`, {
-          reply_markup: {
-            inline_keyboard: [[{ text: '🌐 Do\'konni ochish', url }]],
-          },
-        });
+      try {
+        if (isHttps) {
+          await ctx.reply(text, {
+            reply_markup: {
+              inline_keyboard: [[{ text: '🛍 Do\'konni ochish', web_app: { url } }]],
+            },
+          });
+        } else {
+          await ctx.reply(text + `\n\n${url}`, {
+            reply_markup: {
+              inline_keyboard: [[{ text: '🌐 Do\'konni ochish', url }]],
+            },
+          });
+        }
+        this.logger.log(`/start reply sent to ${ctx.from?.id}`);
+      } catch (err) {
+        this.logger.error(`/start reply failed for ${ctx.from?.id}: ${(err as Error).message}`);
+        throw err;
       }
     });
 
@@ -118,12 +128,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.callbackQuery(/^order:(.+?):(.+)$/, async (ctx) => {
-      // Format: order:<action>:<orderId>
       const match = ctx.match;
       if (!match) return;
       const action = match[1];
       const orderId = match[2];
-      // Emit event for listener to handle
       this.callbackEmitter?.emit('callback', { action, orderId, ctx });
       await ctx.answerCallbackQuery({ text: '✓' });
     });
