@@ -1,0 +1,131 @@
+{
+  "appName": "Marketplace",
+  "common": {
+    "loading": "Загрузка...",
+    "error": "Произошла ошибка",
+    "retry": "Повторить",
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "back": "Назад",
+    "close": "Закрыть",
+    "search": "Поиск",
+    "filter": "Фильтр",
+    "sort": "Сортировка",
+    "all": "Все",
+    "more": "Ещё",
+    "free": "Бесплатно",
+    "applied": "Применён",
+    "submit": "Подтвердить",
+    "remove": "Удалить"
+  },
+  "currency": "сум",
+  "nav": {
+    "catalog": "Каталог",
+    "cart": "Корзина",
+    "favorites": "Избранное",
+    "profile": "Профиль"
+  },
+  "home": {
+    "bestsellers": "Хиты продаж",
+    "newArrivals": "Новинки"
+  },
+  "catalog": {
+    "title": "Каталог",
+    "empty": "Товары не найдены",
+    "clearFilters": "Очистить фильтры",
+    "sort": {
+      "newest": "Сначала новые",
+      "price_asc": "Цена: по возрастанию",
+      "price_desc": "Цена: по убыванию",
+      "bestsellers": "По популярности",
+      "discount": "Скидки"
+    }
+  },
+  "product": {
+    "addToCart": "В корзину",
+    "inCart": "В корзине",
+    "outOfStock": "Нет в наличии",
+    "selectVariant": "Выберите вариант",
+    "description": "Описание",
+    "specifications": "Характеристики",
+    "related": "Вам может понравиться",
+    "color": "Цвет",
+    "size": "Размер",
+    "stockShort": "остаток: {count}"
+  },
+  "cart": {
+    "title": "Корзина",
+    "empty": "Корзина пуста",
+    "goToCatalog": "Перейти в каталог",
+    "promoPlaceholder": "Введите промокод",
+    "applyPromo": "Применить",
+    "promoApplied": "Промокод применён",
+    "subtotal": "Товары",
+    "discount": "Скидка",
+    "delivery": "Доставка",
+    "total": "Итого",
+    "checkout": "Оформить заказ",
+    "minOrderHint": "Минимальная сумма: {amount}"
+  },
+  "favorites": {
+    "title": "Избранное",
+    "empty": "Список избранного пуст"
+  },
+  "checkout": {
+    "title": "Оформление заказа",
+    "name": "Имя",
+    "phone": "Номер телефона",
+    "address": "Адрес доставки",
+    "note": "Комментарий (необязательно)",
+    "paymentMethod": "Способ оплаты",
+    "payCash": "Наличные при получении",
+    "payCard": "Картой при получении",
+    "submit": "Подтвердить",
+    "success": "Заказ принят!",
+    "successHint": "Мы скоро с вами свяжемся."
+  },
+  "profile": {
+    "title": "Профиль",
+    "guest": "Гость",
+    "myOrders": "Мои заказы",
+    "favorites": "Избранное",
+    "promoCodes": "Промокоды",
+    "language": "Язык",
+    "support": "Помощь",
+    "about": "О нас",
+    "contact": "Контакты",
+    "version": "Версия"
+  },
+  "orders": {
+    "title": "Мои заказы",
+    "empty": "У вас пока нет заказов",
+    "tabs": { "active": "Активные", "completed": "Завершённые", "cancelled": "Отменённые" },
+    "status": {
+      "PENDING": "Новый",
+      "CONFIRMED": "Подтверждён",
+      "ON_THE_WAY": "В пути",
+      "DELIVERED": "Доставлен",
+      "CANCELLED": "Отменён"
+    },
+    "cancel": "Отменить заказ"
+  },
+  "support": {
+    "title": "Поддержка",
+    "subject": "Тема",
+    "message": "Сообщение",
+    "send": "Отправить",
+    "sent": "Ваше сообщение принято"
+  },
+  "language": {
+    "title": "Выбор языка",
+    "uz": "O'zbekcha",
+    "ru": "Русский"
+  },
+  "about": {
+    "title": "О нас"
+  },
+  "promo": {
+    "title": "Промокоды",
+    "publicHint": "Вы можете использовать следующие промокоды"
+  }
+}

@@ -1,0 +1,66 @@
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Type } from 'class-transformer';
+import {
+  IsEnum,
+  IsInt,
+  IsLatitude,
+  IsLongitude,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
+import { OrderStatus, PaymentMethod, type User } from '@prisma/client';
+import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
+import { CurrentLanguage, CurrentUser } from '@/common/decorators/current-user.decorator';
+import type { Locale } from '@/common/helpers/localize';
+import { OrdersService } from './orders.service';
+
+class CreateOrderDto {
+  @IsString() @MinLength(2) @MaxLength(80) receiverName!: string;
+  @IsString() @Matches(/^\+?\d{9,15}$/) receiverPhone!: string;
+  @IsString() @MinLength(3) @MaxLength(400) address!: string;
+  @IsOptional() @Type(() => Number) @IsLatitude() latitude?: number;
+  @IsOptional() @Type(() => Number) @IsLongitude() longitude?: number;
+  @IsOptional() @IsEnum(PaymentMethod) paymentMethod?: PaymentMethod;
+  @IsOptional() @IsString() @MaxLength(500) note?: string;
+  @IsOptional() @IsString() promoCode?: string;
+}
+
+class ListOrdersDto {
+  @IsOptional() @IsEnum(OrderStatus) status?: OrderStatus;
+  @IsOptional() @IsString() cursor?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) limit?: number;
+}
+
+@Controller('orders')
+@UseGuards(TelegramAuthGuard)
+export class OrdersController {
+  constructor(private readonly orders: OrdersService) {}
+
+  @Post()
+  create(@CurrentUser() user: User, @Body() dto: CreateOrderDto) {
+    return this.orders.create(user.id, dto);
+  }
+
+  @Get()
+  list(@CurrentUser() user: User, @Query() q: ListOrdersDto, @CurrentLanguage() lang: Locale) {
+    return this.orders.list(user.id, q, lang);
+  }
+
+  @Get(':id')
+  getById(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @CurrentLanguage() lang: Locale,
+  ) {
+    return this.orders.getById(id, user.id, lang);
+  }
+
+  @Post(':id/cancel')
+  cancel(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.orders.cancel(id, user.id);
+  }
+}

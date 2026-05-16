@@ -1,0 +1,131 @@
+{
+  "appName": "Marketplace",
+  "common": {
+    "loading": "Yuklanmoqda...",
+    "error": "Xatolik yuz berdi",
+    "retry": "Qayta urinish",
+    "cancel": "Bekor qilish",
+    "save": "Saqlash",
+    "back": "Orqaga",
+    "close": "Yopish",
+    "search": "Qidirish",
+    "filter": "Filter",
+    "sort": "Tartiblash",
+    "all": "Hammasi",
+    "more": "Yana",
+    "free": "Bepul",
+    "applied": "Qo'llandi",
+    "submit": "Tasdiqlash",
+    "remove": "O'chirish"
+  },
+  "currency": "so'm",
+  "nav": {
+    "catalog": "Katalog",
+    "cart": "Korzina",
+    "favorites": "Sevimlilar",
+    "profile": "Profil"
+  },
+  "home": {
+    "bestsellers": "Eng ko'p sotilgan",
+    "newArrivals": "Yangi qo'shilganlar"
+  },
+  "catalog": {
+    "title": "Katalog",
+    "empty": "Mahsulot topilmadi",
+    "clearFilters": "Filtrlarni tozalash",
+    "sort": {
+      "newest": "Eng yangilari",
+      "price_asc": "Narx: arzondan",
+      "price_desc": "Narx: qimmatdan",
+      "bestsellers": "Eng ko'p sotilgan",
+      "discount": "Eng katta chegirma"
+    }
+  },
+  "product": {
+    "addToCart": "Savatga qo'shish",
+    "inCart": "Savatda",
+    "outOfStock": "Tugadi",
+    "selectVariant": "Variant tanlang",
+    "description": "Tavsif",
+    "specifications": "Xususiyatlar",
+    "related": "Sizga yoqishi mumkin",
+    "color": "Rang",
+    "size": "O'lcham",
+    "stockShort": "qoldiq: {count}"
+  },
+  "cart": {
+    "title": "Korzina",
+    "empty": "Korzina bo'sh",
+    "goToCatalog": "Katalogga o'tish",
+    "promoPlaceholder": "Promo kod kiriting",
+    "applyPromo": "Qo'llash",
+    "promoApplied": "Promo qo'llandi",
+    "subtotal": "Mahsulotlar",
+    "discount": "Chegirma",
+    "delivery": "Yetkazib berish",
+    "total": "Jami",
+    "checkout": "Buyurtma berish",
+    "minOrderHint": "Minimal buyurtma summasi: {amount}"
+  },
+  "favorites": {
+    "title": "Sevimlilar",
+    "empty": "Sevimlilar ro'yxati bo'sh"
+  },
+  "checkout": {
+    "title": "Buyurtma berish",
+    "name": "Ism",
+    "phone": "Telefon raqami",
+    "address": "Yetkazib berish manzili",
+    "note": "Izoh (ixtiyoriy)",
+    "paymentMethod": "To'lov turi",
+    "payCash": "Yetkazganda naqd",
+    "payCard": "Yetkazganda karta",
+    "submit": "Tasdiqlash",
+    "success": "Buyurtmangiz qabul qilindi!",
+    "successHint": "Tez orada siz bilan bog'lanamiz."
+  },
+  "profile": {
+    "title": "Profil",
+    "guest": "Mehmon",
+    "myOrders": "Mening buyurtmalarim",
+    "favorites": "Sevimlilar",
+    "promoCodes": "Promo kodlar",
+    "language": "Til",
+    "support": "Yordam",
+    "about": "Biz haqimizda",
+    "contact": "Bog'lanish",
+    "version": "Versiya"
+  },
+  "orders": {
+    "title": "Mening buyurtmalarim",
+    "empty": "Sizda hozircha buyurtmalar yo'q",
+    "tabs": { "active": "Faol", "completed": "Yakunlangan", "cancelled": "Bekor qilingan" },
+    "status": {
+      "PENDING": "Yangi",
+      "CONFIRMED": "Tasdiqlangan",
+      "ON_THE_WAY": "Yo'lda",
+      "DELIVERED": "Yetkazilgan",
+      "CANCELLED": "Bekor qilingan"
+    },
+    "cancel": "Buyurtmani bekor qilish"
+  },
+  "support": {
+    "title": "Yordam",
+    "subject": "Mavzu",
+    "message": "Xabar",
+    "send": "Yuborish",
+    "sent": "Xabaringiz qabul qilindi"
+  },
+  "language": {
+    "title": "Til tanlash",
+    "uz": "O'zbekcha",
+    "ru": "Русский"
+  },
+  "about": {
+    "title": "Biz haqimizda"
+  },
+  "promo": {
+    "title": "Promo kodlar",
+    "publicHint": "Quyidagi promo kodlardan foydalanishingiz mumkin"
+  }
+}
