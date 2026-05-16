@@ -1,0 +1,71 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { promises as fs } from 'fs';
+import { join } from 'path';
+import { randomUUID } from 'crypto';
+import sharp from 'sharp';
+
+export interface UploadedImage {
+  url: string;
+  thumbUrl: string;
+  mediumUrl: string;
+  width: number;
+  height: number;
+  size: number;
+}
+
+@Injectable()
+export class UploadsService {
+  private readonly dir: string;
+  private readonly publicUrl: string;
+
+  constructor(config: ConfigService) {
+    this.dir = config.get<string>('UPLOAD_DIR') ?? './uploads';
+    this.publicUrl = (config.get<string>('PUBLIC_UPLOADS_URL') ?? '/uploads').replace(/\/$/, '');
+  }
+
+  async ensureDir(): Promise<void> {
+    await fs.mkdir(this.dir, { recursive: true });
+  }
+
+  async saveImage(buffer: Buffer): Promise<UploadedImage> {
+    await this.ensureDir();
+    const id = randomUUID();
+    const baseName = `${Date.now()}-${id}`;
+
+    const meta = await sharp(buffer).metadata();
+    const ext = 'webp';
+
+    // 3 sizes: thumb (200), medium (600), original (max 1600)
+    const sizes = [
+      { suffix: '', maxW: 1600 },
+      { suffix: '-md', maxW: 600 },
+      { suffix: '-sm', maxW: 200 },
+    ];
+
+    const written = await Promise.all(
+      sizes.map(async (s) => {
+        const filename = `${baseName}${s.suffix}.${ext}`;
+        const filePath = join(this.dir, filename);
+        await sharp(buffer)
+          .resize({ width: s.maxW, withoutEnlargement: true })
+          .webp({ quality: 85 })
+          .toFile(filePath);
+        return { suffix: s.suffix, filename };
+      }),
+    );
+
+    const orig = written.find((w) => w.suffix === '')!;
+    const md = written.find((w) => w.suffix === '-md')!;
+    const sm = written.find((w) => w.suffix === '-sm')!;
+
+    return {
+      url: `${this.publicUrl}/${orig.filename}`,
+      mediumUrl: `${this.publicUrl}/${md.filename}`,
+      thumbUrl: `${this.publicUrl}/${sm.filename}`,
+      width: meta.width ?? 0,
+      height: meta.height ?? 0,
+      size: buffer.length,
+    };
+  }
+}

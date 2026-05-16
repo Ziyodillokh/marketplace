@@ -7,7 +7,8 @@ dist
 *.log
 .DS_Store
 .tunnel-url
-uploads/
+/uploads/
+backend/uploads/
 coverage
 .idea
 .vscode

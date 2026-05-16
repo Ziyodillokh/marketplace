@@ -2,6 +2,6 @@ node_modules
 dist
 .env
 *.log
-uploads
+/uploads
 .DS_Store
 coverage
