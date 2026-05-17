@@ -167,15 +167,16 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(`/admin from user ${ctx.from?.id} (@${ctx.from?.username ?? '-'}) → ${adminUrl}`);
       const text =
         '🔐 <b>Admin panel</b>\n\n' +
-        'Quyidagi tugmadan admin panelga kiring va o\'z login/parolingiz bilan tizimga kiring.\n\n' +
+        'Quyidagi tugmadan admin panelni Telegram ichida oching va login/parolingiz bilan kiring.\n\n' +
         '⚠️ Faqat tasdiqlangan administratorlar uchun.';
       try {
         if (adminUrl.startsWith('https://')) {
+          // web_app — admin panel Telegram ichida ochiladi (saytga o'tmasdan)
           await ctx.reply(text, {
             parse_mode: 'HTML',
             reply_markup: {
               inline_keyboard: [
-                [{ text: '🔐 Admin panelni ochish', url: adminUrl }],
+                [{ text: '🔐 Admin panelni ochish', web_app: { url: adminUrl } }],
               ],
             },
           });
