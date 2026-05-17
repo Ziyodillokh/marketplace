@@ -16,11 +16,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60_000,
-            gcTime: 10 * 60_000,
+            // Qisqa staleTime — invalidate'dan keyin sahifa ochilsa darhol refetch
+            staleTime: 30_000,
+            gcTime: 5 * 60_000,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-            refetchOnMount: false,
+            // refetchOnMount: true (default) — stale bo'lsa qaytadan oladi
             retry: 1,
             retryDelay: 500,
           },

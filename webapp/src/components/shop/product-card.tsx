@@ -96,10 +96,36 @@ export function ProductCard({ product }: { product: ProductCardDto }) {
       haptic('light');
       const next = !product.isFavorite;
       flipFavoriteInCache(qc, product.id, next);
-      return { rolledBack: product.isFavorite };
+      // Favorites list cache'ni darhol yangilash (optimistik)
+      const prevList = qc.getQueryData<ProductCardDto[]>(['favorites']);
+      if (next) {
+        // Qo'shilyapti — listga product'ni qo'sh
+        if (prevList && !prevList.find((p) => p.id === product.id)) {
+          qc.setQueryData<ProductCardDto[]>(['favorites'], [
+            { ...product, isFavorite: true },
+            ...prevList,
+          ]);
+        } else if (!prevList) {
+          qc.setQueryData<ProductCardDto[]>(['favorites'], [{ ...product, isFavorite: true }]);
+        }
+      } else {
+        // Olib tashlanyapti — listdan o'chir
+        if (prevList) {
+          qc.setQueryData<ProductCardDto[]>(['favorites'], prevList.filter((p) => p.id !== product.id));
+        }
+      }
+      // Summary darhol o'zgartir
+      const prevSummary = qc.getQueryData<{ count: number }>(['favorites-summary']);
+      if (prevSummary) {
+        qc.setQueryData(['favorites-summary'], {
+          count: Math.max(0, prevSummary.count + (next ? 1 : -1)),
+        });
+      }
+      return { rolledBack: product.isFavorite, prevList, prevSummary };
     },
     onSuccess: (data) => {
       flipFavoriteInCache(qc, product.id, data.isFavorite);
+      // Server bilan sync (ehtimol order/timing farqi bo'lishi)
       qc.invalidateQueries({ queryKey: ['favorites'] });
       qc.invalidateQueries({ queryKey: ['favorites-summary'] });
       track({
@@ -108,7 +134,11 @@ export function ProductCard({ product }: { product: ProductCardDto }) {
       });
     },
     onError: (_e, _v, ctx) => {
-      if (ctx) flipFavoriteInCache(qc, product.id, ctx.rolledBack);
+      if (ctx) {
+        flipFavoriteInCache(qc, product.id, ctx.rolledBack);
+        if (ctx.prevList) qc.setQueryData(['favorites'], ctx.prevList);
+        if (ctx.prevSummary) qc.setQueryData(['favorites-summary'], ctx.prevSummary);
+      }
       haptic('error');
     },
   });

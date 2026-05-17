@@ -79,8 +79,13 @@ export default function CheckoutPage() {
       toast.success(tr(messages, 'checkout.success'));
       clearPromo();
       track({ type: 'ORDER_PLACED', payload: { orderId: order.id, total: order.total } });
+      // Buyurtma yaratildi → savat bo'sh. Cache'ni darhol bo'shatamiz (UI darhol yangilanadi).
+      qc.setQueryData(['cart'], { items: [], summary: { count: 0, subtotal: 0 } });
+      qc.setQueryData(['cart-summary'], { count: 0, subtotal: 0 });
+      // Backend tomonidan ham sync uchun invalidate
       qc.invalidateQueries({ queryKey: ['cart'] });
       qc.invalidateQueries({ queryKey: ['cart-summary'] });
+      qc.invalidateQueries({ queryKey: ['orders'] });
       router.replace(`/orders/${order.id}?just-created=1`);
     },
     onError: (err: Error) => {
