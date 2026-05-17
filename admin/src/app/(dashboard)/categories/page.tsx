@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiAdminCategoriesTree, apiCreateCategory, apiDeleteCategory, apiUpdateCategory } from '@/lib/endpoints';
 import type { AdminCategoryNode } from '@/lib/types';
 import { toast } from '@/stores/toast-store';
+import { SingleImageUploader } from '@/components/categories/single-image-uploader';
 
 interface FormData {
   titleUz: string;
@@ -149,12 +150,20 @@ export default function CategoriesPage() {
               ⚠️ Ruscha nom kiriting (foydalanuvchi til ruscha bo&apos;lganda ko&apos;rinadi)
             </p>
           )}
-          <Field label="Icon URL">
-            <Input value={form.iconUrl} onChange={(e) => setForm({ ...form, iconUrl: e.target.value })} placeholder="https://..." />
-          </Field>
-          <Field label="Banner URL">
-            <Input value={form.bannerUrl} onChange={(e) => setForm({ ...form, bannerUrl: e.target.value })} placeholder="https://..." />
-          </Field>
+          <SingleImageUploader
+            label="🖼 Icon (kvadrat — pill/chip uchun)"
+            hint="Kichik kvadrat rasm. Bo'sh qoldirilsa banner ishlatiladi."
+            value={form.iconUrl}
+            onChange={(url) => setForm({ ...form, iconUrl: url })}
+            aspect="square"
+          />
+          <SingleImageUploader
+            label="🏞 Banner (keng — katalog kartochkasi uchun)"
+            hint="WebApp katalog sahifasidagi kartochkada ko'rinadi (~2.6:1 nisbat)."
+            value={form.bannerUrl}
+            onChange={(url) => setForm({ ...form, bannerUrl: url })}
+            aspect="banner"
+          />
           <label className="flex items-center justify-between text-sm">
             <span>Foydalanuvchilarga ko&apos;rsatish</span>
             <input
