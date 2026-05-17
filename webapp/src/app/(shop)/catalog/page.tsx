@@ -1,164 +1,106 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { Search as SearchIcon, SlidersHorizontal } from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { Search as SearchIcon, Package } from 'lucide-react';
 import { PageHeader } from '@/components/shop/page-header';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Sheet } from '@/components/ui/sheet';
-import { EmptyState } from '@/components/ui/empty-state';
-import { ProductGrid } from '@/components/shop/product-grid';
-import { apiListProducts, type ListProductsQuery } from '@/lib/api/endpoints';
-import { useTrackOnMount, track } from '@/hooks/use-track';
+import { Skeleton } from '@/components/ui/skeleton';
+import { apiListCategories } from '@/lib/api/endpoints';
+import { useTrackOnMount } from '@/hooks/use-track';
 import { useTelegramBackButton } from '@/hooks/use-telegram';
 import { useLocaleStore } from '@/stores/locale-store';
 import { getMessages, tr } from '@/i18n';
+import type { CategoryDto } from '@/lib/api/types';
 
-function CatalogInner() {
+export default function CatalogPage() {
   useTrackOnMount({ type: 'VIEW_CATALOG' });
   useTelegramBackButton();
-  const sp = useSearchParams();
-  const initialQ = sp.get('q') ?? '';
-  const categoryId = sp.get('categoryId') ?? undefined;
+  const router = useRouter();
   const locale = useLocaleStore((s) => s.locale);
   const messages = getMessages(locale);
 
-  const [q, setQ] = useState(initialQ);
-  const [debouncedQ, setDebouncedQ] = useState(initialQ);
-  const [sort, setSort] = useState<NonNullable<ListProductsQuery['sort']>>('newest');
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [minPrice, setMinPrice] = useState<string>('');
-  const [maxPrice, setMaxPrice] = useState<string>('');
-
-  useEffect(() => {
-    const id = setTimeout(() => setDebouncedQ(q), 300);
-    return () => clearTimeout(id);
-  }, [q]);
-
-  useEffect(() => {
-    if (debouncedQ.length >= 2) track({ type: 'SEARCH_QUERY', payload: { q: debouncedQ } });
-  }, [debouncedQ]);
-
-  const params: ListProductsQuery = {
-    q: debouncedQ || undefined,
-    categoryId,
-    sort,
-    minPrice: minPrice ? Number(minPrice) : undefined,
-    maxPrice: maxPrice ? Number(maxPrice) : undefined,
-    limit: 16,
-  };
-
-  const query = useInfiniteQuery({
-    queryKey: ['catalog', params],
-    queryFn: ({ pageParam }) => apiListProducts({ ...params, cursor: pageParam }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => last.nextCursor ?? undefined,
+  const { data: categories, isLoading } = useQuery({
+    queryKey: ['categories', 'root', locale],
+    queryFn: () => apiListCategories({ onlyRoot: true }),
   });
-
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!sentinelRef.current) return;
-    const obs = new IntersectionObserver((entries) => {
-      if (entries[0]?.isIntersecting && query.hasNextPage && !query.isFetchingNextPage) {
-        query.fetchNextPage();
-      }
-    });
-    obs.observe(sentinelRef.current);
-    return () => obs.disconnect();
-  }, [query]);
-
-  const items = query.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
     <div>
       <PageHeader title={tr(messages, 'catalog.title')} />
-      <div className="px-4 py-3 flex items-center gap-2">
-        <div className="relative flex-1">
-          <SearchIcon size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={tr(messages, 'common.search')}
-            className="pl-10"
-          />
-        </div>
+
+      <div className="px-4 py-3">
         <button
-          onClick={() => setFilterOpen(true)}
-          className="h-12 w-12 rounded-2xl bg-white border border-[var(--color-border)] grid place-items-center"
-          aria-label="Filter"
+          onClick={() => router.push('/search')}
+          className="w-full h-12 rounded-2xl bg-white border border-[var(--color-border)] inline-flex items-center gap-3 px-4 text-left active:scale-[0.99] transition-transform"
         >
-          <SlidersHorizontal size={18} />
+          <SearchIcon size={18} className="text-[var(--color-text-muted)]" />
+          <span className="text-sm text-[var(--color-text-muted)]">
+            {tr(messages, 'common.search')}…
+          </span>
         </button>
       </div>
 
       <div className="px-4">
-        {!query.isLoading && items.length === 0 ? (
-          <EmptyState
-            title={tr(messages, 'catalog.empty')}
-            action={
-              <Button
-                onClick={() => {
-                  setQ('');
-                  setMinPrice('');
-                  setMaxPrice('');
-                  setSort('newest');
-                }}
-              >
-                {tr(messages, 'catalog.clearFilters')}
-              </Button>
-            }
-          />
+        <p className="text-xs text-[var(--color-text-muted)] mb-3 font-medium">
+          {tr(messages, 'catalog.subtitle')}
+        </p>
+
+        {isLoading ? (
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="aspect-[4/3] rounded-2xl" />
+            ))}
+          </div>
+        ) : !categories || categories.length === 0 ? (
+          <div className="py-16 text-center text-sm text-[var(--color-text-muted)]">
+            {tr(messages, 'catalog.empty')}
+          </div>
         ) : (
-          <>
-            <ProductGrid items={items} loading={query.isFetchingNextPage || query.isLoading} />
-            <div ref={sentinelRef} className="h-10" />
-          </>
+          <div className="grid grid-cols-2 gap-3 pb-6">
+            {categories.map((c) => (
+              <CategoryCard key={c.id} category={c} />
+            ))}
+          </div>
         )}
       </div>
-
-      <Sheet open={filterOpen} onClose={() => setFilterOpen(false)} title={tr(messages, 'common.filter')}>
-        <div className="space-y-4 py-2">
-          <div>
-            <p className="text-sm font-semibold mb-2">{tr(messages, 'common.sort')}</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(['newest', 'price_asc', 'price_desc', 'bestsellers', 'discount'] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSort(s)}
-                  className={`h-10 px-3 rounded-xl border text-sm ${
-                    sort === s ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]' : 'bg-white border-[var(--color-border)]'
-                  }`}
-                >
-                  {tr(messages, `catalog.sort.${s}`)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm text-[var(--color-text-muted)]">Min</label>
-              <Input type="number" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-sm text-[var(--color-text-muted)]">Max</label>
-              <Input type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
-            </div>
-          </div>
-          <Button fullWidth onClick={() => setFilterOpen(false)}>
-            {tr(messages, 'common.submit')}
-          </Button>
-        </div>
-      </Sheet>
     </div>
   );
 }
 
-export default function CatalogPage() {
+function CategoryCard({ category }: { category: CategoryDto }) {
+  const img = category.bannerUrl ?? category.iconUrl;
   return (
-    <Suspense fallback={null}>
-      <CatalogInner />
-    </Suspense>
+    <Link
+      href={`/category/${category.slug}`}
+      className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gradient-to-br from-[var(--color-primary)]/15 to-[var(--color-primary)]/5 border border-[var(--color-border)] flex flex-col justify-end active:scale-[0.98] transition-transform"
+    >
+      {img ? (
+        <>
+          <Image
+            src={img}
+            alt={category.title}
+            fill
+            sizes="(max-width: 640px) 50vw, 200px"
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        </>
+      ) : (
+        <div className="absolute inset-0 grid place-items-center text-[var(--color-primary)]/50">
+          <Package size={42} strokeWidth={1.5} />
+        </div>
+      )}
+      <div className="relative p-3">
+        <h3
+          className={`font-bold text-sm line-clamp-2 leading-tight ${
+            img ? 'text-white drop-shadow' : 'text-[var(--color-text)]'
+          }`}
+        >
+          {category.title}
+        </h3>
+      </div>
+    </Link>
   );
 }

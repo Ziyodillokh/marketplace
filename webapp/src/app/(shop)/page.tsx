@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { ChevronRight } from 'lucide-react';
 import { AppHeader } from '@/components/shop/app-header';
 import { BannerCarousel } from '@/components/shop/banner-carousel';
-import { CategoryTabs } from '@/components/shop/category-tabs';
 import { ProductGrid } from '@/components/shop/product-grid';
 import { ProductCardSkeleton } from '@/components/shop/product-card';
 import { apiListProducts } from '@/lib/api/endpoints';
-import { useTrackOnMount, track } from '@/hooks/use-track';
+import { useTrackOnMount } from '@/hooks/use-track';
 import { useTelegramBackButton } from '@/hooks/use-telegram';
 import { useLocaleStore } from '@/stores/locale-store';
 import { getMessages, tr } from '@/i18n';
@@ -16,25 +17,18 @@ import { getMessages, tr } from '@/i18n';
 export default function HomePage() {
   useTrackOnMount({ type: 'VIEW_HOME' });
   useTelegramBackButton();
-  const [categoryId, setCategoryId] = useState<string | null>(null);
   const locale = useLocaleStore((s) => s.locale);
   const messages = getMessages(locale);
 
   const { data: bestsellers, isLoading: loadingBest } = useQuery({
-    queryKey: ['products', 'bestsellers', categoryId],
-    queryFn: () =>
-      apiListProducts({ sort: 'bestsellers', limit: 10, categoryId: categoryId ?? undefined }),
+    queryKey: ['products', 'bestsellers', null],
+    queryFn: () => apiListProducts({ sort: 'bestsellers', limit: 10 }),
   });
 
   const newest = useInfiniteQuery({
-    queryKey: ['products', 'newest', categoryId],
+    queryKey: ['products', 'newest', null],
     queryFn: ({ pageParam }) =>
-      apiListProducts({
-        sort: 'newest',
-        limit: 12,
-        cursor: pageParam,
-        categoryId: categoryId ?? undefined,
-      }),
+      apiListProducts({ sort: 'newest', limit: 12, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
@@ -61,12 +55,12 @@ export default function HomePage() {
         <BannerCarousel />
       </section>
 
-      <section>
-        <CategoryTabs selectedId={categoryId} onSelect={setCategoryId} />
-      </section>
-
       <section className="px-4">
-        <h2 className="text-lg font-bold mb-3">{tr(messages, 'home.bestsellers')}</h2>
+        <SectionHeader
+          title={tr(messages, 'home.bestsellers')}
+          viewAllHref="/catalog"
+          viewAllLabel={tr(messages, 'home.viewAll')}
+        />
         {loadingBest ? (
           <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -79,10 +73,37 @@ export default function HomePage() {
       </section>
 
       <section className="px-4 mt-6">
-        <h2 className="text-lg font-bold mb-3">{tr(messages, 'home.newArrivals')}</h2>
+        <SectionHeader
+          title={tr(messages, 'home.newArrivals')}
+          viewAllHref="/catalog"
+          viewAllLabel={tr(messages, 'home.viewAll')}
+        />
         <ProductGrid items={newestItems} loading={newest.isFetchingNextPage} />
         <div ref={sentinelRef} className="h-10" />
       </section>
+    </div>
+  );
+}
+
+function SectionHeader({
+  title,
+  viewAllHref,
+  viewAllLabel,
+}: {
+  title: string;
+  viewAllHref: string;
+  viewAllLabel: string;
+}) {
+  return (
+    <div className="flex items-center justify-between mb-3">
+      <h2 className="text-lg font-bold">{title}</h2>
+      <Link
+        href={viewAllHref}
+        className="text-xs font-semibold text-[var(--color-primary)] inline-flex items-center gap-0.5 active:opacity-70"
+      >
+        {viewAllLabel}
+        <ChevronRight size={14} />
+      </Link>
     </div>
   );
 }

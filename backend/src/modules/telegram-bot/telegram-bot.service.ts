@@ -10,6 +10,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   readonly bot: Bot;
   private readonly useWebhook: boolean;
   private readonly envWebappUrl: string;
+  private readonly adminPanelUrl: string;
   private readonly ordersChannelId: string;
   private readonly botUsername: string;
   private readonly tunnelFilePath: string;
@@ -19,6 +20,9 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     this.bot = new Bot(token);
     this.useWebhook = this.config.get('TELEGRAM_USE_WEBHOOK') === 'true';
     this.envWebappUrl = this.config.getOrThrow<string>('WEBAPP_URL');
+    this.adminPanelUrl =
+      this.config.get<string>('ADMIN_PANEL_URL') ??
+      `${this.config.get<string>('APP_URL') ?? ''}/admin/login`;
     this.ordersChannelId = this.config.getOrThrow<string>('TELEGRAM_ORDERS_CHANNEL_ID');
     this.botUsername = this.config.getOrThrow<string>('TELEGRAM_BOT_USERNAME');
     this.tunnelFilePath = join(process.cwd(), '.tunnel-url');
@@ -55,8 +59,36 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
           onStart: (info) => this.logger.log(`Polling started as @${info.username}`),
         });
       }
+      // Menu commands va chat menu button — har safar startda yangilanadi (idempotent)
+      await this.setupBotMenu();
     } catch (err) {
       this.logger.error(`Bot init failed: ${(err as Error).message}`);
+    }
+  }
+
+  /** Bot komandalar ro'yxati va chat pastidagi doimiy "Menu" tugmasini o'rnatadi. */
+  private async setupBotMenu(): Promise<void> {
+    try {
+      await this.bot.api.setMyCommands([
+        { command: 'start', description: "Do'konni ochish / Открыть магазин" },
+        { command: 'admin', description: 'Admin panel' },
+        { command: 'help', description: 'Yordam / Помощь' },
+      ]);
+      this.logger.log('Bot commands ro\'yxati o\'rnatildi');
+
+      const webappUrl = this.getWebappUrl();
+      if (webappUrl.startsWith('https://')) {
+        await this.bot.api.setChatMenuButton({
+          menu_button: {
+            type: 'web_app',
+            text: "🛍 Do'kon",
+            web_app: { url: webappUrl },
+          },
+        });
+        this.logger.log(`Chat menu button o'rnatildi → ${webappUrl}`);
+      }
+    } catch (err) {
+      this.logger.warn(`Bot menu setup failed: ${(err as Error).message}`);
     }
   }
 
@@ -126,8 +158,33 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
 
     this.bot.command('help', async (ctx) => {
       await ctx.reply(
-        'Yordam kerakmi?\n\n• Do\'konni ochish uchun /start\n• Buyurtma berishda muammo bo\'lsa, support orqali yozing.',
+        'Yordam kerakmi?\n\n• Do\'konni ochish uchun /start\n• Admin panel uchun /admin\n• Buyurtma berishda muammo bo\'lsa, support orqali yozing.',
       );
+    });
+
+    this.bot.command('admin', async (ctx) => {
+      const adminUrl = this.adminPanelUrl;
+      this.logger.log(`/admin from user ${ctx.from?.id} (@${ctx.from?.username ?? '-'}) → ${adminUrl}`);
+      const text =
+        '🔐 <b>Admin panel</b>\n\n' +
+        'Quyidagi tugmadan admin panelga kiring va o\'z login/parolingiz bilan tizimga kiring.\n\n' +
+        '⚠️ Faqat tasdiqlangan administratorlar uchun.';
+      try {
+        if (adminUrl.startsWith('https://')) {
+          await ctx.reply(text, {
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🔐 Admin panelni ochish', url: adminUrl }],
+              ],
+            },
+          });
+        } else {
+          await ctx.reply(text + `\n\n${adminUrl}`, { parse_mode: 'HTML' });
+        }
+      } catch (err) {
+        this.logger.error(`/admin reply failed: ${(err as Error).message}`);
+      }
     });
 
     this.bot.callbackQuery(/^order:(.+?):(.+)$/, async (ctx) => {

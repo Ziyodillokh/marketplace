@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, ShoppingCart, Heart, User } from 'lucide-react';
+import { Home, LayoutGrid, ShoppingCart, Heart, User } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { apiGetCartSummary, apiFavoritesSummary } from '@/lib/api/endpoints';
 import { cn } from '@/lib/cn';
@@ -10,10 +10,41 @@ import { useLocaleStore } from '@/stores/locale-store';
 import { tr, getMessages } from '@/i18n';
 
 const items = [
-  { href: '/', label: 'catalog', icon: LayoutGrid, isActive: (p: string) => p === '/' || p.startsWith('/category') || p.startsWith('/catalog') || p.startsWith('/product') || p.startsWith('/search') },
-  { href: '/cart', label: 'cart', icon: ShoppingCart, isActive: (p: string) => p.startsWith('/cart') },
-  { href: '/favorites', label: 'favorites', icon: Heart, isActive: (p: string) => p.startsWith('/favorites') },
-  { href: '/profile', label: 'profile', icon: User, isActive: (p: string) => p.startsWith('/profile') || p.startsWith('/orders') || p.startsWith('/support') || p.startsWith('/promo-codes') || p.startsWith('/about') },
+  {
+    href: '/',
+    label: 'home',
+    icon: Home,
+    isActive: (p: string) => p === '/' || p.startsWith('/product') || p.startsWith('/search'),
+  },
+  {
+    href: '/catalog',
+    label: 'catalog',
+    icon: LayoutGrid,
+    isActive: (p: string) => p.startsWith('/catalog') || p.startsWith('/category'),
+  },
+  {
+    href: '/cart',
+    label: 'cart',
+    icon: ShoppingCart,
+    isActive: (p: string) => p.startsWith('/cart'),
+  },
+  {
+    href: '/favorites',
+    label: 'favorites',
+    icon: Heart,
+    isActive: (p: string) => p.startsWith('/favorites'),
+  },
+  {
+    href: '/profile',
+    label: 'profile',
+    icon: User,
+    isActive: (p: string) =>
+      p.startsWith('/profile') ||
+      p.startsWith('/orders') ||
+      p.startsWith('/support') ||
+      p.startsWith('/promo-codes') ||
+      p.startsWith('/about'),
+  },
 ];
 
 export function BottomNav() {
@@ -34,7 +65,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-[var(--color-border)] pb-[env(safe-area-inset-bottom)]">
-      <ul className="grid grid-cols-4 max-w-md mx-auto">
+      <ul className="grid grid-cols-5 max-w-md mx-auto">
         {items.map((it) => {
           const active = it.isActive(pathname);
           const badge =
@@ -60,7 +91,9 @@ export function BottomNav() {
                     </span>
                   ) : null}
                 </div>
-                <span className="text-[11px] font-medium">{tr(messages, `nav.${it.label}`)}</span>
+                <span className="text-[10px] font-medium leading-tight">
+                  {tr(messages, `nav.${it.label}`)}
+                </span>
               </Link>
             </li>
           );

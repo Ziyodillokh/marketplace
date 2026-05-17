@@ -20,6 +20,7 @@
   },
   "currency": "сум",
   "nav": {
+    "home": "Главная",
     "catalog": "Каталог",
     "cart": "Корзина",
     "favorites": "Избранное",
@@ -27,10 +28,12 @@
   },
   "home": {
     "bestsellers": "Хиты продаж",
-    "newArrivals": "Новинки"
+    "newArrivals": "Новинки",
+    "viewAll": "Смотреть все"
   },
   "catalog": {
     "title": "Каталог",
+    "subtitle": "Выберите категорию",
     "empty": "Товары не найдены",
     "clearFilters": "Очистить фильтры",
     "sort": {
