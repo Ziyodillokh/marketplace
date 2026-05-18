@@ -9,6 +9,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { ImageUploader } from './image-uploader';
 import { VariantsEditor } from './variants-editor';
 import { SpecsEditor } from './specs-editor';
+import { RelatedProductsPicker, type RelatedProductMini } from './related-products-picker';
 import {
   apiAdminCategoriesTree,
   apiCreateAdminProduct,
@@ -58,6 +59,7 @@ interface FormState {
     valueRu: string;
     position?: number;
   }>;
+  relatedProducts: RelatedProductMini[];
 }
 
 export function ProductForm({ existing }: { existing?: AdminProductDetail }) {
@@ -78,6 +80,7 @@ export function ProductForm({ existing }: { existing?: AdminProductDetail }) {
     images: existing?.images ?? [],
     variants: existing?.variants ?? [],
     specs: existing?.specs ?? [],
+    relatedProducts: existing?.relatedProducts ?? [],
   });
 
   useEffect(() => {
@@ -118,6 +121,7 @@ export function ProductForm({ existing }: { existing?: AdminProductDetail }) {
       valueRu: s.valueRu || s.valueUz,
       position: i,
     })),
+    relatedProductIds: form.relatedProducts.map((p) => p.id),
   });
 
   const saveMutation = useMutation({
@@ -221,6 +225,20 @@ export function ProductForm({ existing }: { existing?: AdminProductDetail }) {
           <CardHeader title="Xususiyatlar" />
           <CardBody>
             <SpecsEditor specs={form.specs} onChange={(specs) => setForm({ ...form, specs })} />
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Tavsiya etilgan mahsulotlar"
+            subtitle="Foydalanuvchi bu mahsulotni sotib olganda 1 daqiqadan keyin bot orqali shu mahsulotlar tavsiya qilinadi (chexol, aksessuar va h.k.)"
+          />
+          <CardBody>
+            <RelatedProductsPicker
+              excludeProductId={existing?.id}
+              value={form.relatedProducts}
+              onChange={(relatedProducts) => setForm({ ...form, relatedProducts })}
+            />
           </CardBody>
         </Card>
       </div>

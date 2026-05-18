@@ -431,3 +431,39 @@ model Settings {
   value     Json
   updatedAt DateTime @updatedAt
 }
+
+/// Buyurtma yaratilgandan ~2 daqiqa keyin yuboriladigan
+/// post-purchase tavsiyalar (related products) navbati.
+model OrderRecommendation {
+  id             String    @id @default(cuid())
+  orderId        String    @unique
+  userId         String
+  scheduledAt    DateTime
+  expiresAt      DateTime
+  sentAt         DateTime?
+  sentProductIds String[]  @default([])
+  attempts       Int       @default(0)
+  lastError      String?
+  createdAt      DateTime  @default(now())
+
+  @@index([scheduledAt, sentAt])
+  @@index([userId])
+}
+
+/// Admin tomonidan foydalanuvchilarga yuboriladigan ommaviy xabarlar.
+model Broadcast {
+  id          String    @id @default(cuid())
+  messageUz   String
+  messageRu   String?
+  filters     Json
+  totalCount  Int       @default(0)
+  sentCount   Int       @default(0)
+  failedCount Int       @default(0)
+  status      String    @default("pending") // pending | running | completed | failed
+  createdById String
+  createdAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  @@index([createdAt])
+  @@index([status])
+}

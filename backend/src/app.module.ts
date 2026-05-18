@@ -19,6 +19,7 @@ import { PromoCodesModule } from './modules/promo-codes/promo-codes.module';
 import { SupportModule } from './modules/support/support.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { RelatedProductsModule } from './modules/related-products/related-products.module';
+import { RecommendationsModule } from './modules/recommendations/recommendations.module';
 import { BannersModule } from './modules/banners/banners.module';
 import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -74,6 +75,7 @@ import { WebAppNotificationsModule } from './modules/webapp-notifications/webapp
     SupportModule,
     AnalyticsModule,
     RelatedProductsModule,
+    RecommendationsModule,
     BannersModule,
     TelegramBotModule,
     NotificationsModule,

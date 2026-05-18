@@ -93,12 +93,14 @@
     "guest": "Гость",
     "myOrders": "Мои заказы",
     "favorites": "Избранное",
-    "promoCodes": "Промокоды",
-    "language": "Язык",
+    "promoCodes": "Мои промокоды",
+    "language": "Язык приложения",
     "support": "Помощь",
+    "notifications": "Уведомления",
     "about": "О нас",
     "contact": "Контакты",
-    "version": "Версия"
+    "version": "Версия",
+    "stats": { "orders": "Заказы", "favorites": "Избранное" }
   },
   "orders": {
     "title": "Мои заказы",

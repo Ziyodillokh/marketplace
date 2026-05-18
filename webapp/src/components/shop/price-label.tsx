@@ -7,18 +7,37 @@ interface Props {
   oldPrice?: number | null;
   locale: Locale;
   size?: 'sm' | 'md' | 'lg';
+  /** Kartochkalarda balandlik bir xil bo'lishi uchun eski narx maydoni hech qachon yo'qolmaydi (bo'sh placeholder). */
+  reserveOldPriceSpace?: boolean;
   className?: string;
 }
 
-export function PriceLabel({ price, oldPrice, locale, size = 'md', className }: Props) {
-  const priceClass = size === 'lg' ? 'text-xl font-bold' : size === 'md' ? 'text-base font-semibold' : 'text-sm font-semibold';
+export function PriceLabel({
+  price,
+  oldPrice,
+  locale,
+  size = 'md',
+  reserveOldPriceSpace = false,
+  className,
+}: Props) {
+  const priceClass =
+    size === 'lg' ? 'text-xl font-bold' : size === 'md' ? 'text-base font-semibold' : 'text-sm font-semibold';
   const oldClass = size === 'lg' ? 'text-sm' : 'text-xs';
+  const hasOldPrice = oldPrice != null && oldPrice > price;
   return (
     <div className={cn('flex flex-col', className)}>
-      <span className={cn(priceClass, 'text-[var(--color-primary)]')}>{formatMoney(price, locale)}</span>
-      {oldPrice && oldPrice > price && (
-        <span className={cn(oldClass, 'text-[var(--color-text-muted)] line-through')}>{formatMoney(oldPrice, locale)}</span>
-      )}
+      <span className={cn(priceClass, 'text-[var(--color-primary)] leading-tight')}>
+        {formatMoney(price, locale)}
+      </span>
+      {hasOldPrice ? (
+        <span className={cn(oldClass, 'text-[var(--color-text-muted)] line-through leading-tight')}>
+          {formatMoney(oldPrice as number, locale)}
+        </span>
+      ) : reserveOldPriceSpace ? (
+        <span className={cn(oldClass, 'leading-tight invisible')} aria-hidden>
+          &nbsp;
+        </span>
+      ) : null}
     </div>
   );
 }

@@ -93,12 +93,14 @@
     "guest": "Mehmon",
     "myOrders": "Mening buyurtmalarim",
     "favorites": "Sevimlilar",
-    "promoCodes": "Promo kodlar",
-    "language": "Til",
+    "promoCodes": "Promokodlarim",
+    "language": "Ilova tili",
     "support": "Yordam",
+    "notifications": "Xabarnomalar",
     "about": "Biz haqimizda",
     "contact": "Bog'lanish",
-    "version": "Versiya"
+    "version": "Versiya",
+    "stats": { "orders": "Buyurtmalar", "favorites": "Sevimlilar" }
   },
   "orders": {
     "title": "Mening buyurtmalarim",

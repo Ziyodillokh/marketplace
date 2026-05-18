@@ -73,6 +73,7 @@ class CreateProductDto {
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @ArrayMaxSize(20) @Type(() => ImageDto) images?: ImageDto[];
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @ArrayMaxSize(100) @Type(() => VariantDto) variants?: VariantDto[];
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @ArrayMaxSize(50) @Type(() => SpecDto) specs?: SpecDto[];
+  @IsOptional() @IsArray() @ArrayMaxSize(30) @IsString({ each: true }) relatedProductIds?: string[];
 }
 
 class UpdateProductDto {
@@ -92,6 +93,7 @@ class UpdateProductDto {
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @ArrayMaxSize(20) @Type(() => ImageDto) images?: ImageDto[];
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @ArrayMaxSize(100) @Type(() => VariantDto) variants?: VariantDto[];
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @ArrayMaxSize(50) @Type(() => SpecDto) specs?: SpecDto[];
+  @IsOptional() @IsArray() @ArrayMaxSize(30) @IsString({ each: true }) relatedProductIds?: string[];
 }
 
 class ListProductsDto {

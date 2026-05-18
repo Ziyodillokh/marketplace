@@ -56,6 +56,11 @@ export interface UpsertProductInput {
   images?: ImageInput[];
   variants?: VariantInput[];
   specs?: SpecInput[];
+  /**
+   * Post-purchase tavsiyalar uchun mahsulotlar. Mahsulot saqlanganda
+   * mavjud `RelatedRule(sourceProductId=this)` bir-bir o'chiriladi va shu ro'yxatdan yangidan yaratiladi.
+   */
+  relatedProductIds?: string[];
 }
 
 function slugify(s: string): string {
@@ -131,6 +136,21 @@ export class AdminProductsService {
         variants: { orderBy: { id: 'asc' } },
         specs: { orderBy: { position: 'asc' } },
         category: true,
+        sourceRelatedRules: {
+          where: { targetProductId: { not: null } },
+          orderBy: { position: 'asc' },
+          include: {
+            targetProduct: {
+              select: {
+                id: true,
+                titleUz: true,
+                titleRu: true,
+                basePrice: true,
+                images: { orderBy: { position: 'asc' }, take: 1, select: { url: true } },
+              },
+            },
+          },
+        },
       },
     });
     if (!p) throw new NotFoundException('Product not found');
@@ -143,7 +163,36 @@ export class AdminProductsService {
         price: Number(v.price),
         oldPrice: v.oldPrice ? Number(v.oldPrice) : null,
       })),
+      relatedProducts: p.sourceRelatedRules
+        .filter((r) => r.targetProduct)
+        .map((r) => ({
+          id: r.targetProduct!.id,
+          titleUz: r.targetProduct!.titleUz,
+          titleRu: r.targetProduct!.titleRu,
+          basePrice: Number(r.targetProduct!.basePrice),
+          imageUrl: r.targetProduct!.images[0]?.url ?? null,
+        })),
     };
+  }
+
+  /** RelatedRule(sourceProductId=productId, targetProductId IN ids) ro'yxatini almashtiradi. */
+  private async replaceRelatedRules(productId: string, targetIds: string[]): Promise<void> {
+    // Avval mavjud product-to-product qoidalarini o'chiramiz
+    await this.prisma.relatedRule.deleteMany({
+      where: { sourceProductId: productId, targetProductId: { not: null } },
+    });
+    if (targetIds.length === 0) return;
+    // Self-reference va dublikatlarni filtrlaymiz
+    const unique = Array.from(new Set(targetIds.filter((id) => id && id !== productId)));
+    if (unique.length === 0) return;
+    await this.prisma.relatedRule.createMany({
+      data: unique.map((targetProductId, position) => ({
+        sourceProductId: productId,
+        targetProductId,
+        position,
+        isActive: true,
+      })),
+    });
   }
 
   async create(input: UpsertProductInput) {
@@ -198,6 +247,10 @@ export class AdminProductsService {
         },
       },
     });
+    if (input.relatedProductIds !== undefined) {
+      await this.replaceRelatedRules(created.id, input.relatedProductIds);
+    }
+
     this.events.emit('product.created', { productId: created.id });
     return this.getById(created.id);
   }
@@ -298,6 +351,10 @@ export class AdminProductsService {
           position: s.position ?? i,
         })),
       });
+    }
+
+    if (input.relatedProductIds !== undefined) {
+      await this.replaceRelatedRules(id, input.relatedProductIds);
     }
 
     this.events.emit('product.updated', { productId: id });

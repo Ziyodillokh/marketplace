@@ -171,14 +171,22 @@ export function ProductCard({ product }: { product: ProductCardDto }) {
           )}
         </div>
         <div className="p-3">
-          <h3 className="text-sm font-medium line-clamp-2 min-h-[2.5rem]">{product.title}</h3>
+          <h3 className="text-sm font-medium line-clamp-2 min-h-[2.5rem] leading-tight">
+            {product.title}
+          </h3>
           <div className="mt-2">
-            <PriceLabel price={product.price} oldPrice={product.oldPrice} locale={locale} size="sm" />
+            <PriceLabel
+              price={product.price}
+              oldPrice={product.oldPrice}
+              locale={locale}
+              size="sm"
+              reserveOldPriceSpace
+            />
           </div>
         </div>
       </Link>
 
-      <div className="px-3 pb-3">
+      <div className="px-3 pb-3 mt-auto">
         <ProductCardCartButton product={product} />
       </div>
 

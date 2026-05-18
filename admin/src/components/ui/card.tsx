@@ -12,10 +12,23 @@ export function Card({ className, children, ...rest }: HTMLAttributes<HTMLDivEle
   );
 }
 
-export function CardHeader({ title, action }: { title: ReactNode; action?: ReactNode }) {
+export function CardHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  action?: ReactNode;
+}) {
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
-      <h2 className="font-semibold text-sm">{title}</h2>
+    <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)]">
+      <div className="min-w-0">
+        <h2 className="font-semibold text-sm">{title}</h2>
+        {subtitle && (
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{subtitle}</p>
+        )}
+      </div>
       {action}
     </div>
   );

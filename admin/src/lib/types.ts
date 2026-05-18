@@ -63,6 +63,13 @@ export interface AdminProductDetail extends AdminProductListItem {
     valueRu: string;
     position: number;
   }>;
+  relatedProducts?: Array<{
+    id: string;
+    titleUz: string;
+    titleRu: string;
+    basePrice: number;
+    imageUrl: string | null;
+  }>;
 }
 
 export interface AdminCategoryNode {

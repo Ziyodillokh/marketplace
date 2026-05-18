@@ -15,7 +15,13 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/shop/page-header';
 import { Sheet } from '@/components/ui/sheet';
-import { apiGetMe, apiPublicSettings, apiUpdateMe } from '@/lib/api/endpoints';
+import {
+  apiGetMe,
+  apiPublicSettings,
+  apiUpdateMe,
+  apiListOrders,
+  apiFavoritesSummary,
+} from '@/lib/api/endpoints';
 import { useTelegramBackButton, useTelegramUser } from '@/hooks/use-telegram';
 import { useLocaleStore } from '@/stores/locale-store';
 import { getMessages, tr } from '@/i18n';
@@ -32,12 +38,18 @@ export default function ProfilePage() {
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: apiGetMe });
   const { data: settings } = useQuery({ queryKey: ['public-settings'], queryFn: apiPublicSettings });
+  const { data: ordersPage } = useQuery({
+    queryKey: ['orders', 'profile-summary'],
+    queryFn: () => apiListOrders({ limit: 1 }),
+  });
+  const { data: favSummary } = useQuery({
+    queryKey: ['favorites-summary'],
+    queryFn: apiFavoritesSummary,
+  });
 
   const updateLang = useMutation({
     mutationFn: (language: Locale) => apiUpdateMe({ language }),
-    onSuccess: (m) => {
-      qc.setQueryData(['me'], m);
-    },
+    onSuccess: (m) => qc.setQueryData(['me'], m),
   });
 
   const [langOpen, setLangOpen] = useState(false);
@@ -48,38 +60,103 @@ export default function ProfilePage() {
   const initials = (displayName ?? '?').slice(0, 1).toUpperCase();
   const avatarUrl = me?.photoUrl ?? tgUser?.photo_url;
 
+  // ordersPage.items.length doesn't give total count — we'd need a dedicated endpoint.
+  // For now show "—" if unknown; favorites has dedicated summary endpoint.
+  const ordersBadge = ordersPage?.items?.length ?? 0;
+  const favBadge = favSummary?.count ?? 0;
+
   return (
-    <div>
+    <div className="pb-6">
       <PageHeader title={tr(messages, 'profile.title')} />
 
-      <section className="px-4 py-4">
-        <div className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-[var(--color-border)]">
-          <div className="h-14 w-14 rounded-full bg-gray-100 grid place-items-center text-lg font-bold overflow-hidden">
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
-            ) : (
-              initials
-            )}
+      {/* Hero kartochka */}
+      <section className="px-4 pt-4">
+        <div className="bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-hover)] rounded-3xl p-5 text-white shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur grid place-items-center text-xl font-bold overflow-hidden ring-2 ring-white/30">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+              ) : (
+                initials
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-lg font-bold truncate">{displayName}</p>
+              {subline && <p className="text-sm text-white/85 truncate">{subline}</p>}
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate">{displayName}</p>
-            {subline && <p className="text-sm text-[var(--color-text-muted)] truncate">{subline}</p>}
+
+          {/* Stats rozetkalari */}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Link
+              href="/orders"
+              className="bg-white/15 backdrop-blur rounded-2xl px-3 py-2.5 flex items-center gap-2 active:bg-white/25 transition-colors"
+            >
+              <ShoppingBag size={18} />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-white/80 leading-none">
+                  {tr(messages, 'profile.stats.orders')}
+                </p>
+                <p className="text-sm font-bold leading-tight">{ordersBadge}</p>
+              </div>
+            </Link>
+            <Link
+              href="/favorites"
+              className="bg-white/15 backdrop-blur rounded-2xl px-3 py-2.5 flex items-center gap-2 active:bg-white/25 transition-colors"
+            >
+              <Heart size={18} />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-white/80 leading-none">
+                  {tr(messages, 'profile.stats.favorites')}
+                </p>
+                <p className="text-sm font-bold leading-tight">{favBadge}</p>
+              </div>
+            </Link>
           </div>
         </div>
       </section>
 
-      <nav className="px-4">
-        <ul className="bg-white rounded-2xl border border-[var(--color-border)] divide-y overflow-hidden">
-          <Row href="/orders" icon={<ShoppingBag size={18} />} label={tr(messages, 'profile.myOrders')} />
-          <Row href="/favorites" icon={<Heart size={18} />} label={tr(messages, 'profile.favorites')} />
-          <Row href="/promo-codes" icon={<Tag size={18} />} label={tr(messages, 'profile.promoCodes')} />
+      {/* Section 1: Mening hisobim */}
+      <section className="px-4 mt-4">
+        <MenuCard>
+          <MenuRow href="/orders" icon={<ShoppingBag size={20} />} label={tr(messages, 'profile.myOrders')} />
+          <MenuRow href="/favorites" icon={<Heart size={20} />} label={tr(messages, 'profile.favorites')} />
+          <MenuRow href="/promo-codes" icon={<Tag size={20} />} label={tr(messages, 'profile.promoCodes')} />
+        </MenuCard>
+      </section>
+
+      {/* Section 2: Aloqa */}
+      <section className="px-4 mt-3">
+        <MenuCard>
+          <MenuRow href="/support" icon={<HelpCircle size={20} />} label={tr(messages, 'profile.support')} />
+          <MenuRow href="/about" icon={<Info size={20} />} label={tr(messages, 'profile.about')} />
+          {settings?.store.phone && (
+            <li>
+              <a href={`tel:${settings.store.phone}`} className="w-full px-4 h-14 flex items-center gap-3">
+                <span className="text-[var(--color-text-muted)]">
+                  <Phone size={20} />
+                </span>
+                <span className="flex-1 text-sm font-medium">{tr(messages, 'profile.contact')}</span>
+                <span className="text-sm text-[var(--color-text-muted)]">{settings.store.phone}</span>
+                <ChevronRight size={18} className="text-[var(--color-text-muted)]" />
+              </a>
+            </li>
+          )}
+        </MenuCard>
+      </section>
+
+      {/* Section 3: Sozlamalar */}
+      <section className="px-4 mt-3">
+        <MenuCard>
           <li>
             <button
               onClick={() => setLangOpen(true)}
-              className="w-full px-4 py-3 flex items-center gap-3 text-left"
+              className="w-full px-4 h-14 flex items-center gap-3 text-left"
             >
-              <Globe2 size={18} className="text-[var(--color-text-muted)]" />
+              <span className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-400 via-white to-green-500 ring-1 ring-[var(--color-border)] grid place-items-center text-[10px]">
+                <Globe2 size={14} className="text-gray-700" />
+              </span>
               <span className="flex-1 text-sm font-medium">{tr(messages, 'profile.language')}</span>
               <span className="text-sm text-[var(--color-text-muted)]">
                 {locale === 'ru' ? tr(messages, 'language.ru') : tr(messages, 'language.uz')}
@@ -87,20 +164,10 @@ export default function ProfilePage() {
               <ChevronRight size={18} className="text-[var(--color-text-muted)]" />
             </button>
           </li>
-          <Row href="/support" icon={<HelpCircle size={18} />} label={tr(messages, 'profile.support')} />
-          <Row href="/about" icon={<Info size={18} />} label={tr(messages, 'profile.about')} />
-          {settings?.store.phone && (
-            <li>
-              <a href={`tel:${settings.store.phone}`} className="w-full px-4 py-3 flex items-center gap-3">
-                <Phone size={18} className="text-[var(--color-text-muted)]" />
-                <span className="flex-1 text-sm font-medium">{tr(messages, 'profile.contact')}</span>
-                <span className="text-sm text-[var(--color-text-muted)]">{settings.store.phone}</span>
-              </a>
-            </li>
-          )}
-        </ul>
-        <p className="text-center text-xs text-[var(--color-text-muted)] mt-6">v 1.0.0</p>
-      </nav>
+        </MenuCard>
+      </section>
+
+      <p className="text-center text-xs text-[var(--color-text-muted)] mt-6">v 1.0.0</p>
 
       <Sheet open={langOpen} onClose={() => setLangOpen(false)} title={tr(messages, 'language.title')}>
         <div className="space-y-2 py-2">
@@ -128,10 +195,26 @@ export default function ProfilePage() {
   );
 }
 
-function Row({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+function MenuCard({ children }: { children: React.ReactNode }) {
+  return (
+    <ul className="bg-white rounded-2xl border border-[var(--color-border)] divide-y divide-[var(--color-border)] overflow-hidden">
+      {children}
+    </ul>
+  );
+}
+
+function MenuRow({
+  href,
+  icon,
+  label,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+}) {
   return (
     <li>
-      <Link href={href} className="w-full px-4 py-3 flex items-center gap-3">
+      <Link href={href} className="w-full px-4 h-14 flex items-center gap-3 active:bg-gray-50">
         <span className="text-[var(--color-text-muted)]">{icon}</span>
         <span className="flex-1 text-sm font-medium">{label}</span>
         <ChevronRight size={18} className="text-[var(--color-text-muted)]" />
