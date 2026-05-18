@@ -268,6 +268,28 @@ export interface BannerView {
   endsAt: string | null;
 }
 
+export interface BroadcastFilters {
+  hasOrders?: boolean;
+  noOrdersInDays?: number;
+  activeInDays?: number;
+  language?: 'uz' | 'ru';
+  excludeBlocked?: boolean;
+}
+
+export interface BroadcastItem {
+  id: string;
+  messageUz: string;
+  messageRu: string | null;
+  filters: BroadcastFilters;
+  totalCount: number;
+  sentCount: number;
+  failedCount: number;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  createdById: string;
+  createdAt: string;
+  finishedAt: string | null;
+}
+
 export interface RelatedRule {
   id: string;
   sourceProductId: string | null;

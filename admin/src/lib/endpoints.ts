@@ -134,6 +134,19 @@ export const apiUpdateAdmin = (id: string, body: unknown) =>
   api<AdminDto>(`/admin/admins/${id}`, { method: 'PATCH', body });
 export const apiDeleteAdmin = (id: string) => api(`/admin/admins/${id}`, { method: 'DELETE' });
 
+// Broadcasts
+import type { BroadcastFilters, BroadcastItem } from './types';
+
+export const apiListBroadcasts = () => api<BroadcastItem[]>('/admin/broadcasts');
+export const apiGetBroadcast = (id: string) => api<BroadcastItem>(`/admin/broadcasts/${id}`);
+export const apiBroadcastPreviewCount = (filters: BroadcastFilters) =>
+  api<{ count: number }>('/admin/broadcasts/preview-count', { query: filters as Record<string, unknown> });
+export const apiCreateBroadcast = (body: {
+  messageUz: string;
+  messageRu?: string | null;
+  filters: BroadcastFilters;
+}) => api<{ id: string; totalCount: number }>('/admin/broadcasts', { method: 'POST', body });
+
 // Uploads
 export async function apiUploadImage(file: File): Promise<{ url: string; thumbUrl: string; mediumUrl: string }> {
   const fd = new FormData();
