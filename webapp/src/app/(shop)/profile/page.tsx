@@ -19,7 +19,7 @@ import {
   apiGetMe,
   apiPublicSettings,
   apiUpdateMe,
-  apiListOrders,
+  apiOrdersSummary,
   apiFavoritesSummary,
 } from '@/lib/api/endpoints';
 import { useTelegramBackButton, useTelegramUser } from '@/hooks/use-telegram';
@@ -38,9 +38,9 @@ export default function ProfilePage() {
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: apiGetMe });
   const { data: settings } = useQuery({ queryKey: ['public-settings'], queryFn: apiPublicSettings });
-  const { data: ordersPage } = useQuery({
-    queryKey: ['orders', 'profile-summary'],
-    queryFn: () => apiListOrders({ limit: 1 }),
+  const { data: ordersSummary } = useQuery({
+    queryKey: ['orders-summary'],
+    queryFn: apiOrdersSummary,
   });
   const { data: favSummary } = useQuery({
     queryKey: ['favorites-summary'],
@@ -60,9 +60,7 @@ export default function ProfilePage() {
   const initials = (displayName ?? '?').slice(0, 1).toUpperCase();
   const avatarUrl = me?.photoUrl ?? tgUser?.photo_url;
 
-  // ordersPage.items.length doesn't give total count — we'd need a dedicated endpoint.
-  // For now show "—" if unknown; favorites has dedicated summary endpoint.
-  const ordersBadge = ordersPage?.items?.length ?? 0;
+  const ordersBadge = ordersSummary?.count ?? 0;
   const favBadge = favSummary?.count ?? 0;
 
   return (
@@ -87,31 +85,29 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Stats rozetkalari */}
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          {/* Stats rozetkalari — har row: icon · label (flex-1) · big bold count */}
+          <div className="mt-4 grid grid-cols-1 gap-2">
             <Link
               href="/orders"
-              className="bg-white/15 backdrop-blur rounded-2xl px-3 py-2.5 flex items-center gap-2 active:bg-white/25 transition-colors"
+              className="bg-white/15 hover:bg-white/20 backdrop-blur rounded-2xl px-4 h-12 flex items-center gap-3 active:scale-[0.99] transition-all"
             >
-              <ShoppingBag size={18} />
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] uppercase tracking-wide text-white/80 leading-none">
-                  {tr(messages, 'profile.stats.orders')}
-                </p>
-                <p className="text-sm font-bold leading-tight">{ordersBadge}</p>
-              </div>
+              <span className="h-8 w-8 rounded-xl bg-white/20 grid place-items-center shrink-0">
+                <ShoppingBag size={16} />
+              </span>
+              <span className="flex-1 text-sm font-medium">{tr(messages, 'profile.stats.orders')}</span>
+              <span className="text-lg font-extrabold tabular-nums">{ordersBadge}</span>
+              <ChevronRight size={16} className="text-white/60 -mr-1" />
             </Link>
             <Link
               href="/favorites"
-              className="bg-white/15 backdrop-blur rounded-2xl px-3 py-2.5 flex items-center gap-2 active:bg-white/25 transition-colors"
+              className="bg-white/15 hover:bg-white/20 backdrop-blur rounded-2xl px-4 h-12 flex items-center gap-3 active:scale-[0.99] transition-all"
             >
-              <Heart size={18} />
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] uppercase tracking-wide text-white/80 leading-none">
-                  {tr(messages, 'profile.stats.favorites')}
-                </p>
-                <p className="text-sm font-bold leading-tight">{favBadge}</p>
-              </div>
+              <span className="h-8 w-8 rounded-xl bg-white/20 grid place-items-center shrink-0">
+                <Heart size={16} />
+              </span>
+              <span className="flex-1 text-sm font-medium">{tr(messages, 'profile.stats.favorites')}</span>
+              <span className="text-lg font-extrabold tabular-nums">{favBadge}</span>
+              <ChevronRight size={16} className="text-white/60 -mr-1" />
             </Link>
           </div>
         </div>

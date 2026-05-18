@@ -50,6 +50,11 @@ export class OrdersController {
     return this.orders.list(user.id, q, lang);
   }
 
+  @Get('summary')
+  summary(@CurrentUser() user: User) {
+    return this.orders.summary(user.id);
+  }
+
   @Get(':id')
   getById(
     @CurrentUser() user: User,

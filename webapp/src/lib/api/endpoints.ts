@@ -94,6 +94,7 @@ export const apiCreateOrder = (body: CreateOrderBody) =>
   api<OrderDetail>('/orders', { method: 'POST', body });
 export const apiListOrders = (params: { status?: OrderStatus; cursor?: string; limit?: number } = {}) =>
   api<CursorPage<OrderListItem>>('/orders', { query: params });
+export const apiOrdersSummary = () => api<{ count: number; activeCount: number }>('/orders/summary');
 export const apiGetOrder = (id: string) => api<OrderDetail>(`/orders/${id}`);
 export const apiCancelOrder = (id: string) =>
   api<OrderDetail>(`/orders/${id}/cancel`, { method: 'POST' });

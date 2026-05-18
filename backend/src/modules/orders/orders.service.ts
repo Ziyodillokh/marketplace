@@ -205,6 +205,19 @@ export class OrdersService {
     return this.getById(created.id, userId, 'uz');
   }
 
+  async summary(userId: string): Promise<{ count: number; activeCount: number }> {
+    const [count, activeCount] = await Promise.all([
+      this.prisma.order.count({ where: { userId } }),
+      this.prisma.order.count({
+        where: {
+          userId,
+          status: { in: [OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.ON_THE_WAY] },
+        },
+      }),
+    ]);
+    return { count, activeCount };
+  }
+
   async list(
     userId: string,
     params: { status?: OrderStatus; cursor?: string; limit?: number },
