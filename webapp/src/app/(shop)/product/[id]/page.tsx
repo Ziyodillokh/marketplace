@@ -47,8 +47,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
   useEffect(() => {
     if (!data) return;
-    if (data.variants.length === 1) setSelectedVariantId(data.variants[0]!.id);
-  }, [data]);
+    if (selectedVariantId) return;
+    // Birinchi mavjud variantni avtomatik tanlash — variantlar bor bo'lsa ham UX yaxshilanadi
+    const firstInStock = data.variants.find((v) => v.stock > 0);
+    const firstAny = data.variants[0];
+    const pick = firstInStock ?? firstAny;
+    if (pick) setSelectedVariantId(pick.id);
+  }, [data, selectedVariantId]);
 
   const selectedVariant = useMemo(
     () => data?.variants.find((v) => v.id === selectedVariantId) ?? null,
@@ -105,9 +110,20 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const variantsExist = data.variants.length > 0;
-  const canAdd = !variantsExist || (selectedVariant && selectedVariant.stock > 0);
+  const allOutOfStock = variantsExist && data.variants.every((v) => v.stock <= 0);
+  const canAdd =
+    !variantsExist ||
+    (selectedVariant ? selectedVariant.stock > 0 : data.variants.some((v) => v.stock > 0));
   const displayedPrice = selectedVariant?.price ?? data.price;
   const displayedOld = selectedVariant?.oldPrice ?? data.oldPrice;
+
+  const buttonLabel = (() => {
+    if (!variantsExist) return tr(messages, 'product.addToCart');
+    if (allOutOfStock) return tr(messages, 'product.outOfStock');
+    if (!selectedVariant) return tr(messages, 'product.selectVariant');
+    if (selectedVariant.stock <= 0) return tr(messages, 'product.outOfStock');
+    return tr(messages, 'product.addToCart');
+  })();
 
   return (
     <div>
@@ -194,15 +210,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         <Button
           fullWidth
           size="lg"
-          disabled={!canAdd}
+          disabled={!canAdd || (variantsExist && !selectedVariant)}
           loading={addToCartMutation.isPending}
           onClick={() => addToCartMutation.mutate()}
         >
-          {!canAdd
-            ? tr(messages, 'product.outOfStock')
-            : variantsExist && !selectedVariant
-              ? tr(messages, 'product.selectVariant')
-              : tr(messages, 'product.addToCart')}
+          {buttonLabel}
         </Button>
       </div>
     </div>
