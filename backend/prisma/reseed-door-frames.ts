@@ -13,7 +13,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const SEED_MARKER_KEY = 'doors_seed_v2';
+const SEED_MARKER_KEY = 'doors_seed_v3';
 
 const DOOR_CATEGORY_SLUGS = [
   'door-frames-mdf',
@@ -23,17 +23,64 @@ const DOOR_CATEGORY_SLUGS = [
   'door-accessories',
 ];
 
-// Brendlangan placeholder. Har doim yuklanadi, kategoriya rangi + nom.
+// Haqiqiy Unsplash eshik rasmlari (verified URLs)
+const U = (id: string, w = 900) =>
+  `https://images.unsplash.com/${id}?w=${w}&q=80&auto=format&fit=crop`;
+
+// Mahsulot label → 2 ta Unsplash photo ID mapping.
+// (label = pImg() ga uzatilgan ikkinchi argument)
+const PHOTOS: Record<string, [string, string]> = {
+  // MDF
+  'MDF Klassik\nVenge': ['photo-1536160885591-301854e2ed04', 'photo-1630579083524-e3ac854edb46'],
+  'MDF Modern\nOq emal': ['photo-1666130132157-42a77132b712', 'photo-1677457836930-3af51eb6e9a5'],
+  'MDF Premium\nEman shponi': ['photo-1612254296674-7b7f283c4220', 'photo-1611254588799-3dc206b56468'],
+  'MDF Standart\nYong\'oq': ['photo-1490717164730-d639c415a82a', 'photo-1608569570654-415d10cc069c'],
+  'MDF Loft\nKapuchino': ['photo-1494801819652-1ca9fe13134c', 'photo-1609047886814-e42a5630e7c4'],
+  'MDF Italyan\nBeleniy dub': ['photo-1645336031332-b0c872232be9', 'photo-1542020383883-6c6b2a343807'],
+  'MDF Eco\nMil\'an y.': ['photo-1644767494945-fe3e072c4897', 'photo-1613132272499-493c780a806f'],
+  // Massiv
+  'Massiv\nYong\'oq Lux': ['photo-1530982937671-bc00141b5d79', 'photo-1720265017851-c0e2d2f9c81e'],
+  'Massiv Eman\nPremium': ['photo-1756291363690-060c6d134abb', 'photo-1702724756985-cb13b111047c'],
+  'Massiv\nQarag\'ay': ['photo-1611254588799-3dc206b56468', 'photo-1630579083524-e3ac854edb46'],
+  'Yong\'oq\nIkki tabaqali': ['photo-1644767494945-fe3e072c4897', 'photo-1645336031332-b0c872232be9'],
+  'Eman O\'yilgan\nKlassik': ['photo-1542020383883-6c6b2a343807', 'photo-1536160885591-301854e2ed04'],
+  'Qarag\'ay\nEco': ['photo-1720265017851-c0e2d2f9c81e', 'photo-1494801819652-1ca9fe13134c'],
+  // Metall
+  'Metall\nStandart': ['photo-1767552989991-0fac1fe88491', 'photo-1772456595171-b08b8469042d'],
+  'Metall\nPremium Termo': ['photo-1762788204022-cbc5f242a6b0', 'photo-1773291933719-fc02bea5a68f'],
+  'Bronedver\nElite': ['photo-1771077705280-14e4bb2a1f7d', 'photo-1776722202475-d760f925ec32'],
+  'Metall\nEconomy': ['photo-1772456595171-b08b8469042d', 'photo-1771791341329-5b891627c9d4'],
+  'Metall\nLoft Qora': ['photo-1776722202475-d760f925ec32', 'photo-1767552989991-0fac1fe88491'],
+  'Metall\nChina': ['photo-1766230092063-083a0330a66b', 'photo-1766229492236-e5dc5f0eb4ed'],
+  'Metall Smart\n+ E-qulf': ['photo-1766230887326-50e070ef1f8e', 'photo-1762788204022-cbc5f242a6b0'],
+  // PVC
+  'PVC Standart\nHojatxona': ['photo-1677457836930-3af51eb6e9a5', 'photo-1537199322506-85bfd51c0601'],
+  'PVC Lux\nMatshyali': ['photo-1537199322506-85bfd51c0601', 'photo-1542354642-233af003db87'],
+  'PVC Premium\nJaluzili': ['photo-1542354642-233af003db87', 'photo-1702724758750-9ff8d50f02e5'],
+  'PVC Mini\n580×2000': ['photo-1585412727096-409979b24724', 'photo-1603673298820-40d77252226d'],
+  'PVC Maxi\n900×2000': ['photo-1603673298820-40d77252226d', 'photo-1725781745978-9531b0e1b4e3'],
+  'PVC Eco\nBambuk': ['photo-1702724756985-cb13b111047c', 'photo-1549492761-123cdcb927aa'],
+  // Aksessuarlar
+  'Dastagi\nXrom': ['photo-1583691028182-e8f01e74bfa2', 'photo-1607710533910-d7cdffd9e593'],
+  'Qulf\nMagnit Apecs': ['photo-1613924550362-f9320392117d', 'photo-1583041398200-09b2205f6cf0'],
+  'Petla\n3 dona': ['photo-1532550256335-c281a64ac9f6', 'photo-1627252009027-16321aa0777e'],
+  'Nalichnik\n5 metr': ['photo-1538766017398-415434a31a5b', 'photo-1528278966557-c87afae1e1f7'],
+  'Dobor\n100mm': ['photo-1583041398200-09b2205f6cf0', 'photo-1532550256335-c281a64ac9f6'],
+  'Porog\nPlanka': ['photo-1627252009027-16321aa0777e', 'photo-1538766017398-415434a31a5b'],
+  'Smart-qulf\nElektron': ['photo-1528278966557-c87afae1e1f7', 'photo-1583691028182-e8f01e74bfa2'],
+  'Germetik\n5 metr': ['photo-1583691028182-e8f01e74bfa2', 'photo-1613924550362-f9320392117d'],
+};
+
+// Brendlangan placeholder — fallback uchun saqlanadi.
 const ph = (color: string, text: string, w = 900, h = 600) =>
   `https://placehold.co/${w}x${h}/${color}/FFFFFF/png?text=${encodeURIComponent(text)}&font=roboto`;
 
-// Kategoriya ranglari (Material Design palitrasidan)
 const COLORS = {
-  mdf: '8D6E63',       // brown 400
-  wood: '5D4037',      // brown 700 (dark)
-  metal: '455A64',     // blueGrey 700
-  pvc: '90A4AE',       // blueGrey 300
-  accessories: 'B8860B', // dark goldenrod
+  mdf: '8D6E63',
+  wood: '5D4037',
+  metal: '455A64',
+  pvc: '90A4AE',
+  accessories: 'B8860B',
 };
 
 interface Variant {
@@ -82,48 +129,55 @@ const categories: CategorySeed[] = [
     titleUz: 'MDF eshik romlari',
     titleRu: 'МДФ дверные блоки',
     position: 1,
-    iconUrl: ph(COLORS.mdf, 'MDF\nESHIK', 600, 400),
-    bannerUrl: ph(COLORS.mdf, 'MDF ESHIK ROMLARI', 1200, 600),
+    iconUrl: U('photo-1612254296674-7b7f283c4220', 600),
+    bannerUrl: U('photo-1612254296674-7b7f283c4220', 1200),
   },
   {
     slug: 'door-frames-wood',
     titleUz: 'Massiv yog\'och eshiklar',
     titleRu: 'Двери из массива дерева',
     position: 2,
-    iconUrl: ph(COLORS.wood, 'MASSIV\nYOG\'OCH', 600, 400),
-    bannerUrl: ph(COLORS.wood, 'MASSIV YOG\'OCH ESHIKLAR', 1200, 600),
+    iconUrl: U('photo-1530982937671-bc00141b5d79', 600),
+    bannerUrl: U('photo-1530982937671-bc00141b5d79', 1200),
   },
   {
     slug: 'door-frames-metal',
     titleUz: 'Metall kirish eshiklari',
     titleRu: 'Металлические входные двери',
     position: 3,
-    iconUrl: ph(COLORS.metal, 'METALL\nKIRISH', 600, 400),
-    bannerUrl: ph(COLORS.metal, 'METALL KIRISH ESHIKLARI', 1200, 600),
+    iconUrl: U('photo-1762788204022-cbc5f242a6b0', 600),
+    bannerUrl: U('photo-1762788204022-cbc5f242a6b0', 1200),
   },
   {
     slug: 'door-frames-pvc',
     titleUz: 'PVC eshiklar',
     titleRu: 'ПВХ двери',
     position: 4,
-    iconUrl: ph(COLORS.pvc, 'PVC\nESHIK', 600, 400),
-    bannerUrl: ph(COLORS.pvc, 'PVC ESHIKLAR', 1200, 600),
+    iconUrl: U('photo-1677457836930-3af51eb6e9a5', 600),
+    bannerUrl: U('photo-1677457836930-3af51eb6e9a5', 1200),
   },
   {
     slug: 'door-accessories',
     titleUz: 'Eshik aksessuarlari',
     titleRu: 'Дверные аксессуары',
     position: 5,
-    iconUrl: ph(COLORS.accessories, 'AKSESSUARLAR', 600, 400),
-    bannerUrl: ph(COLORS.accessories, 'ESHIK AKSESSUARLARI', 1200, 600),
+    iconUrl: U('photo-1583691028182-e8f01e74bfa2', 600),
+    bannerUrl: U('photo-1583691028182-e8f01e74bfa2', 1200),
   },
 ];
 
-// Helper — har bir product uchun 2 ta placeholder (front + side)
-const pImg = (cat: keyof typeof COLORS, label: string) => [
-  ph(COLORS[cat], label, 900, 1200),
-  ph(COLORS[cat], `${label}\n(view 2)`, 900, 1200),
-];
+// Helper — har bir product uchun 2 ta rasm. Avval PHOTOS dan haqiqiy
+// Unsplash rasmni qidiradi; topilmasa brendlangan placeholder qaytaradi.
+const pImg = (cat: keyof typeof COLORS, label: string): string[] => {
+  const photos = PHOTOS[label];
+  if (photos) {
+    return [U(photos[0], 900), U(photos[1], 900)];
+  }
+  return [
+    ph(COLORS[cat], label, 900, 1200),
+    ph(COLORS[cat], `${label}\n(view 2)`, 900, 1200),
+  ];
+};
 
 const products: ProductSeed[] = [
   // ============== MDF ESHIK ROMLARI (7) ==============
@@ -1065,7 +1119,7 @@ async function main() {
   await prisma.banner.create({
     data: {
       placement: 'home',
-      imageUrlUz: ph(COLORS.mdf, 'MDF ESHIK ROMLARI\nChegirma -20%', 1200, 500),
+      imageUrlUz: U('photo-1612254296674-7b7f283c4220', 1200),
       targetType: 'category',
       targetValue: mdfCatId ?? '',
       position: 1,
@@ -1075,7 +1129,7 @@ async function main() {
   await prisma.banner.create({
     data: {
       placement: 'home',
-      imageUrlUz: ph(COLORS.metal, 'METALL KIRISH\nESHIKLARI\nIshonchli himoya', 1200, 500),
+      imageUrlUz: U('photo-1762788204022-cbc5f242a6b0', 1200),
       targetType: 'category',
       targetValue: metalCatId ?? '',
       position: 2,
@@ -1085,7 +1139,7 @@ async function main() {
   await prisma.banner.create({
     data: {
       placement: 'home',
-      imageUrlUz: ph(COLORS.wood, 'MASSIV YOG\'OCH\nPremium sifat', 1200, 500),
+      imageUrlUz: U('photo-1530982937671-bc00141b5d79', 1200),
       targetType: 'category',
       targetValue: woodCatId ?? '',
       position: 3,
@@ -1095,7 +1149,7 @@ async function main() {
   await prisma.banner.create({
     data: {
       placement: 'home',
-      imageUrlUz: ph(COLORS.pvc, 'PVC ESHIKLAR\nNamlikka chidamli', 1200, 500),
+      imageUrlUz: U('photo-1677457836930-3af51eb6e9a5', 1200),
       targetType: 'category',
       targetValue: pvcCatId ?? '',
       position: 4,
