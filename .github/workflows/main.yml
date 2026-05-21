@@ -43,6 +43,7 @@ jobs:
             npm ci --omit=dev=false --no-audit --no-fund 2>&1 | tail -3 || npm install --no-audit --no-fund 2>&1 | tail -3
             npx prisma generate 2>&1 | tail -2
             npx prisma migrate deploy 2>&1 | tail -5
+            npm run db:seed:doors 2>&1 | tail -30 || echo "⚠ door seed failed (non-fatal)"
             npm run build 2>&1 | tail -3
 
             echo "=== Webapp ==="

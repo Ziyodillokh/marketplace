@@ -32,6 +32,7 @@ npm install
 npx prisma generate
 npx prisma migrate dev --name init
 npx prisma db seed                # demo admin + mahsulotlar
+npm run db:seed:doors             # (ixtiyoriy) eshik rom kataloga aylantirish
 npm run start:dev                 # http://localhost:4000
 ```
 
