@@ -1,4 +1,4 @@
-export function downloadCsv<T extends Record<string, unknown>>(
+export function downloadCsv<T extends object>(
   filename: string,
   rows: T[],
   columns: Array<{ key: keyof T; label: string; format?: (v: unknown) => string }>,
@@ -8,7 +8,7 @@ export function downloadCsv<T extends Record<string, unknown>>(
     .map((row) =>
       columns
         .map((c) => {
-          const v = row[c.key];
+          const v = (row as Record<string, unknown>)[c.key as string];
           const str = c.format ? c.format(v) : v == null ? '' : String(v);
           return escapeCsv(str);
         })
