@@ -18,16 +18,24 @@ async function bootstrap(): Promise<void> {
 
   const webappUrl = process.env.WEBAPP_URL ?? 'http://localhost:5174';
   const adminUrl = process.env.ADMIN_URL ?? 'http://localhost:5175';
+  const superAdminUrl = process.env.SUPERADMIN_URL ?? 'http://localhost:5180';
+  const landingUrl = process.env.LANDING_URL ?? 'http://localhost:5173';
 
   app.enableCors({
     origin: [
       webappUrl,
       adminUrl,
+      superAdminUrl,
+      landingUrl,
+      // Production: selliostore.uz va uning barcha subdomenlari
+      /^https:\/\/(.+\.)?selliostore\.uz$/,
+      // Dev tunnellar
       /\.ngrok-free\.app$/,
       /\.ngrok\.io$/,
       /\.trycloudflare\.com$/,
       /\.loca\.lt$/,
       /^http:\/\/localhost(:\d+)?$/,
+      /^http:\/\/127\.0\.0\.1(:\d+)?$/,
     ],
     credentials: true,
     allowedHeaders: [

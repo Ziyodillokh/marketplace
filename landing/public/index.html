@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sellio — Telegramda professional do'kon</title>
+
+    <!-- SEO -->
+    <meta name="description" content="Sellio bilan Telegramda professional onlayn do'kon oching. Kodsiz boshqaruv, AI rasm yaxshilash va real vaqt analitikasi.">
+    <meta name="theme-color" content="#F4F7FE">
+    <link rel="icon" type="image/png" href="/assets/icon-sellio.png">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Sellio — Telegramda professional do'kon">
+    <meta property="og:description" content="Mahsulot katalogi, buyurtmalar va analitika — barchasi bitta Telegram botda. Kod yozish shart emas.">
+    <meta property="og:locale" content="uz_UZ">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <!-- Performance -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ink: '#0B0E14',
+                        accent: '#0A6CFF',
+                        'accent-soft': '#EAF2FF',
+                        muted: '#5B6271',
+                    },
+                    fontFamily: { sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'] },
+                },
+            },
+        };
+    </script>
+
+    <link href="https://cdn.jsdelivr.net/npm/geist@1.3.0/dist/fonts/geist.min.css" rel="stylesheet">
+
+    <style>
+        /* ============ Dizayn tizimi ============ */
+        :root {
+            --ink: #0B0E14;
+            --muted: #5B6271;
+            --accent: #0A6CFF;
+            --accent-soft: #EAF2FF;
+            --glass-border: rgba(255, 255, 255, 0.65);
+        }
+
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 96px;
+        }
+
+        body {
+            font-family: 'Geist', system-ui, -apple-system, sans-serif;
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+            /* Aurora mesh fon — glass effekt uchun ideal zamin */
+            background:
+                radial-gradient(60rem 42rem at 8% -12%, hsla(217, 100%, 80%, 0.40), transparent 62%),
+                radial-gradient(48rem 36rem at 102% 2%, hsla(262, 88%, 84%, 0.35), transparent 60%),
+                radial-gradient(52rem 40rem at 35% 55%, hsla(199, 100%, 84%, 0.22), transparent 62%),
+                radial-gradient(56rem 42rem at 88% 105%, hsla(230, 95%, 82%, 0.30), transparent 60%),
+                #F4F7FE;
+            background-attachment: fixed;
+        }
+
+        /* Nozik donador tekstura */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.028;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+
+        main, header, footer { position: relative; z-index: 1; }
+
+        h1, h2, h3 { letter-spacing: -0.03em; }
+
+        ::selection { background: rgba(10, 108, 255, 0.15); }
+
+        .eyebrow {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        /* ============ Glass kartalar ============ */
+        .glass {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.52));
+            backdrop-filter: blur(24px) saturate(160%);
+            -webkit-backdrop-filter: blur(24px) saturate(160%);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.85),
+                0 12px 40px -14px rgba(31, 38, 135, 0.14);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .glass:hover {
+            transform: translateY(-2px);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.85),
+                0 22px 56px -18px rgba(31, 38, 135, 0.22);
+        }
+        .glass--static:hover { transform: none; }
+
+        .glass-dark {
+            background: linear-gradient(180deg, rgba(18, 22, 32, 0.93), rgba(11, 14, 20, 0.90));
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 24px;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                0 28px 68px -22px rgba(11, 14, 20, 0.55);
+        }
+
+        /* ============ Tugmalar ============ */
+        .btn-primary {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            background: linear-gradient(180deg, #3B92FF 0%, #0A6CFF 100%);
+            color: #fff;
+            font-weight: 600;
+            border-radius: 14px;
+            box-shadow:
+                0 1px 2px rgba(10, 60, 150, 0.35),
+                0 8px 24px -8px rgba(10, 108, 255, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.25);
+            transition: transform 0.15s ease, box-shadow 0.2s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow:
+                0 2px 4px rgba(10, 60, 150, 0.35),
+                0 14px 32px -10px rgba(10, 108, 255, 0.55),
+                inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        }
+        .btn-primary:active { transform: translateY(0) scale(0.98); }
+
+        .btn-glass {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            color: var(--ink);
+            font-weight: 600;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 4px 16px -6px rgba(31, 38, 135, 0.12);
+            transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+        .btn-glass:hover {
+            transform: translateY(-1px);
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 10px 24px -8px rgba(31, 38, 135, 0.18);
+        }
+
+        /* ============ Header ============ */
+        .nav-pill {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 4px 16px -6px rgba(31, 38, 135, 0.1);
+            transition: box-shadow 0.3s ease, background 0.3s ease;
+        }
+        .nav-pill.scrolled {
+            background: rgba(255, 255, 255, 0.78);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 12px 36px -12px rgba(31, 38, 135, 0.22);
+        }
+
+        /* ============ Narx rejimi ============ */
+        .seg-control {
+            display: inline-flex;
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            padding: 4px;
+            border-radius: 12px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 4px 14px -6px rgba(31, 38, 135, 0.1);
+        }
+        .seg-item {
+            padding: 7px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 9px;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .seg-item.active {
+            background: #fff;
+            color: var(--ink);
+            box-shadow: 0 2px 8px rgba(31, 38, 135, 0.14);
+        }
+        [data-billing="monthly"] .yearly-price,
+        [data-billing="yearly"] .monthly-price { display: none; }
+
+        /* ============ Check ro'yxati ============ */
+        .check-list { list-style: none; padding: 0; margin: 0; }
+        .check-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.625rem;
+            font-size: 0.875rem;
+            color: #3D4350;
+            line-height: 1.4;
+        }
+        .check-list li + li { margin-top: 0.75rem; }
+        .check-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+            margin-top: 1px;
+            background-color: var(--accent);
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='black' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M5 13l4 4L19 7'/%3E%3C/svg%3E") center/contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='black' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M5 13l4 4L19 7'/%3E%3C/svg%3E") center/contain no-repeat;
+        }
+        .check-list--dark li { color: #B9C0CE; }
+        .check-list--dark li::before { background-color: #5EA2FF; }
+
+        /* ============ iOS toggle (vizual) ============ */
+        .ios-toggle {
+            width: 36px;
+            height: 21px;
+            border-radius: 9999px;
+            background: var(--accent);
+            position: relative;
+            flex-shrink: 0;
+            display: inline-block;
+        }
+        .ios-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2.5px;
+            right: 2.5px;
+            width: 16px;
+            height: 16px;
+            border-radius: 9999px;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+        }
+
+        /* ============ Telefon mockup ============ */
+        .phone {
+            position: relative;
+            width: 300px;
+            height: 645px;
+            margin: 0 auto;
+            background: #16181D;
+            border-radius: 52px;
+            border: 10px solid #26282E;
+            box-shadow:
+                0 60px 120px -30px rgba(11, 14, 20, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+            overflow: hidden;
+        }
+        @media (max-width: 359px) {
+            .phone { width: 272px; height: 585px; }
+        }
+        .phone-screen {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 42px;
+            overflow: hidden;
+        }
+        .dynamic-island {
+            position: absolute;
+            top: 13px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 86px;
+            height: 26px;
+            background: #000;
+            border-radius: 14px;
+            z-index: 50;
+        }
+        .carousel-track {
+            display: flex;
+            height: 100%;
+            transition: transform 0.7s cubic-bezier(0.65, 0, 0.35, 1);
+        }
+        .carousel-slide { min-width: 100%; height: 100%; }
+        .carousel-slide img { width: 100%; height: 100%; object-fit: cover; }
+        .carousel-dots {
+            position: absolute;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 40;
+        }
+        .carousel-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.55);
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        .carousel-dot.active { width: 18px; background: #fff; }
+
+        /* ============ Suzuvchi kartalar ============ */
+        .float-card {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(16px) saturate(160%);
+            -webkit-backdrop-filter: blur(16px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.75);
+            border-radius: 16px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 20px 48px -16px rgba(31, 38, 135, 0.26);
+            animation: float 6s ease-in-out infinite;
+        }
+        .float-card--delayed { animation-delay: 2s; }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-9px); }
+        }
+
+        /* ============ FAQ ============ */
+        details summary { cursor: pointer; list-style: none; }
+        details summary::-webkit-details-marker { display: none; }
+        .faq-icon { transition: transform 0.3s ease; }
+        details[open] .faq-icon { transform: rotate(45deg); }
+
+        /* ============ Scroll reveal ============ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition:
+                opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+            transition-delay: var(--d, 0s);
+        }
+        .reveal.visible { opacity: 1; transform: none; }
+
+        /* ============ Reduced motion ============ */
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            .reveal { transition: none; opacity: 1; transform: none; }
+            .carousel-track { transition: none; }
+            .float-card { animation: none; }
+            .btn-primary, .btn-glass, .glass { transition: none; }
+        }
+    </style>
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Sellio",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Telegram",
+        "description": "Telegramda onlayn do'kon yaratish platformasi: kodsiz boshqaruv, AI rasm yaxshilash va analitika.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "UZS" }
+    }
+    </script>
+</head>
+
+<body data-billing="yearly">
+
+<!-- ============ HEADER ============ -->
+<header class="fixed inset-x-0 top-4 z-50 px-4">
+    <div class="nav-pill max-w-5xl mx-auto rounded-2xl px-4 sm:px-5 py-3" id="main-nav">
+        <div class="flex items-center justify-between">
+            <a href="#" class="flex items-center gap-2.5" aria-label="Sellio — bosh sahifa">
+                <img src="/assets/icon-sellio.png" alt="" width="44" height="44" class="w-11 h-11 object-contain drop-shadow-[0_4px_10px_rgba(10,108,255,0.25)]">
+                <span class="font-bold text-lg tracking-tight">Sellio</span>
+            </a>
+
+            <nav class="hidden md:flex items-center gap-1" aria-label="Asosiy navigatsiya">
+                <a href="#features" class="px-3.5 py-2 rounded-lg text-sm font-medium text-muted hover:text-ink hover:bg-white/60 transition-colors">Imkoniyatlar</a>
+                <a href="#pricing" class="px-3.5 py-2 rounded-lg text-sm font-medium text-muted hover:text-ink hover:bg-white/60 transition-colors">Narxlar</a>
+                <a href="#testimonials" class="px-3.5 py-2 rounded-lg text-sm font-medium text-muted hover:text-ink hover:bg-white/60 transition-colors">Mijozlar</a>
+                <a href="#faq" class="px-3.5 py-2 rounded-lg text-sm font-medium text-muted hover:text-ink hover:bg-white/60 transition-colors">Savollar</a>
+            </nav>
+
+            <div class="flex items-center gap-2">
+                <a href="https://admin.selliostore.uz/login" data-admin-link class="hidden sm:inline-flex items-center px-3.5 py-2 rounded-lg text-sm font-medium text-muted hover:text-ink hover:bg-white/60 transition-colors">Kirish</a>
+                <a href="/signup?plan=FREE" class="btn-primary px-4 sm:px-5 py-2.5 text-sm">Bepul boshlash</a>
+                <button id="mobile-menu-btn" class="md:hidden p-2 rounded-lg hover:bg-white/60 transition-colors"
+                        aria-label="Menyuni ochish" aria-expanded="false" aria-controls="mobile-menu">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobil menyu -->
+        <nav id="mobile-menu" class="hidden md:hidden pt-3 mt-3 border-t border-white/50" aria-label="Mobil navigatsiya">
+            <a href="#features" class="block px-3 py-2.5 rounded-lg text-sm font-medium text-muted hover:text-ink hover:bg-white/60">Imkoniyatlar</a>
+            <a href="#pricing" class="block px-3 py-2.5 rounded-lg text-sm font-medium text-muted hover:text-ink hover:bg-white/60">Narxlar</a>
+            <a href="#testimonials" class="block px-3 py-2.5 rounded-lg text-sm font-medium text-muted hover:text-ink hover:bg-white/60">Mijozlar</a>
+            <a href="#faq" class="block px-3 py-2.5 rounded-lg text-sm font-medium text-muted hover:text-ink hover:bg-white/60">Savollar</a>
+        </nav>
+    </div>
+</header>
+
+<main>
+    <!-- ============ HERO ============ -->
+    <section class="relative pt-32 lg:pt-40 pb-16 lg:pb-24 px-6 overflow-hidden">
+        <div class="max-w-6xl mx-auto grid lg:grid-cols-[1.1fr_0.9fr] gap-16 lg:gap-8 items-center">
+            <!-- Matn -->
+            <div class="text-center lg:text-left">
+                <a href="#features" class="glass glass--static inline-flex items-center gap-2 !rounded-full pl-1.5 pr-3.5 py-1.5 text-[13px] font-medium text-muted mb-7">
+                    <span class="bg-accent text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">Yangi</span>
+                    AI rasm yaxshilash endi mavjud
+                    <svg class="w-3.5 h-3.5 text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </a>
+
+                <h1 class="text-[2.6rem] leading-[1.06] sm:text-6xl lg:text-[4.2rem] font-extrabold mb-6">
+                    Telegramda do'kon oching.<br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#0A6CFF] to-[#6B8CFF]">Sotuvni oshiring.</span>
+                </h1>
+
+                <p class="text-base lg:text-lg text-muted leading-relaxed max-w-md mx-auto lg:mx-0 mb-9">
+                    Mahsulot katalogi, buyurtmalar va analitika — barchasi bitta Telegram botda. Kod yozish shart emas.
+                </p>
+
+                <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-10">
+                    <a href="/signup?plan=FREE" class="btn-primary px-7 py-3.5 text-base w-full sm:w-auto">
+                        Bepul boshlash
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5-5 5M18 12H6"/></svg>
+                    </a>
+                    <a href="#features" class="btn-glass px-7 py-3.5 text-base w-full sm:w-auto">Qanday ishlaydi</a>
+                </div>
+
+                <!-- Ishonch belgilari (haqiqiy faktlar) -->
+                <ul class="flex flex-wrap justify-center lg:justify-start gap-x-6 gap-y-2.5 text-[13px] font-medium text-muted">
+                    <li class="flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        Karta talab qilinmaydi
+                    </li>
+                    <li class="flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        5 daqiqada sozlash
+                    </li>
+                    <li class="flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        Bepul tarif doimiy
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Telefon mockup -->
+            <div class="relative w-fit mx-auto lg:mx-0 lg:justify-self-end">
+                <div class="absolute -inset-10 -z-10 pointer-events-none"
+                     style="background: radial-gradient(circle at 50% 40%, rgba(10,108,255,0.18), transparent 65%);" aria-hidden="true"></div>
+
+                <div class="phone">
+                    <div class="dynamic-island" aria-hidden="true"></div>
+                    <div class="phone-screen" id="hero-carousel-container" role="region" aria-label="Ilova ekran tasvirlari" aria-roledescription="karusel">
+                        <div class="carousel-track" id="hero-carousel-track" style="transform: translateX(0%);">
+                            <div class="carousel-slide"><img alt="Sellio do'kon ko'rinishi — 1" fetchpriority="high" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD3q6pgSsxuG_rbPgFnjXbDRh7DC9MCYS2esfqcBqBrArRSS4hzOk1LVRDewxEpgPK1qJimiZHxcnyzjMBhtnvFTcmCAQHyqGG8Vf0SJ3PH9ZseW3wC0T5gIILqG0oRpO5TJJVVweb_6Sh1DOxaTxuIn5WBl49taNe6o45rwEzc1un2P7Ff7zjwziW5Guy5z-fX7e8szj6WSVbX2XIoDQMHJFAy9rkPf8V9kD0skX-aOgrn5qR7EmWxtFJxkX1hdn3Ft0O_pPqKrA"></div>
+                            <div class="carousel-slide"><img alt="Sellio do'kon ko'rinishi — 2" loading="lazy" decoding="async" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFiMMHU6dYXHfE_GTg9gqLkHSQ-K5JtDFYSu9rGd3xBvfiUl-7R7hntHbVT2McZJcm-XXdi6cxs5vw0xDX2ZUigsPcjULsgbiRD6wyQKgQQChllx4hgHcVXagJySzj25kiDHC8xl8jPfQr17HvELfp0bjP4YipEM-oUQztYQ9vCSgeChht353mEUUcH_p8wUGWAjK60IMHfeYCdzRW_4d8bOJUPaYXp_8PV5Rnco94DIU_J-VdbX8ogCSsEfaEMyKpLd30_E5LuQ"></div>
+                            <div class="carousel-slide"><img alt="Sellio do'kon ko'rinishi — 3" loading="lazy" decoding="async" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpj_w0Go-w27OGvSxRE6IvfcSBoxTSsqUYmX9sZGb95hUuvFUXqeaopfKIIdKbe_1dhlkz3FL_z4Spk4i3clKOH0M1U1O9aWLb7WYsMnYi4r6G742NxrxR_vvTaItQ3tD3s-bYYTtYIQ_1gfeb8vkFPNP7ReJvKvSajGO68cqhUgya71dVhP00zllAV0nmayoD04endk7CYqWaXh9oCxUWAdwYrKkbPKEk9IPVUlngeahFfzJC3F3E8vNQk2wazAxy0RzDEFbNGA"></div>
+                            <div class="carousel-slide"><img alt="Sellio do'kon ko'rinishi — 4" loading="lazy" decoding="async" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGV3K5Em-eDcjKeZ-R1UkcK1ET3Puc4b2tiMhAoKMg4NpMpWJ4LSAdW-PmZnZ0jhdJX0WiVs6fZTkRS8ad0VC08BJzDArV8Bi_3CoM21VtIEoPu8PjLOzEh-pC13F2-2tOXHqRxLuAAqpP-F-rWbK1mtdGqldD5L05FVZIX2T7l5qDRorp7dUajNw59XKBa6fEAdc0BK7WRi3KgW-UQoPpZUJxaU597IrX1KfVionTWg7tJCLVlpJFnKErQaQ8Ru7l5RE4Dvs2-g"></div>
+                            <div class="carousel-slide"><img alt="Sellio do'kon ko'rinishi — 5" loading="lazy" decoding="async" src="https://lh3.googleusercontent.com/aida-public/AB6AXuApHEzA8LRXkC3uh5t-gU51iiR2QrK1XM34GAs_qvDJmfB5XuS9uFmDai2f2F1RbdFPMD_N0LxXdHM8OugECntMxT1vL3vb4S901chy7WyiLIt_80HLg8GDSV80LO1jES_qESPW37SFGJ9VQQ8axhYOkEt5B-7zmVlyYbhDBGquTWaeNE1ZS0FBmtXndwJU670T3kf2r6PK6vPRGKQH3Ldn78Ex-1IrB4FDNWh0fJnelXwR7Qz554HfNjLjzVVDuhMbFJWUCGYLeA"></div>
+                        </div>
+                        <div class="carousel-dots" id="hero-carousel-dots" role="tablist" aria-label="Slayd tanlash"></div>
+                    </div>
+                </div>
+
+                <!-- Suzuvchi karta: yangi buyurtma -->
+                <div class="float-card hidden sm:flex items-center gap-3 px-4 py-3 -right-6 lg:-right-14 top-24">
+                    <span class="w-9 h-9 rounded-full bg-emerald-100/80 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    </span>
+                    <div>
+                        <p class="text-xs font-semibold">Yangi buyurtma · #1024</p>
+                        <p class="text-xs text-muted">245,000 so'm · 2 ta mahsulot</p>
+                    </div>
+                </div>
+
+                <!-- Suzuvchi karta: haftalik o'sish -->
+                <div class="float-card float-card--delayed hidden sm:block px-4 py-3.5 -left-8 lg:-left-16 bottom-32">
+                    <p class="text-[11px] font-medium text-muted mb-1.5">Bu hafta sotuvlar</p>
+                    <div class="flex items-end gap-2.5">
+                        <p class="text-lg font-bold leading-none">+32%</p>
+                        <div class="flex items-end gap-[3px] h-6" aria-hidden="true">
+                            <span class="w-[5px] rounded-sm bg-accent/25 h-[35%]"></span>
+                            <span class="w-[5px] rounded-sm bg-accent/40 h-[55%]"></span>
+                            <span class="w-[5px] rounded-sm bg-accent/55 h-[45%]"></span>
+                            <span class="w-[5px] rounded-sm bg-accent/75 h-[75%]"></span>
+                            <span class="w-[5px] rounded-sm bg-accent h-full"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ HAQIQIY FAKTLAR (yolg'on raqamlarsiz) ============ -->
+    <section class="px-6 py-6">
+        <div class="glass glass--static max-w-5xl mx-auto px-8 py-7 grid grid-cols-2 lg:grid-cols-4 gap-7 reveal">
+            <div class="flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="sparkles" class="w-5 h-5 text-accent" aria-hidden="true"></i>
+                </span>
+                <div>
+                    <p class="text-sm font-bold leading-tight">AI yaxshilash</p>
+                    <p class="text-[12px] text-muted">Rasmlar avto-sifatda</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="bot" class="w-5 h-5 text-accent" aria-hidden="true"></i>
+                </span>
+                <div>
+                    <p class="text-sm font-bold leading-tight">O'z botingiz</p>
+                    <p class="text-[12px] text-muted">O'z brendingiz bilan</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="package" class="w-5 h-5 text-accent" aria-hidden="true"></i>
+                </span>
+                <div>
+                    <p class="text-sm font-bold leading-tight">Cheksiz buyurtmalar</p>
+                    <p class="text-[12px] text-muted">Barcha tariflarda</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="headphones" class="w-5 h-5 text-accent" aria-hidden="true"></i>
+                </span>
+                <div>
+                    <p class="text-sm font-bold leading-tight">24/7 yordam</p>
+                    <p class="text-[12px] text-muted">Doim aloqadamiz</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ IMKONIYATLAR (bento) ============ -->
+    <section class="px-6 py-24" id="features">
+        <div class="max-w-6xl mx-auto">
+            <div class="max-w-xl mb-14 reveal">
+                <p class="eyebrow mb-3">Imkoniyatlar</p>
+                <h2 class="text-3xl lg:text-[2.6rem] lg:leading-[1.15] font-extrabold mb-4">Sotish uchun kerak bo'lgan hamma narsa</h2>
+                <p class="text-muted lg:text-lg">Katalogdan to'lovgacha — butun savdo jarayoni bitta joyda avtomatlashtirilgan.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-4">
+                <!-- AI rasm yaxshilash (keng karta) -->
+                <div class="glass md:col-span-2 p-7 lg:p-9 reveal">
+                    <div class="grid sm:grid-cols-2 gap-8 items-center h-full">
+                        <div>
+                            <span class="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center mb-5">
+                                <i data-lucide="sparkles" class="w-5 h-5 text-accent" aria-hidden="true"></i>
+                            </span>
+                            <h3 class="text-lg font-bold mb-2.5">AI rasm yaxshilash</h3>
+                            <p class="text-sm text-muted leading-relaxed">Mahsulotga rasm qo'shayotganingizda «AI yaxshilash» yoqilgan bo'lsa, rasm avtomatik professional sifatga keltirilib yuklanadi. Avto-to'ldirish esa kartochkani siz uchun to'ldiradi.</p>
+                        </div>
+                        <!-- Oldin/Keyin — haqiqiy namuna -->
+                        <div class="rounded-2xl bg-white/55 border border-white/70 p-4 shadow-sm">
+                            <div class="flex items-center gap-3">
+                                <figure class="flex-1 m-0">
+                                    <div class="aspect-[3/4] rounded-xl overflow-hidden relative">
+                                        <img src="/assets/before.png" alt="AI yaxshilashdan oldingi xira, changli mahsulot rasmi" loading="lazy" decoding="async" class="w-full h-full object-cover">
+                                        <span class="absolute top-2 left-2 bg-black/55 backdrop-blur-sm text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">Oldin</span>
+                                    </div>
+                                </figure>
+                                <i data-lucide="arrow-right" class="w-5 h-5 text-accent flex-shrink-0" aria-hidden="true"></i>
+                                <figure class="flex-1 m-0">
+                                    <div class="aspect-[3/4] rounded-xl overflow-hidden relative ring-2 ring-accent/60 shadow-[0_8px_24px_-8px_rgba(10,108,255,0.45)]">
+                                        <img src="/assets/after.png" alt="AI yaxshilashdan keyingi professional studiya sifatidagi rasm" loading="lazy" decoding="async" class="w-full h-full object-cover">
+                                        <span class="absolute top-2 left-2 bg-accent text-white text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                            <i data-lucide="sparkles" class="w-2.5 h-2.5" aria-hidden="true"></i>Keyin
+                                        </span>
+                                    </div>
+                                </figure>
+                            </div>
+                            <div class="flex items-center justify-between mt-4 pt-3 border-t border-black/[0.05]">
+                                <span class="text-[12px] font-medium">AI yaxshilash</span>
+                                <span class="ios-toggle" aria-hidden="true"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Buyurtmalar -->
+                <div class="glass p-7 lg:p-9 reveal" style="--d:.08s">
+                    <span class="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center mb-5">
+                        <i data-lucide="shopping-bag" class="w-5 h-5 text-accent" aria-hidden="true"></i>
+                    </span>
+                    <h3 class="text-lg font-bold mb-2.5">Buyurtmalar bir joyda</h3>
+                    <p class="text-sm text-muted leading-relaxed mb-6">Har bir buyurtma botingizga darhol tushadi — bir tugma bilan qabul qiling va holatini boshqaring.</p>
+                    <div class="rounded-2xl bg-white/55 border border-white/70 p-4 shadow-sm" aria-hidden="true">
+                        <div class="flex items-center justify-between text-[12.5px] font-semibold">
+                            <span>Buyurtma #1024</span>
+                            <span class="text-[10px] font-bold uppercase tracking-wide bg-accent-soft text-accent px-2 py-0.5 rounded-full">Yangi</span>
+                        </div>
+                        <p class="text-[12px] text-muted mt-1.5">Sport krossovka · 2 dona</p>
+                        <div class="h-px bg-black/[0.06] my-3"></div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[12.5px] font-bold">245,000 so'm</span>
+                            <span class="text-[11px] font-semibold text-white bg-accent rounded-lg px-3 py-1.5">Qabul qilish</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analitika -->
+                <div class="glass p-7 lg:p-9 reveal">
+                    <span class="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center mb-5">
+                        <i data-lucide="trending-up" class="w-5 h-5 text-accent" aria-hidden="true"></i>
+                    </span>
+                    <h3 class="text-lg font-bold mb-2.5">Real vaqt analitikasi</h3>
+                    <p class="text-sm text-muted leading-relaxed mb-6">Sotuvlar, mijozlar va eng ko'p sotilgan mahsulotlar — barchasi bitta panelda.</p>
+                    <div class="relative" aria-hidden="true">
+                        <span class="absolute -top-1 right-0 text-[11px] font-bold text-emerald-600 bg-emerald-100/70 px-2 py-0.5 rounded-full">+32%</span>
+                        <div class="flex items-end gap-2 h-20 pt-4">
+                            <div class="flex-1 bg-accent/15 rounded-md h-[35%]"></div>
+                            <div class="flex-1 bg-accent/25 rounded-md h-[55%]"></div>
+                            <div class="flex-1 bg-accent/35 rounded-md h-[45%]"></div>
+                            <div class="flex-1 bg-accent/50 rounded-md h-[70%]"></div>
+                            <div class="flex-1 bg-accent/70 rounded-md h-[60%]"></div>
+                            <div class="flex-1 bg-accent rounded-md h-full"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kodsiz boshqaruv (keng karta) -->
+                <div class="glass md:col-span-2 p-7 lg:p-9 reveal" style="--d:.08s">
+                    <div class="grid sm:grid-cols-2 gap-8 items-center h-full">
+                        <div>
+                            <span class="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center mb-5">
+                                <i data-lucide="sliders-horizontal" class="w-5 h-5 text-accent" aria-hidden="true"></i>
+                            </span>
+                            <h3 class="text-lg font-bold mb-2.5">Kod yozmasdan boshqaring</h3>
+                            <p class="text-sm text-muted leading-relaxed">Katalog, narxlar, promokodlar va bannerlar — hammasi oddiy interfeys orqali. Texnik bilim shart emas.</p>
+                        </div>
+                        <div class="rounded-2xl bg-white/55 border border-white/70 shadow-sm divide-y divide-black/[0.05]" aria-hidden="true">
+                            <div class="flex items-center justify-between px-4 py-3">
+                                <span class="text-[12.5px] font-medium">Avto-to'ldirish</span>
+                                <span class="ios-toggle"></span>
+                            </div>
+                            <div class="flex items-center justify-between px-4 py-3">
+                                <span class="text-[12.5px] font-medium">Promokodlar</span>
+                                <span class="ios-toggle"></span>
+                            </div>
+                            <div class="flex items-center justify-between px-4 py-3">
+                                <span class="text-[12.5px] font-medium">Kanal tugmasi</span>
+                                <span class="ios-toggle"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ QANDAY ISHLAYDI ============ -->
+    <section class="px-6 py-12">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center max-w-xl mx-auto mb-14 reveal">
+                <p class="eyebrow mb-3">Jarayon</p>
+                <h2 class="text-3xl lg:text-[2.6rem] font-extrabold mb-4">3 qadamda ishga tushiring</h2>
+                <p class="text-muted lg:text-lg">Ro'yxatdan o'tishdan birinchi sotuvgacha — atigi 5 daqiqa.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-5">
+                <div class="glass p-8 reveal">
+                    <span class="w-11 h-11 rounded-2xl bg-gradient-to-b from-[#3B92FF] to-[#0A6CFF] text-white flex items-center justify-center font-bold text-lg mb-5 shadow-[0_6px_16px_rgba(10,108,255,0.35),inset_0_1px_0_rgba(255,255,255,0.3)]">1</span>
+                    <h3 class="text-lg font-bold mb-2.5">Botni ulang</h3>
+                    <p class="text-sm text-muted leading-relaxed">@BotFather orqali yaratilgan botingizni Sellio'ga ulang — bir necha soniya kifoya.</p>
+                </div>
+                <div class="glass p-8 reveal" style="--d:.1s">
+                    <span class="w-11 h-11 rounded-2xl bg-gradient-to-b from-[#3B92FF] to-[#0A6CFF] text-white flex items-center justify-center font-bold text-lg mb-5 shadow-[0_6px_16px_rgba(10,108,255,0.35),inset_0_1px_0_rgba(255,255,255,0.3)]">2</span>
+                    <h3 class="text-lg font-bold mb-2.5">Katalog yarating</h3>
+                    <p class="text-sm text-muted leading-relaxed">Mahsulot, narx va rasmlarni qo'shing. AI yaxshilash yoqilgan bo'lsa, rasmlar avtomatik sifatli yuklanadi.</p>
+                </div>
+                <div class="glass p-8 reveal" style="--d:.2s">
+                    <span class="w-11 h-11 rounded-2xl bg-gradient-to-b from-[#3B92FF] to-[#0A6CFF] text-white flex items-center justify-center font-bold text-lg mb-5 shadow-[0_6px_16px_rgba(10,108,255,0.35),inset_0_1px_0_rgba(255,255,255,0.3)]">3</span>
+                    <h3 class="text-lg font-bold mb-2.5">Soting va kuzating</h3>
+                    <p class="text-sm text-muted leading-relaxed">Buyurtmalar botingizga avtomatik tushadi. Statistika real vaqtda yangilanadi.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ NARXLAR ============ -->
+    <section class="px-6 py-24" id="pricing">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center max-w-xl mx-auto mb-10 reveal">
+                <p class="eyebrow mb-3">Narxlar</p>
+                <h2 class="text-3xl lg:text-[2.6rem] font-extrabold mb-4">Shaffof narxlar. Yashirin to'lovlar yo'q.</h2>
+                <p class="text-muted lg:text-lg">Bepul boshlang, biznesingiz o'sgani sari kengaytiring.</p>
+            </div>
+
+            <div class="flex justify-center mb-12 reveal">
+                <div class="seg-control" role="group" aria-label="To'lov davri">
+                    <button type="button" class="seg-item" data-billing-value="monthly" aria-pressed="false">Oylik</button>
+                    <button type="button" class="seg-item active" data-billing-value="yearly" aria-pressed="true">
+                        Yillik
+                        <span class="bg-accent text-white text-[10px] font-bold px-2 py-0.5 rounded-full">2 oy bepul</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-4 items-start">
+                <!-- FREE -->
+                <div class="glass p-7 reveal">
+                    <p class="text-sm font-bold mb-1">Free</p>
+                    <p class="text-[13px] text-muted mb-6">Yangi boshlaganlar uchun</p>
+                    <div class="mb-6">
+                        <p class="text-[1.9rem] leading-none font-extrabold tracking-tight">0</p>
+                        <p class="text-sm font-medium text-muted mt-1.5">
+                            <span class="monthly-price">so'm / oy</span>
+                            <span class="yearly-price">so'm / yil</span>
+                        </p>
+                    </div>
+                    <a href="/signup?plan=FREE" class="btn-glass w-full py-3 text-sm mb-7">Bepul boshlash</a>
+                    <ul class="check-list">
+                        <li>1 ta kategoriya, 3 tagacha mahsulot</li>
+                        <li>1 ta banner</li>
+                        <li>Har mahsulotga 3 ta rasm, 5 ta opsiya</li>
+                        <li>3 ta AI rasm yaxshilash</li>
+                        <li>3 ta avto-to'ldirish</li>
+                        <li>Cheksiz buyurtmalar</li>
+                        <li>O'z Telegram botingiz</li>
+                        <li>Promokodlar va kanal tugmasi</li>
+                    </ul>
+                </div>
+
+                <!-- STANDART -->
+                <div class="glass p-7 reveal" style="--d:.06s">
+                    <p class="text-sm font-bold mb-1">Standart</p>
+                    <p class="text-[13px] text-muted mb-6">O'suvchi do'konlar uchun</p>
+                    <div class="mb-6">
+                        <p class="text-[1.9rem] leading-none font-extrabold tracking-tight">
+                            <span class="monthly-price">199,000</span>
+                            <span class="yearly-price">1,990,000</span>
+                        </p>
+                        <p class="text-sm font-medium text-muted mt-1.5">
+                            <span class="monthly-price">so'm / oy</span>
+                            <span class="yearly-price">so'm / yil</span>
+                        </p>
+                    </div>
+                    <a href="/signup?plan=STANDARD" class="btn-glass w-full py-3 text-sm mb-7">Standartni tanlash</a>
+                    <p class="text-[12px] font-semibold text-muted uppercase tracking-wide mb-3.5">Free'dagi barchasi, qo'shimcha:</p>
+                    <ul class="check-list">
+                        <li>50 kategoriya, 200 tagacha mahsulot</li>
+                        <li>10 tagacha banner</li>
+                        <li>Har mahsulotga 15 ta rasm</li>
+                        <li>30 ta AI rasm yaxshilash</li>
+                        <li>100 ta avto-to'ldirish</li>
+                        <li>Do'kon statistikasi</li>
+                        <li>O'z brendingiz bilan</li>
+                        <li>Ustuvor qo'llab-quvvatlash</li>
+                    </ul>
+                </div>
+
+                <!-- PRO (mashhur, qora glass) -->
+                <div class="glass-dark relative p-7 text-white reveal overflow-hidden" style="--d:.12s">
+                    <div class="absolute inset-x-0 top-0 h-40 pointer-events-none"
+                         style="background: radial-gradient(ellipse 280px 160px at 50% -20%, rgba(10,108,255,0.45), transparent 70%);" aria-hidden="true"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-1">
+                            <p class="text-sm font-bold">Pro</p>
+                            <span class="text-[10px] font-bold uppercase tracking-wider bg-accent text-white px-2.5 py-1 rounded-full">Eng mashhur</span>
+                        </div>
+                        <p class="text-[13px] text-white/55 mb-6">Professional sotuvchilar uchun</p>
+                        <div class="mb-6">
+                            <p class="text-[1.9rem] leading-none font-extrabold tracking-tight">
+                                <span class="monthly-price">499,000</span>
+                                <span class="yearly-price">4,990,000</span>
+                            </p>
+                            <p class="text-sm font-medium text-white/55 mt-1.5">
+                                <span class="monthly-price">so'm / oy</span>
+                                <span class="yearly-price">so'm / yil</span>
+                            </p>
+                        </div>
+                        <a href="/signup?plan=PRO" class="btn-primary w-full py-3 text-sm mb-7">Pro'ga o'tish</a>
+                        <p class="text-[12px] font-semibold text-white/45 uppercase tracking-wide mb-3.5">Standart'dagi barchasi, qo'shimcha:</p>
+                        <ul class="check-list check-list--dark">
+                            <li>100 kategoriya, 1,000 tagacha mahsulot</li>
+                            <li>150 ta AI rasm yaxshilash</li>
+                            <li>1,000 ta avto-to'ldirish</li>
+                            <li>Har mahsulotga 10 ta rasm</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- PREMIUM -->
+                <div class="glass p-7 reveal" style="--d:.18s">
+                    <p class="text-sm font-bold mb-1">Premium</p>
+                    <p class="text-[13px] text-muted mb-6">Katta bizneslar uchun</p>
+                    <div class="mb-6">
+                        <p class="text-[1.9rem] leading-none font-extrabold tracking-tight">
+                            <span class="monthly-price">790,000</span>
+                            <span class="yearly-price">7,900,000</span>
+                        </p>
+                        <p class="text-sm font-medium text-muted mt-1.5">
+                            <span class="monthly-price">so'm / oy</span>
+                            <span class="yearly-price">so'm / yil</span>
+                        </p>
+                    </div>
+                    <a href="/signup?plan=PREMIUM" class="btn-glass w-full py-3 text-sm mb-7">Premium olish</a>
+                    <p class="text-[12px] font-semibold text-muted uppercase tracking-wide mb-3.5">Pro'dagi barchasi, qo'shimcha:</p>
+                    <ul class="check-list">
+                        <li>Cheksiz kategoriyalar</li>
+                        <li>Cheksiz mahsulotlar</li>
+                        <li>Cheksiz bannerlar</li>
+                        <li>250 ta AI rasm yaxshilash</li>
+                        <li>2,000 ta avto-to'ldirish</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p class="text-center text-[13px] text-muted mt-10 reveal">
+                Barcha tariflarda: cheksiz buyurtmalar · o'z Telegram botingiz · promokodlar · kanal tugmasi
+            </p>
+        </div>
+    </section>
+
+    <!-- ============ MIJOZLAR FIKRI ============ -->
+    <section class="px-6 py-12" id="testimonials">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center max-w-xl mx-auto mb-14 reveal">
+                <p class="eyebrow mb-3">Mijozlar</p>
+                <h2 class="text-3xl lg:text-[2.6rem] font-extrabold">Tadbirkorlar Sellio haqida</h2>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto">
+                <figure class="glass p-8 reveal">
+                    <div class="flex gap-0.5 text-amber-400 text-sm mb-5" role="img" aria-label="5 yulduzdan 5 yulduz">
+                        <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+                    </div>
+                    <blockquote class="text-[15px] text-[#3D4350] leading-relaxed mb-7">
+                        "Sellio orqali do'kon ochish juda oson bo'ldi. Onlayn to'lovlar va avtomatlashtirilgan buyurtmalar ishimizni ancha yengillashtirdi — endi barcha sotuvlarim bir joyda."
+                    </blockquote>
+                    <figcaption class="flex items-center gap-3.5">
+                        <span class="w-11 h-11 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-sm font-bold text-white" aria-hidden="true">A</span>
+                        <div>
+                            <p class="font-semibold text-sm">Aziza K.</p>
+                            <p class="text-[12px] text-muted">Kiyim-kechak do'koni</p>
+                        </div>
+                    </figcaption>
+                </figure>
+
+                <figure class="glass p-8 reveal" style="--d:.1s">
+                    <div class="flex gap-0.5 text-amber-400 text-sm mb-5" role="img" aria-label="5 yulduzdan 5 yulduz">
+                        <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+                    </div>
+                    <blockquote class="text-[15px] text-[#3D4350] leading-relaxed mb-7">
+                        "AI rasm yaxshilash rasmlarimni o'zi professional qilib beradi — dizaynerga pul sarflamayman. Katalogim chiroyli ko'ringani uchun buyurtmalar ham sezilarli oshdi."
+                    </blockquote>
+                    <figcaption class="flex items-center gap-3.5">
+                        <span class="w-11 h-11 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-sm font-bold text-white" aria-hidden="true">S</span>
+                        <div>
+                            <p class="font-semibold text-sm">Sherzod M.</p>
+                            <p class="text-[12px] text-muted">Elektronika do'koni</p>
+                        </div>
+                    </figcaption>
+                </figure>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ FAQ ============ -->
+    <section class="px-6 py-24" id="faq">
+        <div class="max-w-2xl mx-auto">
+            <div class="text-center mb-12 reveal">
+                <p class="eyebrow mb-3">Savol-javob</p>
+                <h2 class="text-3xl lg:text-[2.6rem] font-extrabold">Ko'p so'raladigan savollar</h2>
+            </div>
+
+            <div class="space-y-3.5">
+                <details class="glass glass--static !rounded-2xl px-6 py-5 reveal">
+                    <summary class="flex items-center justify-between gap-4 font-semibold text-[15px]">
+                        Sellio'ni ishlatish uchun texnik bilim kerakmi?
+                        <svg class="faq-icon w-4 h-4 text-muted flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                    </summary>
+                    <p class="text-sm text-muted leading-relaxed mt-3 pr-8">
+                        Yo'q. Sellio to'liq kodsiz platforma — mahsulot qo'shish, narxlarni o'zgartirish va buyurtmalarni boshqarish oddiy interfeys orqali amalga oshiriladi.
+                    </p>
+                </details>
+
+                <details class="glass glass--static !rounded-2xl px-6 py-5 reveal">
+                    <summary class="flex items-center justify-between gap-4 font-semibold text-[15px]">
+                        Bepul tarif qancha muddatga beriladi?
+                        <svg class="faq-icon w-4 h-4 text-muted flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                    </summary>
+                    <p class="text-sm text-muted leading-relaxed mt-3 pr-8">
+                        Free tarif muddatsiz va to'lov kartasi talab qilinmaydi. Biznesingiz o'sganida istalgan vaqtda yuqoriroq tarifga o'tasiz.
+                    </p>
+                </details>
+
+                <details class="glass glass--static !rounded-2xl px-6 py-5 reveal">
+                    <summary class="flex items-center justify-between gap-4 font-semibold text-[15px]">
+                        AI rasm yaxshilash qanday ishlaydi?
+                        <svg class="faq-icon w-4 h-4 text-muted flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                    </summary>
+                    <p class="text-sm text-muted leading-relaxed mt-3 pr-8">
+                        Mahsulotga rasm qo'shayotganingizda «AI yaxshilash» funksiyasini yoqsangiz, rasm avtomatik ravishda professional sifatga keltirilib yuklanadi — qo'shimcha hech narsa qilish shart emas.
+                    </p>
+                </details>
+
+                <details class="glass glass--static !rounded-2xl px-6 py-5 reveal">
+                    <summary class="flex items-center justify-between gap-4 font-semibold text-[15px]">
+                        Buyurtmalarni qanday qabul qilaman?
+                        <svg class="faq-icon w-4 h-4 text-muted flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                    </summary>
+                    <p class="text-sm text-muted leading-relaxed mt-3 pr-8">
+                        Mijoz botingizda buyurtma berganda sizga darhol bildirishnoma keladi. Buyurtmani bir tugma bilan qabul qilib, holatini boshqarasiz — mijoz ham avtomatik xabardor bo'ladi.
+                    </p>
+                </details>
+
+                <details class="glass glass--static !rounded-2xl px-6 py-5 reveal">
+                    <summary class="flex items-center justify-between gap-4 font-semibold text-[15px]">
+                        Yillik to'lovda qancha tejayman?
+                        <svg class="faq-icon w-4 h-4 text-muted flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                    </summary>
+                    <p class="text-sm text-muted leading-relaxed mt-3 pr-8">
+                        Yillik to'lovda 10 oylik narx to'laysiz — ya'ni 2 oy bepul. Masalan, Standart tarifda yiliga 398,000 so'm tejaysiz.
+                    </p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ YAKUNIY CTA ============ -->
+    <section class="px-6 pb-24">
+        <div class="glass-dark max-w-6xl mx-auto relative !rounded-[28px] text-white overflow-hidden px-8 py-20 lg:py-28 text-center reveal">
+            <div class="absolute inset-x-0 top-0 h-full pointer-events-none"
+                 style="background: radial-gradient(ellipse 700px 360px at 50% -10%, rgba(10,108,255,0.4), transparent 70%);" aria-hidden="true"></div>
+            <div class="relative max-w-xl mx-auto">
+                <h2 class="text-3xl lg:text-5xl font-extrabold mb-5">Do'koningizni bugun oching</h2>
+                <p class="text-white/60 lg:text-lg mb-9">
+                    Bepul tarif bilan boshlang — karta talab qilinmaydi. Birinchi sotuvgacha atigi 5 daqiqa.
+                </p>
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <a href="/signup?plan=FREE" class="btn-primary px-8 py-3.5 text-base w-full sm:w-auto">Bepul boshlash</a>
+                    <a href="#pricing" class="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-[14px] text-base font-semibold text-white/85 border border-white/15 hover:bg-white/[0.06] transition-colors w-full sm:w-auto">
+                        Narxlarni ko'rish
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="px-6 pb-10">
+    <div class="glass glass--static max-w-6xl mx-auto !rounded-[28px] px-8 lg:px-12 pt-12 pb-8">
+        <div class="grid md:grid-cols-[1.6fr_1fr_1fr_1fr] gap-10 pb-10">
+            <div>
+                <a href="#" class="flex items-center gap-2.5 mb-5" aria-label="Sellio — bosh sahifa">
+                    <img src="Icon%20Sellio.png" alt="" width="44" height="44" loading="lazy" decoding="async" class="w-11 h-11 object-contain drop-shadow-[0_4px_10px_rgba(10,108,255,0.25)]">
+                    <span class="font-bold text-lg tracking-tight">Sellio</span>
+                </a>
+                <p class="text-[13px] text-muted leading-relaxed max-w-[260px]">
+                    Telegramda professional savdo platformasi. Biznesingizni avtomatlashtiring.
+                </p>
+            </div>
+
+            <nav aria-label="Mahsulot havolalari">
+                <h5 class="text-[12px] font-bold uppercase tracking-wider text-muted mb-4">Mahsulot</h5>
+                <ul class="space-y-3">
+                    <li><a class="text-[13px] text-[#3D4350] hover:text-accent transition-colors" href="#features">Imkoniyatlar</a></li>
+                    <li><a class="text-[13px] text-[#3D4350] hover:text-accent transition-colors" href="#pricing">Narxlar</a></li>
+                    <li><a class="text-[13px] text-[#3D4350] hover:text-accent transition-colors" href="#faq">Savol-javob</a></li>
+                </ul>
+            </nav>
+
+            <nav aria-label="Kompaniya havolalari">
+                <h5 class="text-[12px] font-bold uppercase tracking-wider text-muted mb-4">Kompaniya</h5>
+                <ul class="space-y-3">
+                    <li><a class="text-[13px] text-[#3D4350] hover:text-accent transition-colors" href="#">Biz haqimizda</a></li>
+                    <li><a class="text-[13px] text-[#3D4350] hover:text-accent transition-colors" href="#">Bog'lanish</a></li>
+                </ul>
+            </nav>
+
+            <nav aria-label="Huquqiy havolalar">
+                <h5 class="text-[12px] font-bold uppercase tracking-wider text-muted mb-4">Huquqiy</h5>
+                <ul class="space-y-3">
+                    <li><a class="text-[13px] text-[#3D4350] hover:text-accent transition-colors" href="#">Maxfiylik siyosati</a></li>
+                    <li><a class="text-[13px] text-[#3D4350] hover:text-accent transition-colors" href="#">Foydalanish shartlari</a></li>
+                </ul>
+            </nav>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-7 border-t border-black/[0.07]">
+            <p class="text-[12.5px] text-muted">© <span id="current-year">2026</span> Sellio. Barcha huquqlar himoyalangan.</p>
+            <div class="flex gap-2">
+                <a class="w-9 h-9 rounded-lg bg-white/70 border border-white/70 flex items-center justify-center text-muted hover:text-accent transition-colors" href="#" aria-label="Sellio Telegram sahifasi">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.19-.08-.05-.19-.02-.27 0-.12.03-1.96 1.25-5.54 3.67-.52.36-.99.54-1.41.53-.46-.01-1.35-.26-2.01-.48-.81-.27-1.46-.42-1.4-.88.03-.24.36-.48 1-.74 3.91-1.7 6.52-2.82 7.82-3.36 3.73-1.56 4.51-1.83 5.01-1.84.11 0 .36.03.52.16.13.11.17.26.19.37.01.07.03.22.02.37z"/></svg>
+                </a>
+                <a class="w-9 h-9 rounded-lg bg-white/70 border border-white/70 flex items-center justify-center text-muted hover:text-accent transition-colors" href="#" aria-label="Sellio Instagram sahifasi">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                </a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        'use strict';
+
+        /* ---------- Lucide ikonlarini yuklash ---------- */
+        if (window.lucide) lucide.createIcons();
+
+        /* ---------- Header scroll holati ---------- */
+        (() => {
+            const nav = document.getElementById('main-nav');
+            if (!nav) return;
+            const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 12);
+            window.addEventListener('scroll', onScroll, { passive: true });
+            onScroll();
+        })();
+
+        /* ---------- Hero karusel ---------- */
+        (() => {
+            const container = document.getElementById('hero-carousel-container');
+            const track = document.getElementById('hero-carousel-track');
+            const dotsWrap = document.getElementById('hero-carousel-dots');
+            if (!container || !track || !dotsWrap) return;
+
+            const slides = track.querySelectorAll('.carousel-slide');
+            const INTERVAL = 3500;
+            let index = 0;
+            let timer = null;
+
+            const dots = Array.from(slides, (_, i) => {
+                const dot = document.createElement('button');
+                dot.type = 'button';
+                dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
+                dot.setAttribute('role', 'tab');
+                dot.setAttribute('aria-label', `${i + 1}-slayd`);
+                dot.addEventListener('click', () => { goTo(i); restart(); });
+                dotsWrap.appendChild(dot);
+                return dot;
+            });
+
+            function goTo(i) {
+                index = (i + slides.length) % slides.length;
+                track.style.transform = `translateX(-${index * 100}%)`;
+                dots.forEach((d, j) => d.classList.toggle('active', j === index));
+            }
+
+            function start() {
+                if (timer || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+                timer = setInterval(() => goTo(index + 1), INTERVAL);
+            }
+            function stop() { clearInterval(timer); timer = null; }
+            function restart() { stop(); start(); }
+
+            container.addEventListener('mouseenter', stop);
+            container.addEventListener('mouseleave', start);
+            container.addEventListener('touchstart', stop, { passive: true });
+            container.addEventListener('touchend', start, { passive: true });
+            document.addEventListener('visibilitychange', () => {
+                document.hidden ? stop() : start();
+            });
+
+            start();
+        })();
+
+        /* ---------- Narx rejimi ---------- */
+        (() => {
+            const buttons = document.querySelectorAll('[data-billing-value]');
+            buttons.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    document.body.setAttribute('data-billing', btn.dataset.billingValue);
+                    buttons.forEach((b) => {
+                        const active = b === btn;
+                        b.classList.toggle('active', active);
+                        b.setAttribute('aria-pressed', String(active));
+                    });
+                });
+            });
+        })();
+
+        /* ---------- Mobil menyu ---------- */
+        (() => {
+            const btn = document.getElementById('mobile-menu-btn');
+            const menu = document.getElementById('mobile-menu');
+            if (!btn || !menu) return;
+
+            btn.addEventListener('click', () => {
+                const isOpen = !menu.classList.contains('hidden');
+                menu.classList.toggle('hidden', isOpen);
+                btn.setAttribute('aria-expanded', String(!isOpen));
+            });
+
+            menu.querySelectorAll('a').forEach((link) => {
+                link.addEventListener('click', () => {
+                    menu.classList.add('hidden');
+                    btn.setAttribute('aria-expanded', 'false');
+                });
+            });
+        })();
+
+        /* ---------- Scroll-reveal ---------- */
+        (() => {
+            const elements = document.querySelectorAll('.reveal');
+            if (!elements.length) return;
+
+            if (!('IntersectionObserver' in window)) {
+                elements.forEach((el) => el.classList.add('visible'));
+                return;
+            }
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+            elements.forEach((el) => observer.observe(el));
+        })();
+
+        /* ---------- Joriy yil ---------- */
+        const yearEl = document.getElementById('current-year');
+        if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+        /* ---------- Dev/prod admin link almashtirish ---------- */
+        if (window.location.hostname === 'localhost' || window.location.hostname.startsWith('127.')) {
+            document.querySelectorAll('[data-admin-link]').forEach(el => {
+                el.setAttribute('href', 'http://localhost:5175/login');
+            });
+        }
+    });
+</script>
+
+</body>
+</html>

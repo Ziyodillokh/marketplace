@@ -40,6 +40,7 @@ import { AdminBroadcastModule } from './modules/admin/admin-broadcast.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { WebAppNotificationsModule } from './modules/webapp-notifications/webapp-notifications.module';
 import { SuperAdminModule } from './modules/super-admin/super-admin.module';
+import { PublicModule } from './modules/public/public.module';
 
 @Module({
   imports: [
@@ -100,6 +101,8 @@ import { SuperAdminModule } from './modules/super-admin/super-admin.module';
     AdminBroadcastModule,
     // Super Admin (platform owner)
     SuperAdminModule,
+    // Public (landing signup)
+    PublicModule,
   ],
 })
 export class AppModule {}
