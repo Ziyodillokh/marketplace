@@ -467,3 +467,326 @@ model Broadcast {
   @@index([createdAt])
   @@index([status])
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// SUPER ADMIN / PLATFORM OWNER MODELLAR
+// ═══════════════════════════════════════════════════════════════════
+
+enum TariffPlan {
+  FREE
+  STANDARD
+  PRO
+  PREMIUM
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  PENDING_PAYMENT
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PAST_DUE
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum AIOperation {
+  AUTO_FILL_TEXT
+  IMAGE_GENERATE
+  IMAGE_ENHANCE
+  IMAGE_BG_REMOVE
+  TRANSLATE
+  CHAT
+}
+
+enum PlatformRole {
+  OWNER
+  DEVOPS
+  FINANCE
+  SALES
+  SUPPORT
+}
+
+/// Mijoz do'koni (multi-tenant root)
+model Tenant {
+  id              String       @id @default(cuid())
+  slug            String       @unique
+  shopName        String
+  ownerName       String
+  ownerEmail      String       @unique
+  ownerPhone      String?
+  ownerTelegramId BigInt?
+
+  // Tarif
+  tariffPlan      TariffPlan   @default(FREE)
+  tariffStartedAt DateTime     @default(now())
+  tariffExpiresAt DateTime?
+  isOnTrial       Boolean      @default(false)
+  trialEndsAt     DateTime?
+
+  // Status
+  status          TenantStatus @default(ACTIVE)
+  suspendedReason String?
+  suspendedAt     DateTime?
+
+  // Brendlash
+  logoUrl         String?
+  primaryColor    String?
+  customDomain    String?      @unique
+  isWhiteLabel    Boolean      @default(false)
+
+  // Telegram bot
+  botToken        String?      @unique
+  botUsername     String?
+  channelId       String?
+
+  // Custom limitlar (override defaults)
+  customLimits    Json?
+
+  // Cached statistika
+  lastActivityAt  DateTime     @default(now())
+  totalRevenue    Decimal      @default(0) @db.Decimal(15, 2)
+  totalOrders     Int          @default(0)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  subscriptions  Subscription[]
+  invoices       Invoice[]
+  aiUsage        AICreditUsage[]
+  resourceStats  TenantResourceStat[]
+
+  @@index([status, tariffPlan])
+  @@index([ownerEmail])
+  @@index([lastActivityAt])
+}
+
+/// Obunalar tarixi
+model Subscription {
+  id            String             @id @default(cuid())
+  tenantId      String
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  plan          TariffPlan
+  amount        Decimal            @db.Decimal(12, 2)
+  currency      String             @default("UZS")
+
+  startsAt      DateTime
+  endsAt        DateTime
+  status        SubscriptionStatus @default(ACTIVE)
+  paymentMethod String?
+
+  cancelledAt   DateTime?
+  cancelReason  String?
+  autoRenew     Boolean            @default(true)
+
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  invoices      Invoice[]
+
+  @@index([tenantId, status])
+  @@index([endsAt])
+}
+
+/// Invoyslar / to'lovlar
+model Invoice {
+  id              String        @id @default(cuid())
+  invoiceNumber   String        @unique
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  subscriptionId  String?
+  subscription    Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  amount          Decimal       @db.Decimal(12, 2)
+  currency        String        @default("UZS")
+  status          InvoiceStatus @default(PENDING)
+
+  paymentProvider String?
+  providerTxId   String?
+  paidAt          DateTime?
+
+  dueDate         DateTime
+  description     String?
+  metadata        Json?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([tenantId, status])
+  @@index([status, dueDate])
+  @@index([providerTxId])
+}
+
+/// AI kredit sarflari (operatsiya darajasi)
+model AICreditUsage {
+  id           String      @id @default(cuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  operation    AIOperation
+  model        String
+  inputTokens  Int?
+  outputTokens Int?
+  imagesCount  Int?
+
+  costUsd      Decimal     @db.Decimal(10, 6)
+  costUzs      Decimal     @db.Decimal(12, 2)
+
+  productId    String?
+  status       String      @default("success")
+  errorMessage String?
+
+  createdAt    DateTime    @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([operation, createdAt])
+  @@index([createdAt])
+}
+
+/// Tenant resurs sarfi (kunlik snapshot)
+model TenantResourceStat {
+  id               String   @id @default(cuid())
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  date             DateTime @db.Date
+  storageMb        Float    @default(0)
+  dbSizeMb         Float    @default(0)
+  imagesCount      Int      @default(0)
+  productsCount    Int      @default(0)
+  ordersCount      Int      @default(0)
+  activeUsersCount Int      @default(0)
+
+  apiCallsCount    Int      @default(0)
+  bandwidthMb      Float    @default(0)
+
+  createdAt        DateTime @default(now())
+
+  @@unique([tenantId, date])
+  @@index([date])
+}
+
+/// Platforma admin (siz va jamoangiz)
+model PlatformAdmin {
+  id               String                 @id @default(cuid())
+  email            String                 @unique
+  passwordHash     String
+  fullName         String
+  role             PlatformRole           @default(SUPPORT)
+
+  isActive         Boolean                @default(true)
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean                @default(false)
+
+  lastLoginAt      DateTime?
+  lastLoginIp      String?
+
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  auditLogs        PlatformAuditLog[]
+  refreshTokens    PlatformRefreshToken[]
+}
+
+model PlatformRefreshToken {
+  id        String        @id @default(cuid())
+  adminId   String
+  admin     PlatformAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  tokenHash String        @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime      @default(now())
+
+  @@index([adminId])
+}
+
+/// Audit log — har bir super-admin harakati
+model PlatformAuditLog {
+  id         String        @id @default(cuid())
+  adminId    String
+  admin      PlatformAdmin @relation(fields: [adminId], references: [id])
+
+  action     String
+  targetType String?
+  targetId   String?
+  changes    Json?
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt  DateTime      @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
+}
+
+/// Tarif konfiguratsiyasi (UI'dan tahrirlash mumkin)
+model TariffConfig {
+  id                   String     @id @default(cuid())
+  plan                 TariffPlan @unique
+
+  monthlyPrice         Decimal    @db.Decimal(12, 2)
+  yearlyPrice          Decimal    @db.Decimal(12, 2)
+  yearlyDiscount       Int        @default(20)
+
+  maxCategories        Int
+  maxProducts          Int
+  maxBanners           Int
+  maxImagesPerProduct  Int
+  maxOptionsPerProduct Int
+
+  aiImagesPerMonth     Int
+  aiAutoFillPerMonth   Int
+
+  features             Json
+
+  badge                String?
+  description          String?
+  isActive             Boolean    @default(true)
+  position             Int        @default(0)
+
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+}
+
+/// Promo offer'lar (boshlang'ich chegirma)
+model PromoOffer {
+  id              String       @id @default(cuid())
+  code            String       @unique
+  name            String
+
+  discountType    String
+  discountValue   Decimal      @db.Decimal(12, 2)
+  applicablePlans TariffPlan[]
+
+  validFrom       DateTime
+  validUntil      DateTime
+  usageLimit      Int?
+  usedCount       Int          @default(0)
+
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+}
+
+/// Platforma sozlamalari (key-value)
+model PlatformSettings {
+  key       String   @id
+  value     Json
+  category  String   @default("general")
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}

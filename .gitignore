@@ -30,3 +30,4 @@ tsconfig.tsbuildinfo
 **/.env
 **/.env.local
 **/.env.production
+.claude/

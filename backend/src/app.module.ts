@@ -39,6 +39,7 @@ import { AdminStatsModule } from './modules/admin/admin-stats.module';
 import { AdminBroadcastModule } from './modules/admin/admin-broadcast.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { WebAppNotificationsModule } from './modules/webapp-notifications/webapp-notifications.module';
+import { SuperAdminModule } from './modules/super-admin/super-admin.module';
 
 @Module({
   imports: [
@@ -97,6 +98,8 @@ import { WebAppNotificationsModule } from './modules/webapp-notifications/webapp
     AdminAdminsModule,
     AdminStatsModule,
     AdminBroadcastModule,
+    // Super Admin (platform owner)
+    SuperAdminModule,
   ],
 })
 export class AppModule {}

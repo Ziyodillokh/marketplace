@@ -1,6 +1,7 @@
 /**
  * PM2 ecosystem for Marketplace (production).
- * 3 ta process: marketplace-api (4000), marketplace-webapp (2401), marketplace-admin (2402).
+ * 4 ta process: marketplace-api (4000), marketplace-webapp (2401),
+ * marketplace-admin (2402), marketplace-superadmin (2403).
  * Boshqa loyihalardan ajratish uchun nomlarda `marketplace-` prefiks.
  */
 module.exports = {
@@ -45,6 +46,20 @@ module.exports = {
       env: { NODE_ENV: 'production', BACKEND_URL: 'http://127.0.0.1:2400' },
       out_file: '/opt/marketplace/logs/admin.out.log',
       error_file: '/opt/marketplace/logs/admin.err.log',
+      time: true,
+    },
+    {
+      name: 'marketplace-superadmin',
+      cwd: '/opt/marketplace/superadmin',
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start -p 2403',
+      instances: 1,
+      exec_mode: 'fork',
+      autorestart: true,
+      max_restarts: 10,
+      env: { NODE_ENV: 'production', BACKEND_URL: 'http://127.0.0.1:2400' },
+      out_file: '/opt/marketplace/logs/superadmin.out.log',
+      error_file: '/opt/marketplace/logs/superadmin.err.log',
       time: true,
     },
   ],
