@@ -128,13 +128,38 @@ jobs:
           echo "  ✓ SSH_USER: $SSH_USER"
           echo "  ✓ Private key uzunligi: $(wc -c < ~/.ssh/id_ed25519) bayt"
 
+          # ─── DIAGNOSTIKA — private keydan public derive qilamiz ───
+          echo ""
+          echo "═══ KEY DIAGNOSTIKA ═══"
+          echo "Private key'ning birinchi va oxirgi qatori:"
+          head -1 ~/.ssh/id_ed25519
+          tail -1 ~/.ssh/id_ed25519
+          echo ""
+          echo "Private keydan derive qilingan PUBLIC KEY:"
+          if PUB=$(ssh-keygen -y -f ~/.ssh/id_ed25519 2>&1); then
+            echo "  $PUB"
+            echo ""
+            echo "Bu PUBLIC KEY serverdagi ~/.ssh/authorized_keys ichida bormi tekshiring."
+            echo "Server'da quyidagi buyruqni ishlatib solishtiring:"
+            echo "  ssh-keygen -lf ~/.ssh/authorized_keys"
+            echo ""
+            echo "Bu PUBLIC KEY fingerprint:"
+            ssh-keygen -lf <(echo "$PUB") || true
+          else
+            echo "  ✗ Private key XATO — to'g'ri secret kiritilmagan!"
+            echo "  Xato: $PUB"
+            exit 1
+          fi
+          echo "═══════════════════════"
+
       - name: Deploy via SSH
         if: vars.DEPLOY_MODE != 'gcloud'
         env:
           TELEGRAM_NOTIFY_TOKEN: ${{ secrets.TELEGRAM_NOTIFY_TOKEN }}
           TELEGRAM_NOTIFY_CHAT_ID: ${{ secrets.TELEGRAM_NOTIFY_CHAT_ID }}
         run: |
-          ssh -i ~/.ssh/id_ed25519 \
+          # Verbose mode bilan SSH urinish — Permission denied sababini ko'rish uchun
+          ssh -v -i ~/.ssh/id_ed25519 \
               -o IdentitiesOnly=yes \
               -o StrictHostKeyChecking=accept-new \
               -p 22 \
