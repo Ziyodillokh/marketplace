@@ -69,7 +69,12 @@ function TariffCard({
   });
 
   const mut = useMutation({
-    mutationFn: () => apiUpdateTariff(config.plan, form),
+    mutationFn: () =>
+      apiUpdateTariff(config.plan, {
+        ...form,
+        monthlyPrice: String(form.monthlyPrice),
+        yearlyPrice: String(form.yearlyPrice),
+      }),
     onSuccess: () => {
       toast.success(`${meta.label} tarifi yangilandi`);
       setEditing(false);
