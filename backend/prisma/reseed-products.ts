@@ -1,9 +1,12 @@
 /**
- * Reseed: har kategoriya uchun 4 ta sifatli mahsulot (Unsplash rasmlari bilan).
- * Eski mahsulotlar isActive=false qilinadi (order historyni saqlash uchun).
- * Yangi mahsulotlar slug bo'yicha upsert qilinadi.
+ * Reseed: supermarket katalogini tiklash.
+ *  - 7 ta kategoriya (telefon, aksessuar, ayollar/erkaklar kiyimi, kosmetika, elektronika, uy)
+ *  - Har kategoriyada 4 ta sifatli mahsulot (Unsplash rasmlari bilan)
+ *  - Eshik kategoriyalari (door-frames-*, door-accessories) avtomatik yashiriladi
+ *  - Eski mahsulotlar isActive=false qilinadi (order history saqlanadi)
+ *  - Idempotent: slug bo'yicha upsert
  *
- * Run: npx ts-node prisma/reseed-products.ts
+ * Run: npm run db:seed:supermarket
  */
 import { PrismaClient } from '@prisma/client';
 
@@ -781,10 +784,63 @@ const products: ProductSeed[] = [
   },
 ];
 
-async function main() {
-  console.log('=== Reseed boshlandi ===');
+const SUPERMARKET_CATEGORIES: Array<{
+  slug: string;
+  titleUz: string;
+  titleRu: string;
+  position: number;
+}> = [
+  { slug: 'phones', titleUz: 'Telefonlar', titleRu: 'Телефоны', position: 1 },
+  { slug: 'accessories', titleUz: 'Aksessuarlar', titleRu: 'Аксессуары', position: 2 },
+  { slug: 'clothing-women', titleUz: 'Ayollar kiyimi', titleRu: 'Женская мода', position: 3 },
+  { slug: 'clothing-men', titleUz: 'Erkaklar kiyimi', titleRu: 'Мужская мода', position: 4 },
+  { slug: 'cosmetics', titleUz: 'Kosmetika', titleRu: 'Косметика', position: 5 },
+  { slug: 'electronics', titleUz: 'Elektronika', titleRu: 'Электроника', position: 6 },
+  { slug: 'home', titleUz: 'Uy uchun', titleRu: 'Для дома', position: 7 },
+];
 
-  // 1. Eski mahsulotlarni isActive=false qilamiz (order historyni saqlash uchun o'chirmaymiz)
+async function main() {
+  console.log('=== Reseed boshlandi (supermarket rejimi) ===');
+
+  // 0. Supermarket kategoriyalarini upsert qilamiz va ko'rinadigan qilamiz
+  const supermarketSlugs = new Set(SUPERMARKET_CATEGORIES.map((c) => c.slug));
+  for (const c of SUPERMARKET_CATEGORIES) {
+    await prisma.category.upsert({
+      where: { slug: c.slug },
+      update: { titleUz: c.titleUz, titleRu: c.titleRu, position: c.position, isVisible: true },
+      create: { slug: c.slug, titleUz: c.titleUz, titleRu: c.titleRu, position: c.position, isVisible: true },
+    });
+  }
+  console.log(`✓ ${SUPERMARKET_CATEGORIES.length} ta supermarket kategoriyasi tayyor`);
+
+  // 0.1. Boshqa hamma kategoriyalarni (jumladan eshiklar) yashiramiz
+  const hidden = await prisma.category.updateMany({
+    where: { slug: { notIn: [...supermarketSlugs] }, isVisible: true },
+    data: { isVisible: false },
+  });
+  if (hidden.count > 0) {
+    console.log(`✓ ${hidden.count} ta eski kategoriya yashirildi (eshiklar va boshqalar)`);
+  }
+
+  // 0.2. Yashirilgan kategoriyalardagi barcha mahsulotlarni ham deaktivlashtirish
+  const hiddenCategoryIds = (
+    await prisma.category.findMany({
+      where: { slug: { notIn: [...supermarketSlugs] } },
+      select: { id: true },
+    })
+  ).map((c) => c.id);
+  if (hiddenCategoryIds.length > 0) {
+    const offCount = await prisma.product.updateMany({
+      where: { categoryId: { in: hiddenCategoryIds }, isActive: true },
+      data: { isActive: false },
+    });
+    if (offCount.count > 0) {
+      console.log(`✓ ${offCount.count} ta eshik/eski mahsulot deaktivlashtirildi`);
+    }
+  }
+
+  // 1. Yangi slug ro'yxatida bo'lmagan eski mahsulotlarni ham deaktivlashtiramiz
+  //    (order history saqlanadi — faqat isActive=false)
   const existingProducts = await prisma.product.findMany({ select: { slug: true } });
   const newSlugs = new Set(products.map((p) => p.slug));
   const toDeactivate = existingProducts.filter((p) => !newSlugs.has(p.slug));
