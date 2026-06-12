@@ -19,7 +19,7 @@ export function KpiCard({
   delta?: { value: number; positive?: boolean };
   icon: LucideIcon;
   hint?: string;
-  tone?: 'default' | 'primary' | 'success' | 'warning' | 'danger';
+  tone?: 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info';
   index?: number;
 }) {
   const toneClasses: Record<typeof tone, string> = {
@@ -28,6 +28,7 @@ export function KpiCard({
     success: 'from-[var(--color-success)]/20 to-[var(--color-surface)]',
     warning: 'from-[var(--color-warning)]/20 to-[var(--color-surface)]',
     danger: 'from-[var(--color-danger)]/20 to-[var(--color-surface)]',
+    info: 'from-sky-500/20 to-[var(--color-surface)]',
   };
 
   const iconBg: Record<typeof tone, string> = {
@@ -36,6 +37,7 @@ export function KpiCard({
     success: 'bg-[var(--color-success)]/20 text-[var(--color-success)]',
     warning: 'bg-[var(--color-warning)]/20 text-[var(--color-warning)]',
     danger: 'bg-[var(--color-danger)]/20 text-[var(--color-danger)]',
+    info: 'bg-sky-500/20 text-sky-500',
   };
 
   return (
