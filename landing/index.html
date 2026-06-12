@@ -8,7 +8,7 @@
     <!-- SEO -->
     <meta name="description" content="Sellio bilan Telegramda professional onlayn do'kon oching. Kodsiz boshqaruv, AI rasm yaxshilash va real vaqt analitikasi.">
     <meta name="theme-color" content="#F4F7FE">
-    <link rel="icon" type="image/png" href="/assets/icon-sellio.png">
+    <link rel="icon" type="image/png" href="logo.png">
 
     <!-- Open Graph -->
     <meta property="og:type" content="website">
@@ -269,29 +269,31 @@
         }
 
         /* ============ Telefon mockup ============ */
+        /* Ekran nisbati ilova skrinshotlariga mos: 1080x2059 (~0.525) */
         .phone {
             position: relative;
-            width: 300px;
-            height: 645px;
+            width: 340px;
+            height: 630px;
             margin: 0 auto;
             background: #16181D;
-            border-radius: 52px;
+            border-radius: 54px;
             border: 10px solid #26282E;
             box-shadow:
                 0 60px 120px -30px rgba(11, 14, 20, 0.4),
                 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
             overflow: hidden;
         }
-        @media (max-width: 359px) {
-            .phone { width: 272px; height: 585px; }
-        }
         .phone-screen {
             position: relative;
             width: 100%;
             height: 100%;
             background: #fff;
-            border-radius: 42px;
+            border-radius: 44px;
             overflow: hidden;
+        }
+        @media (max-width: 419px) {
+            .phone { width: 300px; height: 556px; border-radius: 48px; }
+            .phone-screen { border-radius: 38px; }
         }
         .dynamic-island {
             position: absolute;
@@ -397,7 +399,7 @@
     <div class="nav-pill max-w-5xl mx-auto rounded-2xl px-4 sm:px-5 py-3" id="main-nav">
         <div class="flex items-center justify-between">
             <a href="#" class="flex items-center gap-2.5" aria-label="Sellio — bosh sahifa">
-                <img src="/assets/icon-sellio.png" alt="" width="44" height="44" class="w-11 h-11 object-contain drop-shadow-[0_4px_10px_rgba(10,108,255,0.25)]">
+                <img src="logo.png" alt="" width="44" height="44" class="w-11 h-11 object-contain drop-shadow-[0_4px_10px_rgba(10,108,255,0.25)]">
                 <span class="font-bold text-lg tracking-tight">Sellio</span>
             </a>
 
@@ -409,8 +411,7 @@
             </nav>
 
             <div class="flex items-center gap-2">
-                <a href="https://admin.selliostore.uz/login" data-admin-link class="hidden sm:inline-flex items-center px-3.5 py-2 rounded-lg text-sm font-medium text-muted hover:text-ink hover:bg-white/60 transition-colors">Kirish</a>
-                <a href="/signup?plan=FREE" class="btn-primary px-4 sm:px-5 py-2.5 text-sm">Bepul boshlash</a>
+                <a href="https://t.me/selliostorebot?start=landing" target="_blank" rel="noopener" class="btn-primary px-4 sm:px-5 py-2.5 text-sm">Bepul boshlash</a>
                 <button id="mobile-menu-btn" class="md:hidden p-2 rounded-lg hover:bg-white/60 transition-colors"
                         aria-label="Menyuni ochish" aria-expanded="false" aria-controls="mobile-menu">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
@@ -452,7 +453,7 @@
                 </p>
 
                 <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-10">
-                    <a href="/signup?plan=FREE" class="btn-primary px-7 py-3.5 text-base w-full sm:w-auto">
+                    <a href="https://t.me/selliostorebot?start=landing" target="_blank" rel="noopener" class="btn-primary px-7 py-3.5 text-base w-full sm:w-auto">
                         Bepul boshlash
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5-5 5M18 12H6"/></svg>
                     </a>
@@ -485,11 +486,11 @@
                     <div class="dynamic-island" aria-hidden="true"></div>
                     <div class="phone-screen" id="hero-carousel-container" role="region" aria-label="Ilova ekran tasvirlari" aria-roledescription="karusel">
                         <div class="carousel-track" id="hero-carousel-track" style="transform: translateX(0%);">
-                            <div class="carousel-slide"><img alt="Sellio do'kon ko'rinishi — 1" fetchpriority="high" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD3q6pgSsxuG_rbPgFnjXbDRh7DC9MCYS2esfqcBqBrArRSS4hzOk1LVRDewxEpgPK1qJimiZHxcnyzjMBhtnvFTcmCAQHyqGG8Vf0SJ3PH9ZseW3wC0T5gIILqG0oRpO5TJJVVweb_6Sh1DOxaTxuIn5WBl49taNe6o45rwEzc1un2P7Ff7zjwziW5Guy5z-fX7e8szj6WSVbX2XIoDQMHJFAy9rkPf8V9kD0skX-aOgrn5qR7EmWxtFJxkX1hdn3Ft0O_pPqKrA"></div>
-                            <div class="carousel-slide"><img alt="Sellio do'kon ko'rinishi — 2" loading="lazy" decoding="async" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFiMMHU6dYXHfE_GTg9gqLkHSQ-K5JtDFYSu9rGd3xBvfiUl-7R7hntHbVT2McZJcm-XXdi6cxs5vw0xDX2ZUigsPcjULsgbiRD6wyQKgQQChllx4hgHcVXagJySzj25kiDHC8xl8jPfQr17HvELfp0bjP4YipEM-oUQztYQ9vCSgeChht353mEUUcH_p8wUGWAjK60IMHfeYCdzRW_4d8bOJUPaYXp_8PV5Rnco94DIU_J-VdbX8ogCSsEfaEMyKpLd30_E5LuQ"></div>
-                            <div class="carousel-slide"><img alt="Sellio do'kon ko'rinishi — 3" loading="lazy" decoding="async" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpj_w0Go-w27OGvSxRE6IvfcSBoxTSsqUYmX9sZGb95hUuvFUXqeaopfKIIdKbe_1dhlkz3FL_z4Spk4i3clKOH0M1U1O9aWLb7WYsMnYi4r6G742NxrxR_vvTaItQ3tD3s-bYYTtYIQ_1gfeb8vkFPNP7ReJvKvSajGO68cqhUgya71dVhP00zllAV0nmayoD04endk7CYqWaXh9oCxUWAdwYrKkbPKEk9IPVUlngeahFfzJC3F3E8vNQk2wazAxy0RzDEFbNGA"></div>
-                            <div class="carousel-slide"><img alt="Sellio do'kon ko'rinishi — 4" loading="lazy" decoding="async" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGV3K5Em-eDcjKeZ-R1UkcK1ET3Puc4b2tiMhAoKMg4NpMpWJ4LSAdW-PmZnZ0jhdJX0WiVs6fZTkRS8ad0VC08BJzDArV8Bi_3CoM21VtIEoPu8PjLOzEh-pC13F2-2tOXHqRxLuAAqpP-F-rWbK1mtdGqldD5L05FVZIX2T7l5qDRorp7dUajNw59XKBa6fEAdc0BK7WRi3KgW-UQoPpZUJxaU597IrX1KfVionTWg7tJCLVlpJFnKErQaQ8Ru7l5RE4Dvs2-g"></div>
-                            <div class="carousel-slide"><img alt="Sellio do'kon ko'rinishi — 5" loading="lazy" decoding="async" src="https://lh3.googleusercontent.com/aida-public/AB6AXuApHEzA8LRXkC3uh5t-gU51iiR2QrK1XM34GAs_qvDJmfB5XuS9uFmDai2f2F1RbdFPMD_N0LxXdHM8OugECntMxT1vL3vb4S901chy7WyiLIt_80HLg8GDSV80LO1jES_qESPW37SFGJ9VQQ8axhYOkEt5B-7zmVlyYbhDBGquTWaeNE1ZS0FBmtXndwJU670T3kf2r6PK6vPRGKQH3Ldn78Ex-1IrB4FDNWh0fJnelXwR7Qz554HfNjLjzVVDuhMbFJWUCGYLeA"></div>
+                            <div class="carousel-slide"><img alt="Sellio — Marketplace bosh sahifasi" fetchpriority="high" src="slide1.jpg" onerror="this.onerror=null;this.src='https://lh3.googleusercontent.com/aida-public/AB6AXuD3q6pgSsxuG_rbPgFnjXbDRh7DC9MCYS2esfqcBqBrArRSS4hzOk1LVRDewxEpgPK1qJimiZHxcnyzjMBhtnvFTcmCAQHyqGG8Vf0SJ3PH9ZseW3wC0T5gIILqG0oRpO5TJJVVweb_6Sh1DOxaTxuIn5WBl49taNe6o45rwEzc1un2P7Ff7zjwziW5Guy5z-fX7e8szj6WSVbX2XIoDQMHJFAy9rkPf8V9kD0skX-aOgrn5qR7EmWxtFJxkX1hdn3Ft0O_pPqKrA'"></div>
+                            <div class="carousel-slide"><img alt="Sellio — Katalog bo'limi" loading="lazy" decoding="async" src="slide2.jpg" onerror="this.onerror=null;this.src='https://lh3.googleusercontent.com/aida-public/AB6AXuBFiMMHU6dYXHfE_GTg9gqLkHSQ-K5JtDFYSu9rGd3xBvfiUl-7R7hntHbVT2McZJcm-XXdi6cxs5vw0xDX2ZUigsPcjULsgbiRD6wyQKgQQChllx4hgHcVXagJySzj25kiDHC8xl8jPfQr17HvELfp0bjP4YipEM-oUQztYQ9vCSgeChht353mEUUcH_p8wUGWAjK60IMHfeYCdzRW_4d8bOJUPaYXp_8PV5Rnco94DIU_J-VdbX8ogCSsEfaEMyKpLd30_E5LuQ'"></div>
+                            <div class="carousel-slide"><img alt="Sellio — Savat va buyurtma berish" loading="lazy" decoding="async" src="slide3.jpg" onerror="this.onerror=null;this.src='https://lh3.googleusercontent.com/aida-public/AB6AXuCpj_w0Go-w27OGvSxRE6IvfcSBoxTSsqUYmX9sZGb95hUuvFUXqeaopfKIIdKbe_1dhlkz3FL_z4Spk4i3clKOH0M1U1O9aWLb7WYsMnYi4r6G742NxrxR_vvTaItQ3tD3s-bYYTtYIQ_1gfeb8vkFPNP7ReJvKvSajGO68cqhUgya71dVhP00zllAV0nmayoD04endk7CYqWaXh9oCxUWAdwYrKkbPKEk9IPVUlngeahFfzJC3F3E8vNQk2wazAxy0RzDEFbNGA'"></div>
+                            <div class="carousel-slide"><img alt="Sellio — Sevimli mahsulotlar" loading="lazy" decoding="async" src="slide4.jpg" onerror="this.onerror=null;this.src='https://lh3.googleusercontent.com/aida-public/AB6AXuAGV3K5Em-eDcjKeZ-R1UkcK1ET3Puc4b2tiMhAoKMg4NpMpWJ4LSAdW-PmZnZ0jhdJX0WiVs6fZTkRS8ad0VC08BJzDArV8Bi_3CoM21VtIEoPu8PjLOzEh-pC13F2-2tOXHqRxLuAAqpP-F-rWbK1mtdGqldD5L05FVZIX2T7l5qDRorp7dUajNw59XKBa6fEAdc0BK7WRi3KgW-UQoPpZUJxaU597IrX1KfVionTWg7tJCLVlpJFnKErQaQ8Ru7l5RE4Dvs2-g'"></div>
+                            <div class="carousel-slide"><img alt="Sellio — Profil sahifasi" loading="lazy" decoding="async" src="slide5.jpg" onerror="this.onerror=null;this.src='https://lh3.googleusercontent.com/aida-public/AB6AXuApHEzA8LRXkC3uh5t-gU51iiR2QrK1XM34GAs_qvDJmfB5XuS9uFmDai2f2F1RbdFPMD_N0LxXdHM8OugECntMxT1vL3vb4S901chy7WyiLIt_80HLg8GDSV80LO1jES_qESPW37SFGJ9VQQ8axhYOkEt5B-7zmVlyYbhDBGquTWaeNE1ZS0FBmtXndwJU670T3kf2r6PK6vPRGKQH3Ldn78Ex-1IrB4FDNWh0fJnelXwR7Qz554HfNjLjzVVDuhMbFJWUCGYLeA'"></div>
                         </div>
                         <div class="carousel-dots" id="hero-carousel-dots" role="tablist" aria-label="Slayd tanlash"></div>
                     </div>
@@ -526,41 +527,41 @@
 
     <!-- ============ HAQIQIY FAKTLAR (yolg'on raqamlarsiz) ============ -->
     <section class="px-6 py-6">
-        <div class="glass glass--static max-w-5xl mx-auto px-8 py-7 grid grid-cols-2 lg:grid-cols-4 gap-7 reveal">
-            <div class="flex items-center gap-3">
-                <span class="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center flex-shrink-0">
+        <div class="glass glass--static max-w-5xl mx-auto px-5 sm:px-8 py-8 grid grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-8 reveal">
+            <div class="flex flex-col items-center text-center gap-3">
+                <span class="w-11 h-11 rounded-2xl bg-accent-soft flex items-center justify-center">
                     <i data-lucide="sparkles" class="w-5 h-5 text-accent" aria-hidden="true"></i>
                 </span>
                 <div>
-                    <p class="text-sm font-bold leading-tight">AI yaxshilash</p>
-                    <p class="text-[12px] text-muted">Rasmlar avto-sifatda</p>
+                    <p class="text-sm font-bold leading-snug">AI yaxshilash</p>
+                    <p class="text-[12px] text-muted leading-snug mt-1">Rasmlar avto-sifatda</p>
                 </div>
             </div>
-            <div class="flex items-center gap-3">
-                <span class="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center flex-shrink-0">
+            <div class="flex flex-col items-center text-center gap-3">
+                <span class="w-11 h-11 rounded-2xl bg-accent-soft flex items-center justify-center">
                     <i data-lucide="bot" class="w-5 h-5 text-accent" aria-hidden="true"></i>
                 </span>
                 <div>
-                    <p class="text-sm font-bold leading-tight">O'z botingiz</p>
-                    <p class="text-[12px] text-muted">O'z brendingiz bilan</p>
+                    <p class="text-sm font-bold leading-snug">O'z botingiz</p>
+                    <p class="text-[12px] text-muted leading-snug mt-1">O'z brendingiz bilan</p>
                 </div>
             </div>
-            <div class="flex items-center gap-3">
-                <span class="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center flex-shrink-0">
+            <div class="flex flex-col items-center text-center gap-3">
+                <span class="w-11 h-11 rounded-2xl bg-accent-soft flex items-center justify-center">
                     <i data-lucide="package" class="w-5 h-5 text-accent" aria-hidden="true"></i>
                 </span>
                 <div>
-                    <p class="text-sm font-bold leading-tight">Cheksiz buyurtmalar</p>
-                    <p class="text-[12px] text-muted">Barcha tariflarda</p>
+                    <p class="text-sm font-bold leading-snug">Cheksiz buyurtmalar</p>
+                    <p class="text-[12px] text-muted leading-snug mt-1">Barcha tariflarda</p>
                 </div>
             </div>
-            <div class="flex items-center gap-3">
-                <span class="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center flex-shrink-0">
+            <div class="flex flex-col items-center text-center gap-3">
+                <span class="w-11 h-11 rounded-2xl bg-accent-soft flex items-center justify-center">
                     <i data-lucide="headphones" class="w-5 h-5 text-accent" aria-hidden="true"></i>
                 </span>
                 <div>
-                    <p class="text-sm font-bold leading-tight">24/7 yordam</p>
-                    <p class="text-[12px] text-muted">Doim aloqadamiz</p>
+                    <p class="text-sm font-bold leading-snug">24/7 yordam</p>
+                    <p class="text-[12px] text-muted leading-snug mt-1">Doim aloqadamiz</p>
                 </div>
             </div>
         </div>
@@ -591,14 +592,14 @@
                             <div class="flex items-center gap-3">
                                 <figure class="flex-1 m-0">
                                     <div class="aspect-[3/4] rounded-xl overflow-hidden relative">
-                                        <img src="/assets/before.png" alt="AI yaxshilashdan oldingi xira, changli mahsulot rasmi" loading="lazy" decoding="async" class="w-full h-full object-cover">
+                                        <img src="oldin.jpg" alt="AI yaxshilashdan oldingi xira, changli mahsulot rasmi" loading="lazy" decoding="async" class="w-full h-full object-cover">
                                         <span class="absolute top-2 left-2 bg-black/55 backdrop-blur-sm text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">Oldin</span>
                                     </div>
                                 </figure>
                                 <i data-lucide="arrow-right" class="w-5 h-5 text-accent flex-shrink-0" aria-hidden="true"></i>
                                 <figure class="flex-1 m-0">
                                     <div class="aspect-[3/4] rounded-xl overflow-hidden relative ring-2 ring-accent/60 shadow-[0_8px_24px_-8px_rgba(10,108,255,0.45)]">
-                                        <img src="/assets/after.png" alt="AI yaxshilashdan keyingi professional studiya sifatidagi rasm" loading="lazy" decoding="async" class="w-full h-full object-cover">
+                                        <img src="keyin.jpg" alt="AI yaxshilashdan keyingi professional studiya sifatidagi rasm" loading="lazy" decoding="async" class="w-full h-full object-cover">
                                         <span class="absolute top-2 left-2 bg-accent text-white text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                             <i data-lucide="sparkles" class="w-2.5 h-2.5" aria-hidden="true"></i>Keyin
                                         </span>
@@ -727,7 +728,7 @@
                     <button type="button" class="seg-item" data-billing-value="monthly" aria-pressed="false">Oylik</button>
                     <button type="button" class="seg-item active" data-billing-value="yearly" aria-pressed="true">
                         Yillik
-                        <span class="bg-accent text-white text-[10px] font-bold px-2 py-0.5 rounded-full">2 oy bepul</span>
+                        <span class="bg-accent text-white text-[10px] font-bold px-2 py-0.5 rounded-full">17% chegirma</span>
                     </button>
                 </div>
             </div>
@@ -744,7 +745,7 @@
                             <span class="yearly-price">so'm / yil</span>
                         </p>
                     </div>
-                    <a href="/signup?plan=FREE" class="btn-glass w-full py-3 text-sm mb-7">Bepul boshlash</a>
+                    <a href="https://t.me/selliostorebot?start=free" target="_blank" rel="noopener" class="btn-glass w-full py-3 text-sm mb-7">Bepul boshlash</a>
                     <ul class="check-list">
                         <li>1 ta kategoriya, 3 tagacha mahsulot</li>
                         <li>1 ta banner</li>
@@ -771,7 +772,7 @@
                             <span class="yearly-price">so'm / yil</span>
                         </p>
                     </div>
-                    <a href="/signup?plan=STANDARD" class="btn-glass w-full py-3 text-sm mb-7">Standartni tanlash</a>
+                    <a href="https://t.me/selliostorebot?start=standart" target="_blank" rel="noopener" class="btn-glass w-full py-3 text-sm mb-7">Standartni tanlash</a>
                     <p class="text-[12px] font-semibold text-muted uppercase tracking-wide mb-3.5">Free'dagi barchasi, qo'shimcha:</p>
                     <ul class="check-list">
                         <li>50 kategoriya, 200 tagacha mahsulot</li>
@@ -805,7 +806,7 @@
                                 <span class="yearly-price">so'm / yil</span>
                             </p>
                         </div>
-                        <a href="/signup?plan=PRO" class="btn-primary w-full py-3 text-sm mb-7">Pro'ga o'tish</a>
+                        <a href="https://t.me/selliostorebot?start=pro" target="_blank" rel="noopener" class="btn-primary w-full py-3 text-sm mb-7">Pro'ga o'tish</a>
                         <p class="text-[12px] font-semibold text-white/45 uppercase tracking-wide mb-3.5">Standart'dagi barchasi, qo'shimcha:</p>
                         <ul class="check-list check-list--dark">
                             <li>100 kategoriya, 1,000 tagacha mahsulot</li>
@@ -830,7 +831,7 @@
                             <span class="yearly-price">so'm / yil</span>
                         </p>
                     </div>
-                    <a href="/signup?plan=PREMIUM" class="btn-glass w-full py-3 text-sm mb-7">Premium olish</a>
+                    <a href="https://t.me/selliostorebot?start=premium" target="_blank" rel="noopener" class="btn-glass w-full py-3 text-sm mb-7">Premium olish</a>
                     <p class="text-[12px] font-semibold text-muted uppercase tracking-wide mb-3.5">Pro'dagi barchasi, qo'shimcha:</p>
                     <ul class="check-list">
                         <li>Cheksiz kategoriyalar</li>
@@ -947,7 +948,7 @@
                         <svg class="faq-icon w-4 h-4 text-muted flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
                     </summary>
                     <p class="text-sm text-muted leading-relaxed mt-3 pr-8">
-                        Yillik to'lovda 10 oylik narx to'laysiz — ya'ni 2 oy bepul. Masalan, Standart tarifda yiliga 398,000 so'm tejaysiz.
+                        Yillik to'lovda 17% chegirma olasiz — 12 oy o'rniga 10 oylik narx to'laysiz. Masalan, Standart tarifda yiliga 398,000 so'm tejaysiz.
                     </p>
                 </details>
             </div>
@@ -965,7 +966,7 @@
                     Bepul tarif bilan boshlang — karta talab qilinmaydi. Birinchi sotuvgacha atigi 5 daqiqa.
                 </p>
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-                    <a href="/signup?plan=FREE" class="btn-primary px-8 py-3.5 text-base w-full sm:w-auto">Bepul boshlash</a>
+                    <a href="https://t.me/selliostorebot?start=landing" target="_blank" rel="noopener" class="btn-primary px-8 py-3.5 text-base w-full sm:w-auto">Bepul boshlash</a>
                     <a href="#pricing" class="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-[14px] text-base font-semibold text-white/85 border border-white/15 hover:bg-white/[0.06] transition-colors w-full sm:w-auto">
                         Narxlarni ko'rish
                     </a>
@@ -981,7 +982,7 @@
         <div class="grid md:grid-cols-[1.6fr_1fr_1fr_1fr] gap-10 pb-10">
             <div>
                 <a href="#" class="flex items-center gap-2.5 mb-5" aria-label="Sellio — bosh sahifa">
-                    <img src="Icon%20Sellio.png" alt="" width="44" height="44" loading="lazy" decoding="async" class="w-11 h-11 object-contain drop-shadow-[0_4px_10px_rgba(10,108,255,0.25)]">
+                    <img src="logo.png" alt="" width="44" height="44" class="w-11 h-11 object-contain drop-shadow-[0_4px_10px_rgba(10,108,255,0.25)]">
                     <span class="font-bold text-lg tracking-tight">Sellio</span>
                 </a>
                 <p class="text-[13px] text-muted leading-relaxed max-w-[260px]">
@@ -1152,13 +1153,6 @@
         /* ---------- Joriy yil ---------- */
         const yearEl = document.getElementById('current-year');
         if (yearEl) yearEl.textContent = new Date().getFullYear();
-
-        /* ---------- Dev/prod admin link almashtirish ---------- */
-        if (window.location.hostname === 'localhost' || window.location.hostname.startsWith('127.')) {
-            document.querySelectorAll('[data-admin-link]').forEach(el => {
-                el.setAttribute('href', 'http://localhost:5175/login');
-            });
-        }
     });
 </script>
 
