@@ -74,6 +74,15 @@ jobs:
             npm install --legacy-peer-deps --no-audit --no-fund 2>&1 | tail -3
             npm run build 2>&1 | tail -3
 
+            echo "=== Superadmin ==="
+            if [ -d "$APP_DIR/superadmin" ]; then
+              cd $APP_DIR/superadmin
+              npm install --legacy-peer-deps --no-audit --no-fund 2>&1 | tail -3
+              npm run build 2>&1 | tail -3
+            else
+              echo "⚠ superadmin/ not found on server — skipping (first sync after git pull will create it)"
+            fi
+
             echo "=== PM2 reload ==="
             cd $APP_DIR
             pm2 reload ecosystem.config.cjs --update-env
@@ -81,9 +90,11 @@ jobs:
 
             echo "=== Health check ==="
             sleep 3
-            curl -s -f -o /dev/null -m 10 -w "API: HTTP %{http_code}\n" http://127.0.0.1:2400/health
-            curl -s -f -o /dev/null -m 10 -w "Webapp: HTTP %{http_code}\n" http://127.0.0.1:2401/
-            curl -s -f -o /dev/null -m 10 -w "Admin: HTTP %{http_code}\n" http://127.0.0.1:2402/admin/login
+            curl -s -f -o /dev/null -m 10 -w "API:        HTTP %{http_code}\n" http://127.0.0.1:2400/health
+            curl -s -f -o /dev/null -m 10 -w "Webapp:     HTTP %{http_code}\n" http://127.0.0.1:2401/
+            curl -s -f -o /dev/null -m 10 -w "Admin:      HTTP %{http_code}\n" http://127.0.0.1:2402/admin/login
+            # Superadmin healthcheck is non-fatal until app is wired up everywhere
+            curl -s -o /dev/null -m 10 -w "Superadmin: HTTP %{http_code}\n" http://127.0.0.1:2403/ || true
 
             echo "✓ Deploy tugadi"
           REMOTE_DEPLOY
