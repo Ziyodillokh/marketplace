@@ -20,24 +20,34 @@ jobs:
       - name: Set up SSH
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          mkdir -p ~/.ssh
           if [ -z "$SSH_HOST" ]; then
             echo "::error::SSH_HOST secret is empty — set it in repo Settings → Secrets → Actions"
             exit 1
           fi
-          # ssh-keyscan failure is non-fatal: next step uses StrictHostKeyChecking=no anyway
+          if [ -z "$SSH_PRIVATE_KEY" ]; then
+            echo "::error::SSH_PRIVATE_KEY secret is empty — paste the OpenSSH private key in repo Settings → Secrets → Actions"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Pre-populate known_hosts; failure is non-fatal because StrictHostKeyChecking=accept-new handles first contact
           ssh-keyscan -H -p 22 -T 10 "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null \
-            || echo "⚠ ssh-keyscan could not reach $SSH_HOST — continuing (StrictHostKeyChecking=no)"
-          sudo apt-get update -y && sudo apt-get install -y sshpass
+            || echo "⚠ ssh-keyscan could not reach $SSH_HOST — falling back to accept-new"
 
       - name: Deploy on server
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
         run: |
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -p 22 "$SSH_USER@$SSH_HOST" 'bash -s' << 'REMOTE_DEPLOY'
+          ssh -i ~/.ssh/id_ed25519 \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              -p 22 \
+              "$SSH_USER@$SSH_HOST" 'bash -s' << 'REMOTE_DEPLOY'
             set -e
             APP_DIR="/opt/marketplace"
             cd $APP_DIR
