@@ -107,8 +107,13 @@ if confirm "▶ PM2 reboot'da avto-start sozlanmasinmi?"; then
 fi
 
 # ─── 6. Nginx + SSL ──────────────────────────────────────────
-if confirm "▶ [6/6] Nginx + Let's Encrypt SSL sozlasinmi? (DNS yozuvlari to'g'rilanganmi?)"; then
-    step "6/6" "Nginx + SSL (Let's Encrypt)" "05-nginx-and-ssl.sh"
+if confirm "▶ [6/7] Nginx + Let's Encrypt SSL sozlasinmi? (DNS yozuvlari to'g'rilanganmi?)"; then
+    step "6/7" "Nginx + SSL (Let's Encrypt)" "05-nginx-and-ssl.sh"
+fi
+
+# ─── 7. 24/7 ishonchlilik qatlamlari ─────────────────────────
+if confirm "▶ [7/7] 24/7 ishonchlilik (swap + fail2ban + watchdog + backup) sozlasinmi?"; then
+    step "7/7" "24/7 Reliability (watchdog + backup + fail2ban)" "07-reliability.sh"
 fi
 
 # ─── Health check ────────────────────────────────────────────
