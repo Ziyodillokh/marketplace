@@ -90,28 +90,47 @@ jobs:
       - name: Set up SSH
         if: vars.DEPLOY_MODE != 'gcloud'
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_HOST_RAW: ${{ secrets.SSH_HOST }}
+          SSH_USER_RAW: ${{ secrets.SSH_USER }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
+          # Secret'lardan CR/LF va bo'shliqlarni olib tashlash —
+          # Windows'dan nusxalanganda yashirin \r kirib qolishi mumkin
+          # va "remote username contains invalid characters" xatosini beradi
+          SSH_HOST=$(printf '%s' "$SSH_HOST_RAW" | tr -d '[:space:]')
+          SSH_USER=$(printf '%s' "$SSH_USER_RAW" | tr -d '[:space:]')
+
           if [ -z "$SSH_HOST" ]; then
             echo "::error::SSH_HOST secret bo'sh — Repo Settings → Secrets → Actions'da o'rnating"
+            exit 1
+          fi
+          if [ -z "$SSH_USER" ]; then
+            echo "::error::SSH_USER secret bo'sh"
             exit 1
           fi
           if [ -z "$SSH_PRIVATE_KEY" ]; then
             echo "::error::SSH_PRIVATE_KEY secret bo'sh"
             exit 1
           fi
+
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          # Private key — CR'larni olib tashlab yozamiz (CRLF kirsa key buziladi)
+          printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H -p 22 -T 10 "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+          # Keyingi step uchun tozalangan qiymatlarni saqlash
+          echo "SSH_HOST=$SSH_HOST" >> "$GITHUB_ENV"
+          echo "SSH_USER=$SSH_USER" >> "$GITHUB_ENV"
+
+          echo "  ✓ SSH_HOST: $SSH_HOST"
+          echo "  ✓ SSH_USER: $SSH_USER"
+          echo "  ✓ Private key uzunligi: $(wc -c < ~/.ssh/id_ed25519) bayt"
 
       - name: Deploy via SSH
         if: vars.DEPLOY_MODE != 'gcloud'
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
           TELEGRAM_NOTIFY_TOKEN: ${{ secrets.TELEGRAM_NOTIFY_TOKEN }}
           TELEGRAM_NOTIFY_CHAT_ID: ${{ secrets.TELEGRAM_NOTIFY_CHAT_ID }}
         run: |
@@ -119,7 +138,7 @@ jobs:
               -o IdentitiesOnly=yes \
               -o StrictHostKeyChecking=accept-new \
               -p 22 \
-              "$SSH_USER@$SSH_HOST" \
+              "${SSH_USER}@${SSH_HOST}" \
               "export TELEGRAM_NOTIFY_TOKEN='${TELEGRAM_NOTIFY_TOKEN}'; \
                export TELEGRAM_NOTIFY_CHAT_ID='${TELEGRAM_NOTIFY_CHAT_ID}'; \
                cd /opt/marketplace && bash deploy/deploy.sh"
