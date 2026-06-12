@@ -1,10 +1,19 @@
 /**
- * Reseed: supermarket katalogini tiklash.
- *  - 7 ta kategoriya (telefon, aksessuar, ayollar/erkaklar kiyimi, kosmetika, elektronika, uy)
- *  - Har kategoriyada 4 ta sifatli mahsulot (Unsplash rasmlari bilan)
- *  - Eshik kategoriyalari (door-frames-*, door-accessories) avtomatik yashiriladi
- *  - Eski mahsulotlar isActive=false qilinadi (order history saqlanadi)
- *  - Idempotent: slug bo'yicha upsert
+ * Reseed: HAQIQIY supermarket katalogi (Korzinka / Makro / Havas uslubida).
+ *
+ * Bu skript:
+ *  1. 8 ta haqiqiy supermarket bo'limini upsert qiladi va `isVisible=true` qiladi
+ *  2. Ro'yxatda yo'q boshqa kategoriyalarni (eshik / telefon / kiyim va h.k.) yashiradi
+ *  3. Yashirilgan bo'limlardagi mahsulotlarni `isActive=false` qiladi
+ *     (order history saqlanadi — fizik o'chirilmaydi)
+ *  4. Har bo'limga 5-8 ta haqiqiy mahsulot yuklaydi (Coca-Cola, Imkon sut, va h.k.)
+ *  5. Slug bo'yicha upsert qiladi — bir necha marta xavfsiz ishga tushiriladi
+ *
+ * RASMLAR HAQIDA:
+ *  Tasdiqlangan Unsplash CDN URL'lari ishlatildi (har biri WebFetch bilan tekshirilgan).
+ *  Bu boshlang'ich seed — REKLAMA OLDIDAN admin paneldan haqiqiy do'kondagi
+ *  mahsulotlarni suratga olib YANGI rasmlar bilan almashtirib chiqing.
+ *  Admin panel: Mahsulotlar → mahsulotni tanlang → "Rasm yuklash"
  *
  * Run: npm run db:seed:supermarket
  */
@@ -12,6 +21,51 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// ============== KATEGORIYALAR ==============
+const SUPERMARKET_CATEGORIES: Array<{
+  slug: string;
+  titleUz: string;
+  titleRu: string;
+  position: number;
+}> = [
+  { slug: 'oziq-ovqat', titleUz: 'Oziq-ovqat', titleRu: 'Бакалея', position: 1 },
+  { slug: 'sut-mahsulotlari', titleUz: 'Sut mahsulotlari', titleRu: 'Молочные продукты', position: 2 },
+  { slug: 'ichimliklar', titleUz: 'Ichimliklar', titleRu: 'Напитки', position: 3 },
+  { slug: 'sabzavot-mevalar', titleUz: 'Sabzavot va mevalar', titleRu: 'Овощи и фрукты', position: 4 },
+  { slug: 'gosht-baliq', titleUz: 'Go\'sht va baliq', titleRu: 'Мясо и рыба', position: 5 },
+  { slug: 'shirinliklar', titleUz: 'Shirinliklar', titleRu: 'Сладости', position: 6 },
+  { slug: 'uy-xojaligi', titleUz: 'Uy xo\'jaligi', titleRu: 'Бытовые товары', position: 7 },
+  { slug: 'shaxsiy-parvarish', titleUz: 'Shaxsiy parvarish', titleRu: 'Личная гигиена', position: 8 },
+];
+
+// ============== TASDIQLANGAN UNSPLASH RASMLAR ==============
+// Har bir URL WebFetch bilan tekshirilgan — 200 OK qaytarganlar
+const U = (id: string) => `https://images.unsplash.com/${id}?w=800&q=80&auto=format&fit=crop`;
+
+const IMG = {
+  COCA_COLA: U('photo-1591254460606-fab865bf82b8'),
+  WATER: U('photo-1551024601-bec78aea704b'),
+  JUICE: U('photo-1601493700631-2b16ec4b4716'),
+  TEA: U('photo-1576092768241-dec231879fc3'),
+  COFFEE: U('photo-1559056199-641a0ac8b55e'),
+  MILK: U('photo-1563636619-e9143da7973b'),
+  YOGURT: U('photo-1571212515416-fef01fc43637'),
+  CHEESE: U('photo-1542838132-92c53300491e'),
+  EGGS: U('photo-1582722872445-44dc5f7e3c8f'),
+  RICE: U('photo-1574323347407-f5e1ad6d020b'),
+  PASTA: U('photo-1551892374-ecf8754cf8b0'),
+  BREAD: U('photo-1509440159596-0249088772ff'),
+  APPLE: U('photo-1568702846914-96b305d2aaeb'),
+  BANANA: U('photo-1531326240216-7b04ad593229'),
+  TOMATO: U('photo-1518977822534-7049a61ee0c2'),
+  CHICKEN: U('photo-1604503468506-a8da13d82791'),
+  CHOCOLATE: U('photo-1623660053975-cf75a8be0908'),
+  DETERGENT: U('photo-1624372635310-01d078c05dd9'),
+  SHAMPOO: U('photo-1556228720-195a672e8a03'),
+  SOAP: U('photo-1584305574647-0cc949a2bb9f'),
+};
+
+// ============== MAHSULOTLAR ==============
 interface Variant {
   color?: string | null;
   size?: string | null;
@@ -43,764 +97,775 @@ interface ProductSeed {
   specs: Spec[];
 }
 
-const UNSPLASH = (id: string) =>
-  `https://images.unsplash.com/${id}?w=800&q=80&auto=format&fit=crop`;
-
 const products: ProductSeed[] = [
-  // ============== TELEFONLAR ==============
+  // ============== OZIQ-OVQAT ==============
   {
-    slug: 'iphone-15-pro-256gb',
-    categorySlug: 'phones',
-    brand: 'Apple',
-    titleUz: 'Apple iPhone 15 Pro 256GB',
-    titleRu: 'Apple iPhone 15 Pro 256GB',
-    descriptionUz:
-      'Yangi A17 Pro chip, titan korpus, 48MP Pro kamera tizimi. ProMotion 120Hz Super Retina XDR ekran. USB-C bilan tezkor zaryadlash.',
-    descriptionRu:
-      'Новый чип A17 Pro, титановый корпус, камера Pro 48MP. ProMotion 120Hz Super Retina XDR. Быстрая зарядка USB-C.',
-    basePrice: 14500000,
-    oldPrice: 16000000,
+    slug: 'imkon-guruch-premium-1kg',
+    categorySlug: 'oziq-ovqat',
+    brand: 'Imkon',
+    titleUz: 'Imkon Premium guruch, 1 kg',
+    titleRu: 'Рис Imkon Premium, 1 кг',
+    descriptionUz: 'Mahalliy ishlab chiqarilgan tozalangan oq guruch. Plov va palov uchun mos.',
+    descriptionRu: 'Очищенный белый рис местного производства. Подходит для плова.',
+    basePrice: 18000,
+    oldPrice: 22000,
     isFeatured: true,
-    images: [
-      UNSPLASH('photo-1592286927505-1def25115558'),
-      UNSPLASH('photo-1695048133142-1a20484d2569'),
-    ],
-    variants: [
-      { color: 'Titan tabiiy', size: '256GB', price: 14500000, oldPrice: 16000000, stock: 8 },
-      { color: 'Titan qora', size: '256GB', price: 14500000, oldPrice: 16000000, stock: 5 },
-      { color: 'Titan ko\'k', size: '256GB', price: 14500000, oldPrice: 16000000, stock: 3 },
-      { color: 'Titan tabiiy', size: '512GB', price: 16800000, stock: 4 },
-    ],
+    images: [IMG.RICE],
+    variants: [{ size: '1 kg', price: 18000, oldPrice: 22000, stock: 80 }],
     specs: [
-      { labelUz: 'Ekran', labelRu: 'Дисплей', valueUz: '6.1" Super Retina XDR', valueRu: '6.1" Super Retina XDR' },
-      { labelUz: 'Protsessor', labelRu: 'Процессор', valueUz: 'A17 Pro', valueRu: 'A17 Pro' },
-      { labelUz: 'Kamera', labelRu: 'Камера', valueUz: '48 MP', valueRu: '48 МП' },
-      { labelUz: 'Batareya', labelRu: 'Аккумулятор', valueUz: '23 soat video', valueRu: '23 ч видео' },
+      { labelUz: 'Vazni', labelRu: 'Вес', valueUz: '1 kg', valueRu: '1 кг' },
+      { labelUz: 'Ishlab chiqaruvchi', labelRu: 'Производитель', valueUz: 'Imkon (Toshkent)', valueRu: 'Imkon (Ташкент)' },
     ],
   },
   {
-    slug: 'samsung-galaxy-s24-ultra',
-    categorySlug: 'phones',
-    brand: 'Samsung',
-    titleUz: 'Samsung Galaxy S24 Ultra 256GB',
-    titleRu: 'Samsung Galaxy S24 Ultra 256GB',
-    descriptionUz:
-      'Galaxy AI funksiyalari, S Pen, 200MP kamera, 6.8" Dynamic AMOLED 2X ekran. Snapdragon 8 Gen 3.',
-    descriptionRu:
-      'Galaxy AI, S Pen, камера 200 МП, 6.8" Dynamic AMOLED 2X. Snapdragon 8 Gen 3.',
-    basePrice: 13800000,
-    oldPrice: 15200000,
+    slug: 'imkon-guruch-premium-5kg',
+    categorySlug: 'oziq-ovqat',
+    brand: 'Imkon',
+    titleUz: 'Imkon Premium guruch, 5 kg',
+    titleRu: 'Рис Imkon Premium, 5 кг',
+    descriptionUz: 'Oilaviy o\'lcham. Plov va shirguruch uchun ideal.',
+    descriptionRu: 'Семейная упаковка. Идеально для плова и каш.',
+    basePrice: 85000,
+    oldPrice: 100000,
+    images: [IMG.RICE],
+    variants: [{ size: '5 kg', price: 85000, oldPrice: 100000, stock: 35 }],
+    specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '5 kg', valueRu: '5 кг' }],
+  },
+  {
+    slug: 'makfa-spagetti-500g',
+    categorySlug: 'oziq-ovqat',
+    brand: 'Makfa',
+    titleUz: 'Makfa spagetti, 500 g',
+    titleRu: 'Спагетти Makfa, 500 г',
+    descriptionUz: 'Yumshoq bug\'doy unidan. Yopishmaydigan formula.',
+    descriptionRu: 'Из твёрдых сортов пшеницы. Не слипается.',
+    basePrice: 14000,
     isFeatured: true,
-    images: [
-      UNSPLASH('photo-1610945265064-0e34e5519bbf'),
-      UNSPLASH('photo-1582287014914-1db836ad27e6'),
-    ],
-    variants: [
-      { color: 'Titan qora', size: '256GB', price: 13800000, oldPrice: 15200000, stock: 7 },
-      { color: 'Titan kumush', size: '256GB', price: 13800000, oldPrice: 15200000, stock: 5 },
-      { color: 'Titan binafsha', size: '512GB', price: 15500000, stock: 3 },
-    ],
+    images: [IMG.PASTA],
+    variants: [{ size: '500 g', price: 14000, stock: 120 }],
     specs: [
-      { labelUz: 'Ekran', labelRu: 'Дисплей', valueUz: '6.8" Dynamic AMOLED 2X', valueRu: '6.8" Dynamic AMOLED 2X' },
-      { labelUz: 'Protsessor', labelRu: 'Процессор', valueUz: 'Snapdragon 8 Gen 3', valueRu: 'Snapdragon 8 Gen 3' },
-      { labelUz: 'Kamera', labelRu: 'Камера', valueUz: '200 MP + 50 MP + 12 MP + 10 MP', valueRu: '200 МП + 50 МП + 12 МП + 10 МП' },
-      { labelUz: 'S Pen', labelRu: 'S Pen', valueUz: 'Bor', valueRu: 'Есть' },
+      { labelUz: 'Vazni', labelRu: 'Вес', valueUz: '500 g', valueRu: '500 г' },
+      { labelUz: 'Brend', labelRu: 'Бренд', valueUz: 'Makfa', valueRu: 'Makfa' },
     ],
   },
   {
-    slug: 'xiaomi-14-pro',
-    categorySlug: 'phones',
-    brand: 'Xiaomi',
-    titleUz: 'Xiaomi 14 Pro 256GB',
-    titleRu: 'Xiaomi 14 Pro 256GB',
-    descriptionUz:
-      'Leica Summilux optikasi, Snapdragon 8 Gen 3, 120W tezkor zaryadlash, 6.73" AMOLED 120Hz.',
-    descriptionRu:
-      'Оптика Leica Summilux, Snapdragon 8 Gen 3, быстрая зарядка 120W, 6.73" AMOLED 120Hz.',
-    basePrice: 9500000,
-    images: [
-      UNSPLASH('photo-1611532736597-de2d4265fba3'),
-      UNSPLASH('photo-1565849904461-04a58ad377e0'),
-    ],
-    variants: [
-      { color: 'Qora', size: '256GB', price: 9500000, stock: 6 },
-      { color: 'Oq', size: '256GB', price: 9500000, stock: 4 },
-      { color: 'Yashil', size: '512GB', price: 10800000, stock: 2 },
-    ],
-    specs: [
-      { labelUz: 'Ekran', labelRu: 'Дисплей', valueUz: '6.73" LTPO AMOLED', valueRu: '6.73" LTPO AMOLED' },
-      { labelUz: 'Tezkor zaryad', labelRu: 'Быстрая зарядка', valueUz: '120W', valueRu: '120 Вт' },
-      { labelUz: 'Kamera', labelRu: 'Камера', valueUz: 'Leica 50 MP × 3', valueRu: 'Leica 50 МП × 3' },
-    ],
+    slug: 'makfa-makaron-pero-400g',
+    categorySlug: 'oziq-ovqat',
+    brand: 'Makfa',
+    titleUz: 'Makfa makaron "Pero", 400 g',
+    titleRu: 'Макароны Makfa «Перо», 400 г',
+    descriptionUz: 'Klassik shakl. Sho\'rva va garnirlar uchun.',
+    descriptionRu: 'Классическая форма. Для супов и гарниров.',
+    basePrice: 11000,
+    images: [IMG.PASTA],
+    variants: [{ size: '400 g', price: 11000, stock: 95 }],
+    specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '400 g', valueRu: '400 г' }],
   },
   {
-    slug: 'google-pixel-8-pro',
-    categorySlug: 'phones',
-    brand: 'Google',
-    titleUz: 'Google Pixel 8 Pro 128GB',
-    titleRu: 'Google Pixel 8 Pro 128GB',
-    descriptionUz:
-      'Eng yaxshi kamera mahsuloti — Magic Editor va AI funksiyalari. Tensor G3 chip, 7 yil yangilash.',
-    descriptionRu:
-      'Лучшая камера — Magic Editor и AI функции. Tensor G3, обновления 7 лет.',
-    basePrice: 10500000,
-    oldPrice: 11800000,
-    images: [
-      UNSPLASH('photo-1598327105666-5b89351aff97'),
-      UNSPLASH('photo-1592890288564-76628a30a657'),
-    ],
-    variants: [
-      { color: 'Obsidian', size: '128GB', price: 10500000, oldPrice: 11800000, stock: 4 },
-      { color: 'Porcelain', size: '128GB', price: 10500000, oldPrice: 11800000, stock: 3 },
-      { color: 'Bay', size: '256GB', price: 11500000, stock: 2 },
-    ],
-    specs: [
-      { labelUz: 'Ekran', labelRu: 'Дисплей', valueUz: '6.7" LTPO OLED 120Hz', valueRu: '6.7" LTPO OLED 120Hz' },
-      { labelUz: 'AI Camera', labelRu: 'AI Камера', valueUz: 'Magic Editor', valueRu: 'Magic Editor' },
-      { labelUz: 'Yangilash', labelRu: 'Обновления', valueUz: '7 yil', valueRu: '7 лет' },
-    ],
+    slug: 'oltin-bugdoy-un-5kg',
+    categorySlug: 'oziq-ovqat',
+    brand: 'Oltin Bug\'doy',
+    titleUz: 'Oltin Bug\'doy oliy nav un, 5 kg',
+    titleRu: 'Мука высшего сорта Oltin Bug\'doy, 5 кг',
+    descriptionUz: 'Oliy nav. Non, somsa, qatlama uchun.',
+    descriptionRu: 'Высший сорт. Для хлеба, сомсы, слоёного теста.',
+    basePrice: 38000,
+    oldPrice: 45000,
+    images: [IMG.RICE],
+    variants: [{ size: '5 kg', price: 38000, oldPrice: 45000, stock: 50 }],
+    specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '5 kg', valueRu: '5 кг' }],
+  },
+  {
+    slug: 'oltin-tomchi-kungaboqar-yogi-1l',
+    categorySlug: 'oziq-ovqat',
+    brand: 'Oltin Tomchi',
+    titleUz: 'Oltin Tomchi kungaboqar yog\'i, 1 L',
+    titleRu: 'Подсолнечное масло Oltin Tomchi, 1 л',
+    descriptionUz: 'Tozalangan, hidsiz. Pishirish va qovurish uchun.',
+    descriptionRu: 'Рафинированное, без запаха. Для жарки и заправки.',
+    basePrice: 28000,
+    isFeatured: true,
+    images: [IMG.WATER],
+    variants: [{ size: '1 L', price: 28000, stock: 70 }],
+    specs: [{ labelUz: 'Hajmi', labelRu: 'Объём', valueUz: '1 L', valueRu: '1 л' }],
+  },
+  {
+    slug: 'imkon-non-non-uy',
+    categorySlug: 'oziq-ovqat',
+    brand: 'Toshkent non',
+    titleUz: 'Tandir non',
+    titleRu: 'Хлеб тандыр',
+    descriptionUz: 'An\'anaviy tandirda yopilgan issiq non.',
+    descriptionRu: 'Свежий хлеб из тандыра.',
+    basePrice: 6000,
+    images: [IMG.BREAD],
+    variants: [{ size: '1 dona', price: 6000, stock: 200 }],
+    specs: [{ labelUz: 'Tur', labelRu: 'Тип', valueUz: 'Tandir', valueRu: 'Тандыр' }],
   },
 
-  // ============== AKSESSUARLAR ==============
+  // ============== SUT MAHSULOTLARI ==============
   {
-    slug: 'iphone-15-silicone-case',
-    categorySlug: 'accessories',
-    brand: 'Apple',
-    titleUz: 'iPhone 15 Silicone Case (MagSafe)',
-    titleRu: 'iPhone 15 силиконовый чехол (MagSafe)',
-    descriptionUz:
-      'Original Apple silikon chexol. MagSafe magnitlar bilan mukammal mos keladi. Yumshoq mikrofibra ichki qatlam.',
-    descriptionRu:
-      'Оригинальный силиконовый чехол Apple. Идеально подходит к MagSafe. Мягкая внутренняя подкладка.',
-    basePrice: 180000,
-    oldPrice: 250000,
+    slug: 'imkon-sut-2-5-1l',
+    categorySlug: 'sut-mahsulotlari',
+    brand: 'Imkon',
+    titleUz: 'Imkon sut 2.5%, 1 L',
+    titleRu: 'Молоко Imkon 2.5%, 1 л',
+    descriptionUz: 'Pasterlangan sut. Tabiiy ta\'m.',
+    descriptionRu: 'Пастеризованное молоко. Натуральный вкус.',
+    basePrice: 13000,
     isFeatured: true,
-    images: [
-      UNSPLASH('photo-1601593346740-925612772716'),
-      UNSPLASH('photo-1592890288564-76628a30a657'),
+    images: [IMG.MILK],
+    variants: [{ size: '1 L', price: 13000, stock: 100 }],
+    specs: [
+      { labelUz: 'Yog\'lilik', labelRu: 'Жирность', valueUz: '2.5%', valueRu: '2.5%' },
+      { labelUz: 'Hajmi', labelRu: 'Объём', valueUz: '1 L', valueRu: '1 л' },
     ],
+  },
+  {
+    slug: 'imkon-sut-3-2-1l',
+    categorySlug: 'sut-mahsulotlari',
+    brand: 'Imkon',
+    titleUz: 'Imkon sut 3.2%, 1 L',
+    titleRu: 'Молоко Imkon 3.2%, 1 л',
+    descriptionUz: 'To\'la yog\'li sut. Bolalar va kechki choy uchun.',
+    descriptionRu: 'Цельное молоко. Для детей и вечернего чая.',
+    basePrice: 14500,
+    images: [IMG.MILK],
+    variants: [{ size: '1 L', price: 14500, stock: 80 }],
+    specs: [{ labelUz: 'Yog\'lilik', labelRu: 'Жирность', valueUz: '3.2%', valueRu: '3.2%' }],
+  },
+  {
+    slug: 'imkon-kefir-1l',
+    categorySlug: 'sut-mahsulotlari',
+    brand: 'Imkon',
+    titleUz: 'Imkon kefir 1%, 1 L',
+    titleRu: 'Кефир Imkon 1%, 1 л',
+    descriptionUz: 'Probiyotikli, ovqat hazm qilishga foydali.',
+    descriptionRu: 'С пробиотиками, полезен для пищеварения.',
+    basePrice: 12000,
+    images: [IMG.MILK],
+    variants: [{ size: '1 L', price: 12000, stock: 65 }],
+    specs: [{ labelUz: 'Yog\'lilik', labelRu: 'Жирность', valueUz: '1%', valueRu: '1%' }],
+  },
+  {
+    slug: 'imkon-yogurt-vanil-350g',
+    categorySlug: 'sut-mahsulotlari',
+    brand: 'Imkon',
+    titleUz: 'Imkon Yogurt vanilli, 350 g',
+    titleRu: 'Йогурт Imkon ванильный, 350 г',
+    descriptionUz: 'Tabiiy vanildan. Bolalar uchun ham yoqimli.',
+    descriptionRu: 'С натуральной ванилью. Подойдёт детям.',
+    basePrice: 9500,
+    oldPrice: 11000,
+    isFeatured: true,
+    images: [IMG.YOGURT],
     variants: [
-      { color: 'Qora', price: 180000, oldPrice: 250000, stock: 25 },
-      { color: 'Ko\'k', price: 180000, oldPrice: 250000, stock: 18 },
-      { color: 'Qizil', price: 195000, stock: 12 },
-      { color: 'Pushti', price: 180000, oldPrice: 250000, stock: 15 },
-      { color: 'Yashil', price: 180000, oldPrice: 250000, stock: 10 },
+      { size: 'Vanilli 350g', price: 9500, oldPrice: 11000, stock: 50 },
+      { size: 'Tabiiy 350g', price: 9500, oldPrice: 11000, stock: 40 },
     ],
-    specs: [
-      { labelUz: 'Material', labelRu: 'Материал', valueUz: 'Silikon', valueRu: 'Силикон' },
-      { labelUz: 'MagSafe', labelRu: 'MagSafe', valueUz: 'Ha', valueRu: 'Да' },
-    ],
+    specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '350 g', valueRu: '350 г' }],
   },
   {
-    slug: 'airpods-pro-case-silicone',
-    categorySlug: 'accessories',
-    brand: 'Apple',
-    titleUz: 'AirPods Pro 2 silikon chexol',
-    titleRu: 'Силиконовый чехол AirPods Pro 2',
-    descriptionUz:
-      'Yumshoq silikondan tayyorlangan, karabin bilan. Tushishlardan va chizilishlardan himoya qiladi.',
-    descriptionRu:
-      'Мягкий силикон с карабином. Защищает от падений и царапин.',
-    basePrice: 95000,
-    images: [
-      UNSPLASH('photo-1572569511254-d8f925fe2cbb'),
-      UNSPLASH('photo-1606220588913-b3aacb4d2f46'),
-    ],
+    slug: 'imkon-sariyog-73-200g',
+    categorySlug: 'sut-mahsulotlari',
+    brand: 'Imkon',
+    titleUz: 'Imkon sariyog\' 73%, 200 g',
+    titleRu: 'Сливочное масло Imkon 73%, 200 г',
+    descriptionUz: 'Tabiiy sariyog\'. Non bilan va pishiriqlarga.',
+    descriptionRu: 'Натуральное сливочное. Для бутербродов и выпечки.',
+    basePrice: 22000,
+    images: [IMG.MILK],
+    variants: [{ size: '200 g', price: 22000, stock: 45 }],
+    specs: [{ labelUz: 'Yog\'lilik', labelRu: 'Жирность', valueUz: '73%', valueRu: '73%' }],
+  },
+  {
+    slug: 'imkon-tvorog-5-200g',
+    categorySlug: 'sut-mahsulotlari',
+    brand: 'Imkon',
+    titleUz: 'Imkon tvorog 5%, 200 g',
+    titleRu: 'Творог Imkon 5%, 200 г',
+    descriptionUz: 'Yumshoq tekstura. Sirniki va salatalar uchun.',
+    descriptionRu: 'Мягкая текстура. Для сырников и салатов.',
+    basePrice: 11500,
+    images: [IMG.CHEESE],
+    variants: [{ size: '200 g', price: 11500, stock: 55 }],
+    specs: [{ labelUz: 'Yog\'lilik', labelRu: 'Жирность', valueUz: '5%', valueRu: '5%' }],
+  },
+  {
+    slug: 'tovuq-tuxumi-c1-10dona',
+    categorySlug: 'sut-mahsulotlari',
+    brand: 'Asl tuxum',
+    titleUz: 'Tovuq tuxumi C1, 10 dona',
+    titleRu: 'Куриные яйца C1, 10 шт',
+    descriptionUz: 'Yangi, fermerdan. Sariq tuxum.',
+    descriptionRu: 'Свежие, с фермы. Жёлтый желток.',
+    basePrice: 18000,
+    isFeatured: true,
+    images: [IMG.EGGS],
     variants: [
-      { color: 'Qora', price: 95000, stock: 30 },
-      { color: 'Oq', price: 95000, stock: 25 },
-      { color: 'Ko\'k', price: 95000, stock: 20 },
-      { color: 'Yashil', price: 95000, stock: 15 },
+      { size: '10 dona', price: 18000, stock: 80 },
+      { size: '30 dona', price: 50000, stock: 25 },
     ],
-    specs: [
-      { labelUz: 'Material', labelRu: 'Материал', valueUz: 'Silikon', valueRu: 'Силикон' },
-      { labelUz: 'Karabin', labelRu: 'Карабин', valueUz: 'Bor', valueRu: 'Есть' },
+    specs: [{ labelUz: 'Toifa', labelRu: 'Категория', valueUz: 'C1', valueRu: 'C1' }],
+  },
+
+  // ============== ICHIMLIKLAR ==============
+  {
+    slug: 'coca-cola-1-5l',
+    categorySlug: 'ichimliklar',
+    brand: 'Coca-Cola',
+    titleUz: 'Coca-Cola, 1.5 L',
+    titleRu: 'Coca-Cola, 1.5 л',
+    descriptionUz: 'Klassik gazli ichimlik.',
+    descriptionRu: 'Классический газированный напиток.',
+    basePrice: 14000,
+    oldPrice: 16000,
+    isFeatured: true,
+    images: [IMG.COCA_COLA],
+    variants: [
+      { size: '0.5 L', price: 7000, stock: 200 },
+      { size: '1 L', price: 11000, stock: 150 },
+      { size: '1.5 L', price: 14000, oldPrice: 16000, stock: 120 },
+      { size: '2 L', price: 17000, stock: 80 },
     ],
+    specs: [{ labelUz: 'Hajmi', labelRu: 'Объём', valueUz: '0.5 / 1 / 1.5 / 2 L', valueRu: '0.5 / 1 / 1.5 / 2 л' }],
   },
   {
-    slug: 'magsafe-wireless-charger',
-    categorySlug: 'accessories',
-    brand: 'Apple',
-    titleUz: 'MagSafe simsiz zaryadlovchi',
-    titleRu: 'Беспроводная зарядка MagSafe',
-    descriptionUz:
-      'Tezkor magnitli simsiz zaryadlovchi. 15W gacha quvvat. iPhone 12 va undan keyingi modellar bilan.',
-    descriptionRu:
-      'Быстрая магнитная беспроводная зарядка. До 15 Вт. Для iPhone 12 и новее.',
-    basePrice: 290000,
-    oldPrice: 350000,
-    images: [
-      UNSPLASH('photo-1606220588913-b3aacb4d2f46'),
-      UNSPLASH('photo-1583394838336-acd977736f90'),
+    slug: 'coca-cola-zero-1-5l',
+    categorySlug: 'ichimliklar',
+    brand: 'Coca-Cola',
+    titleUz: 'Coca-Cola Zero, 1.5 L',
+    titleRu: 'Coca-Cola Zero, 1.5 л',
+    descriptionUz: 'Shakarsiz. Sof Cola ta\'mi.',
+    descriptionRu: 'Без сахара. Чистый вкус колы.',
+    basePrice: 14000,
+    images: [IMG.COCA_COLA],
+    variants: [
+      { size: '0.5 L', price: 7000, stock: 100 },
+      { size: '1.5 L', price: 14000, stock: 80 },
     ],
-    variants: [{ price: 290000, oldPrice: 350000, stock: 18 }],
-    specs: [
-      { labelUz: 'Quvvat', labelRu: 'Мощность', valueUz: '15W', valueRu: '15 Вт' },
-      { labelUz: 'Kabel', labelRu: 'Кабель', valueUz: '1m USB-C', valueRu: '1 м USB-C' },
-    ],
+    specs: [{ labelUz: 'Shakar', labelRu: 'Сахар', valueUz: 'Yo\'q', valueRu: 'Нет' }],
   },
   {
-    slug: 'phone-popsocket',
-    categorySlug: 'accessories',
-    brand: 'PopSockets',
-    titleUz: 'PopSocket ushlagich',
-    titleRu: 'PopSocket держатель',
-    descriptionUz:
-      'Telefon orqasiga yopishtiriladigan ushlagich. Selfi olish va video tomosha qilish uchun qulay.',
-    descriptionRu:
-      'Держатель для смартфона. Удобно для селфи и просмотра видео.',
+    slug: 'pepsi-1-5l',
+    categorySlug: 'ichimliklar',
+    brand: 'Pepsi',
+    titleUz: 'Pepsi, 1.5 L',
+    titleRu: 'Pepsi, 1.5 л',
+    descriptionUz: 'Coca-Cola alternativasi. Yumshoqroq ta\'m.',
+    descriptionRu: 'Альтернатива Coca-Cola. Мягче на вкус.',
+    basePrice: 13500,
+    images: [IMG.COCA_COLA],
+    variants: [
+      { size: '0.5 L', price: 6500, stock: 120 },
+      { size: '1.5 L', price: 13500, stock: 90 },
+    ],
+    specs: [{ labelUz: 'Hajmi', labelRu: 'Объём', valueUz: '0.5 / 1.5 L', valueRu: '0.5 / 1.5 л' }],
+  },
+  {
+    slug: 'aqua-minerale-1-5l',
+    categorySlug: 'ichimliklar',
+    brand: 'Aqua Minerale',
+    titleUz: 'Aqua Minerale ichimlik suvi, 1.5 L',
+    titleRu: 'Питьевая вода Aqua Minerale, 1.5 л',
+    descriptionUz: 'Tozalangan tabiiy suv. Gazsiz va gazli variantlar.',
+    descriptionRu: 'Очищенная природная вода. Газированная и негаз.',
+    basePrice: 6500,
+    isFeatured: true,
+    images: [IMG.WATER],
+    variants: [
+      { size: 'Gazsiz 1.5L', price: 6500, stock: 250 },
+      { size: 'Gazli 1.5L', price: 6500, stock: 200 },
+      { size: 'Gazsiz 5L', price: 12000, stock: 100 },
+    ],
+    specs: [{ labelUz: 'Tur', labelRu: 'Тип', valueUz: 'Tozalangan suv', valueRu: 'Очищенная вода' }],
+  },
+  {
+    slug: 'i-juice-apelsin-1l',
+    categorySlug: 'ichimliklar',
+    brand: 'I-Juice',
+    titleUz: 'I-Juice apelsin sharbati, 1 L',
+    titleRu: 'Апельсиновый сок I-Juice, 1 л',
+    descriptionUz: '100% tabiiy. Konsentratdan tayyorlangan.',
+    descriptionRu: '100% натуральный. Из концентрата.',
+    basePrice: 18000,
+    images: [IMG.JUICE],
+    variants: [{ size: '1 L', price: 18000, stock: 70 }],
+    specs: [{ labelUz: 'Hajmi', labelRu: 'Объём', valueUz: '1 L', valueRu: '1 л' }],
+  },
+  {
+    slug: 'i-juice-olma-1l',
+    categorySlug: 'ichimliklar',
+    brand: 'I-Juice',
+    titleUz: 'I-Juice olma sharbati, 1 L',
+    titleRu: 'Яблочный сок I-Juice, 1 л',
+    descriptionUz: 'Mahalliy olmadan. Bolalar uchun mos.',
+    descriptionRu: 'Из местных яблок. Подойдёт детям.',
+    basePrice: 16000,
+    images: [IMG.JUICE],
+    variants: [{ size: '1 L', price: 16000, stock: 60 }],
+    specs: [{ labelUz: 'Hajmi', labelRu: 'Объём', valueUz: '1 L', valueRu: '1 л' }],
+  },
+  {
+    slug: 'lipton-yellow-label-100tb',
+    categorySlug: 'ichimliklar',
+    brand: 'Lipton',
+    titleUz: 'Lipton Yellow Label, 100 paket',
+    titleRu: 'Lipton Yellow Label, 100 пакетиков',
+    descriptionUz: 'Klassik qora choy paketlari.',
+    descriptionRu: 'Классические пакетики чёрного чая.',
+    basePrice: 42000,
+    oldPrice: 50000,
+    images: [IMG.TEA],
+    variants: [{ size: '100 paket', price: 42000, oldPrice: 50000, stock: 40 }],
+    specs: [{ labelUz: 'Soni', labelRu: 'Количество', valueUz: '100 paket', valueRu: '100 шт' }],
+  },
+  {
+    slug: 'nescafe-gold-95g',
+    categorySlug: 'ichimliklar',
+    brand: 'Nescafé',
+    titleUz: 'Nescafé Gold, 95 g',
+    titleRu: 'Nescafé Gold, 95 г',
+    descriptionUz: 'Erituvchi qahva. Boy aromat.',
+    descriptionRu: 'Растворимый кофе. Богатый аромат.',
     basePrice: 65000,
-    images: [
-      UNSPLASH('photo-1551816230-ef5deaed4a26'),
-      UNSPLASH('photo-1556656793-08538906a9f8'),
-    ],
+    isFeatured: true,
+    images: [IMG.COFFEE],
     variants: [
-      { color: 'Qora', price: 65000, stock: 40 },
-      { color: 'Oq', price: 65000, stock: 35 },
-      { color: 'Bayroqsimon', price: 75000, stock: 20 },
+      { size: '95 g banka', price: 65000, stock: 35 },
+      { size: '190 g banka', price: 125000, stock: 20 },
     ],
-    specs: [
-      { labelUz: 'Material', labelRu: 'Материал', valueUz: 'Plastik', valueRu: 'Пластик' },
-    ],
+    specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '95 g / 190 g', valueRu: '95 г / 190 г' }],
   },
 
-  // ============== AYOLLAR KIYIMI ==============
+  // ============== SABZAVOT VA MEVALAR ==============
   {
-    slug: 'cream-midi-skirt-zara',
-    categorySlug: 'clothing-women',
-    brand: 'Zara',
-    titleUz: 'Krem rangli midi yubka',
-    titleRu: 'Кремовая миди-юбка',
-    descriptionUz:
-      'Yumshoq mato, qulay kesim. Kunduzgi va kechki uchun mos. Yuqori bel.',
-    descriptionRu:
-      'Мягкая ткань, удобный крой. Подходит для дня и вечера. Высокая талия.',
-    basePrice: 320000,
-    oldPrice: 400000,
+    slug: 'olma-aim-1kg',
+    categorySlug: 'sabzavot-mevalar',
+    brand: 'Mahalliy',
+    titleUz: 'Olma "Aim", 1 kg',
+    titleRu: 'Яблоки «Aim», 1 кг',
+    descriptionUz: 'Mahalliy bog\'lardan. Shirin, qattiq, suvli.',
+    descriptionRu: 'Из местных садов. Сладкие, твёрдые, сочные.',
+    basePrice: 12000,
     isFeatured: true,
-    images: [
-      UNSPLASH('photo-1583496661160-fb5886a13d44'),
-      UNSPLASH('photo-1551163943-3f6a855d1153'),
-    ],
-    variants: [
-      { color: 'Krem', size: 'S', price: 320000, oldPrice: 400000, stock: 8 },
-      { color: 'Krem', size: 'M', price: 320000, oldPrice: 400000, stock: 12 },
-      { color: 'Krem', size: 'L', price: 320000, oldPrice: 400000, stock: 6 },
-    ],
-    specs: [
-      { labelUz: 'Material', labelRu: 'Материал', valueUz: 'Paxta 65%, Polyester 35%', valueRu: 'Хлопок 65%, Полиэстер 35%' },
-      { labelUz: 'Uzunlik', labelRu: 'Длина', valueUz: 'Midi', valueRu: 'Миди' },
-    ],
+    images: [IMG.APPLE],
+    variants: [{ size: '1 kg', price: 12000, stock: 150 }],
+    specs: [{ labelUz: 'Manba', labelRu: 'Происхождение', valueUz: 'O\'zbekiston', valueRu: 'Узбекистан' }],
   },
   {
-    slug: 'blue-striped-shirt-mango',
-    categorySlug: 'clothing-women',
-    brand: 'Mango',
-    titleUz: 'Ko\'k chiziqli ayollar ko\'ylagi',
-    titleRu: 'Голубая полосатая женская рубашка',
-    descriptionUz:
-      'Yengil paxta mato, ofis va kunlik kiyim uchun. Kavida tugmalar.',
-    descriptionRu:
-      'Лёгкая хлопковая ткань, для офиса и повседневности. Перламутровые пуговицы.',
-    basePrice: 150000,
-    oldPrice: 250000,
+    slug: 'banan-ekvador-1kg',
+    categorySlug: 'sabzavot-mevalar',
+    brand: 'Import',
+    titleUz: 'Banan (Ekvador), 1 kg',
+    titleRu: 'Бананы (Эквадор), 1 кг',
+    descriptionUz: 'Premium navli, pishgan.',
+    descriptionRu: 'Премиум сорт, спелые.',
+    basePrice: 18000,
     isFeatured: true,
-    images: [
-      UNSPLASH('photo-1604176354204-9268737828e4'),
-      UNSPLASH('photo-1551048632-24e444b48a3e'),
-    ],
-    variants: [
-      { color: 'Ko\'k', size: 'S', price: 150000, oldPrice: 250000, stock: 10 },
-      { color: 'Ko\'k', size: 'M', price: 150000, oldPrice: 250000, stock: 14 },
-      { color: 'Ko\'k', size: 'L', price: 150000, oldPrice: 250000, stock: 8 },
-    ],
-    specs: [
-      { labelUz: 'Material', labelRu: 'Материал', valueUz: '100% paxta', valueRu: '100% хлопок' },
-    ],
+    images: [IMG.BANANA],
+    variants: [{ size: '1 kg', price: 18000, stock: 120 }],
+    specs: [{ labelUz: 'Manba', labelRu: 'Происхождение', valueUz: 'Ekvador', valueRu: 'Эквадор' }],
   },
   {
-    slug: 'classic-black-dress',
-    categorySlug: 'clothing-women',
-    brand: 'Massimo Dutti',
-    titleUz: 'Klassik qora ko\'ylak',
-    titleRu: 'Классическое чёрное платье',
-    descriptionUz:
-      'Universal kechki ko\'ylak. A-line silueti, kichkina qora ko\'ylak (LBD).',
-    descriptionRu:
-      'Универсальное вечернее платье. A-силуэт, маленькое чёрное платье (LBD).',
-    basePrice: 480000,
-    images: [
-      UNSPLASH('photo-1539109136881-3be0616acf4b'),
-      UNSPLASH('photo-1572804013309-59a88b7e92f1'),
-    ],
-    variants: [
-      { color: 'Qora', size: 'S', price: 480000, stock: 5 },
-      { color: 'Qora', size: 'M', price: 480000, stock: 8 },
-      { color: 'Qora', size: 'L', price: 480000, stock: 4 },
-    ],
-    specs: [
-      { labelUz: 'Mato', labelRu: 'Ткань', valueUz: 'Krep', valueRu: 'Креп' },
-      { labelUz: 'Stil', labelRu: 'Стиль', valueUz: 'Klassik', valueRu: 'Классика' },
-    ],
+    slug: 'pomidor-mahalliy-1kg',
+    categorySlug: 'sabzavot-mevalar',
+    brand: 'Mahalliy',
+    titleUz: 'Pomidor (mahalliy), 1 kg',
+    titleRu: 'Помидоры (местные), 1 кг',
+    descriptionUz: 'Quyoshda pishgan, salatalar uchun ideal.',
+    descriptionRu: 'Поспели на солнце, идеальны для салатов.',
+    basePrice: 15000,
+    images: [IMG.TOMATO],
+    variants: [{ size: '1 kg', price: 15000, stock: 100 }],
+    specs: [{ labelUz: 'Manba', labelRu: 'Происхождение', valueUz: 'O\'zbekiston', valueRu: 'Узбекистан' }],
   },
   {
-    slug: 'beige-trench-coat',
-    categorySlug: 'clothing-women',
-    brand: 'Burberry',
-    titleUz: 'Bej trench palto',
-    titleRu: 'Бежевый тренчкот',
-    descriptionUz:
-      'Klassik trench palto, bel kamar bilan. Yomg\'ir va shamoldan himoya. Iqtibos: yuqori sifatli paxta gabardin.',
-    descriptionRu:
-      'Классический тренч с поясом. Защита от дождя и ветра. Хлопковый габардин премиум-качества.',
-    basePrice: 980000,
-    oldPrice: 1200000,
-    images: [
-      UNSPLASH('photo-1591047139829-d91aecb6caea'),
-      UNSPLASH('photo-1551488831-00ddcb6c6bd3'),
-    ],
+    slug: 'kartoshka-1kg',
+    categorySlug: 'sabzavot-mevalar',
+    brand: 'Mahalliy',
+    titleUz: 'Kartoshka (yangi), 1 kg',
+    titleRu: 'Картофель (свежий), 1 кг',
+    descriptionUz: 'Sariq qubbasi, pishirish va qovurish uchun.',
+    descriptionRu: 'Жёлтая, для варки и жарки.',
+    basePrice: 7000,
+    images: [IMG.TOMATO],
     variants: [
-      { color: 'Bej', size: 'M', price: 980000, oldPrice: 1200000, stock: 4 },
-      { color: 'Bej', size: 'L', price: 980000, oldPrice: 1200000, stock: 3 },
-      { color: 'Qora', size: 'M', price: 1050000, stock: 2 },
+      { size: '1 kg', price: 7000, stock: 200 },
+      { size: '5 kg qop', price: 32000, stock: 50 },
     ],
-    specs: [
-      { labelUz: 'Material', labelRu: 'Материал', valueUz: 'Paxta gabardin', valueRu: 'Хлопковый габардин' },
-      { labelUz: 'Mavsum', labelRu: 'Сезон', valueUz: 'Bahor/Kuz', valueRu: 'Весна/Осень' },
+    specs: [{ labelUz: 'Tur', labelRu: 'Сорт', valueUz: 'Sariq', valueRu: 'Жёлтый' }],
+  },
+  {
+    slug: 'piyoz-mahalliy-1kg',
+    categorySlug: 'sabzavot-mevalar',
+    brand: 'Mahalliy',
+    titleUz: 'Piyoz (oq), 1 kg',
+    titleRu: 'Лук (белый), 1 кг',
+    descriptionUz: 'Quruq piyoz. Oshxonaning asosi.',
+    descriptionRu: 'Сухой лук. Основа кухни.',
+    basePrice: 5000,
+    images: [IMG.TOMATO],
+    variants: [
+      { size: '1 kg', price: 5000, stock: 200 },
+      { size: '5 kg qop', price: 22000, stock: 40 },
     ],
+    specs: [{ labelUz: 'Tur', labelRu: 'Тип', valueUz: 'Oq quruq', valueRu: 'Белый сухой' }],
+  },
+  {
+    slug: 'bodring-1kg',
+    categorySlug: 'sabzavot-mevalar',
+    brand: 'Mahalliy',
+    titleUz: 'Bodring (qisqa), 1 kg',
+    titleRu: 'Огурцы (короткие), 1 кг',
+    descriptionUz: 'Yangi terilgan, salatalar uchun.',
+    descriptionRu: 'Свежесобранные, для салатов.',
+    basePrice: 13000,
+    images: [IMG.TOMATO],
+    variants: [{ size: '1 kg', price: 13000, stock: 80 }],
+    specs: [{ labelUz: 'Manba', labelRu: 'Происхождение', valueUz: 'O\'zbekiston', valueRu: 'Узбекистан' }],
+  },
+  {
+    slug: 'limon-1kg',
+    categorySlug: 'sabzavot-mevalar',
+    brand: 'Import',
+    titleUz: 'Limon, 1 kg',
+    titleRu: 'Лимон, 1 кг',
+    descriptionUz: 'Choy va pishiriqlar uchun.',
+    descriptionRu: 'Для чая и выпечки.',
+    basePrice: 22000,
+    images: [IMG.APPLE],
+    variants: [{ size: '1 kg', price: 22000, stock: 60 }],
+    specs: [{ labelUz: 'Manba', labelRu: 'Происхождение', valueUz: 'Turkiya', valueRu: 'Турция' }],
   },
 
-  // ============== ERKAKLAR KIYIMI ==============
+  // ============== GO'SHT VA BALIQ ==============
   {
-    slug: 'mens-classic-watch-casio',
-    categorySlug: 'clothing-men',
-    brand: 'Casio',
-    titleUz: 'Erkaklar uchun klassik soat',
-    titleRu: 'Мужские классические часы',
-    descriptionUz:
-      'Charm tasma, mexanik mexanizm. Suvga chidamli. Sovg\'aga ham mos.',
-    descriptionRu:
-      'Кожаный ремешок, механизм. Водостойкие. Отличный подарок.',
-    basePrice: 450000,
-    images: [
-      UNSPLASH('photo-1524805444758-089113d48a6d'),
-      UNSPLASH('photo-1547996160-81dfa63595aa'),
-    ],
-    variants: [
-      { color: 'Qora', price: 450000, stock: 12 },
-      { color: 'Jigarrang', price: 450000, stock: 8 },
-    ],
-    specs: [
-      { labelUz: 'Mexanizm', labelRu: 'Механизм', valueUz: 'Kvarts', valueRu: 'Кварц' },
-      { labelUz: 'Suv', labelRu: 'Водозащита', valueUz: '50m', valueRu: '50 м' },
-      { labelUz: 'Tasma', labelRu: 'Ремешок', valueUz: 'Charm', valueRu: 'Кожа' },
-    ],
-  },
-  {
-    slug: 'mens-classic-suit',
-    categorySlug: 'clothing-men',
-    brand: 'Hugo Boss',
-    titleUz: 'Klassik erkaklar kostyumi',
-    titleRu: 'Классический мужской костюм',
-    descriptionUz:
-      'Slim fit kostyum, pidjak va shim. Rasmiy tadbirlar uchun. Yuqori sifatli mato.',
-    descriptionRu:
-      'Slim fit, пиджак и брюки. Для официальных мероприятий. Премиум ткань.',
-    basePrice: 1850000,
-    oldPrice: 2200000,
+    slug: 'tovuq-filesi-1kg',
+    categorySlug: 'gosht-baliq',
+    brand: 'Asl tovuq',
+    titleUz: 'Tovuq filesi (ko\'krak), 1 kg',
+    titleRu: 'Куриное филе (грудка), 1 кг',
+    descriptionUz: 'Yangi, sovutilgan. Suyaqsiz, terisiz.',
+    descriptionRu: 'Свежее, охлаждённое. Без костей и кожи.',
+    basePrice: 52000,
+    oldPrice: 58000,
     isFeatured: true,
-    images: [
-      UNSPLASH('photo-1594938298603-c8148c4dae35'),
-      UNSPLASH('photo-1490578474895-699cd4e2cf59'),
-    ],
-    variants: [
-      { color: 'Qora', size: '48', price: 1850000, oldPrice: 2200000, stock: 3 },
-      { color: 'Qora', size: '50', price: 1850000, oldPrice: 2200000, stock: 5 },
-      { color: 'Qora', size: '52', price: 1850000, oldPrice: 2200000, stock: 4 },
-      { color: 'Ko\'k navy', size: '50', price: 1950000, stock: 2 },
-    ],
+    images: [IMG.CHICKEN],
+    variants: [{ size: '1 kg', price: 52000, oldPrice: 58000, stock: 40 }],
     specs: [
-      { labelUz: 'Mato', labelRu: 'Ткань', valueUz: 'Jun aralashma', valueRu: 'Шерстяная смесь' },
-      { labelUz: 'Fit', labelRu: 'Силуэт', valueUz: 'Slim Fit', valueRu: 'Slim Fit' },
+      { labelUz: 'Holati', labelRu: 'Состояние', valueUz: 'Sovutilgan', valueRu: 'Охлаждённое' },
+      { labelUz: 'Tarkibi', labelRu: 'Состав', valueUz: 'Tovuq', valueRu: 'Курица' },
     ],
   },
   {
-    slug: 'white-cotton-shirt',
-    categorySlug: 'clothing-men',
-    brand: 'Massimo Dutti',
-    titleUz: 'Oq paxta ko\'ylak',
-    titleRu: 'Белая хлопковая рубашка',
-    descriptionUz:
-      'Klassik kesim, premium paxta mato. Kunlik va ofis uchun mos.',
-    descriptionRu:
-      'Классический крой, премиальный хлопок. Для повседневности и офиса.',
-    basePrice: 280000,
-    images: [
-      UNSPLASH('photo-1602810318383-e386cc2a3ccf'),
-      UNSPLASH('photo-1607345366928-199ea26cfe3e'),
-    ],
-    variants: [
-      { color: 'Oq', size: 'M', price: 280000, stock: 15 },
-      { color: 'Oq', size: 'L', price: 280000, stock: 18 },
-      { color: 'Oq', size: 'XL', price: 280000, stock: 10 },
-      { color: 'Ko\'k', size: 'L', price: 290000, stock: 8 },
-    ],
-    specs: [
-      { labelUz: 'Material', labelRu: 'Материал', valueUz: '100% paxta', valueRu: '100% хлопок' },
-    ],
+    slug: 'tovuq-oyogi-1kg',
+    categorySlug: 'gosht-baliq',
+    brand: 'Asl tovuq',
+    titleUz: 'Tovuq oyog\'i, 1 kg',
+    titleRu: 'Куриные ножки, 1 кг',
+    descriptionUz: 'Yangi tovuq oyog\'i. Pishirish va qovurish uchun.',
+    descriptionRu: 'Свежие куриные ножки. Для варки и жарки.',
+    basePrice: 38000,
+    images: [IMG.CHICKEN],
+    variants: [{ size: '1 kg', price: 38000, stock: 50 }],
+    specs: [{ labelUz: 'Holati', labelRu: 'Состояние', valueUz: 'Sovutilgan', valueRu: 'Охлаждённое' }],
   },
   {
-    slug: 'slim-fit-jeans',
-    categorySlug: 'clothing-men',
-    brand: 'Levi\'s',
-    titleUz: 'Slim fit jinsi shim 511',
-    titleRu: 'Джинсы Slim fit 511',
-    descriptionUz:
-      'Levi\'s 511 Slim fit kesim. Klassik 5 cho\'ntakli dizayn. Streych mato.',
-    descriptionRu:
-      'Levi\'s 511 Slim fit. Классический крой с 5 карманами. Стрейчевая ткань.',
-    basePrice: 350000,
-    oldPrice: 450000,
-    images: [
-      UNSPLASH('photo-1542272604-787c3835535d'),
-      UNSPLASH('photo-1604176354204-9268737828e4'),
-    ],
-    variants: [
-      { color: 'Ko\'k', size: '30', price: 350000, oldPrice: 450000, stock: 8 },
-      { color: 'Ko\'k', size: '32', price: 350000, oldPrice: 450000, stock: 12 },
-      { color: 'Ko\'k', size: '34', price: 350000, oldPrice: 450000, stock: 9 },
-      { color: 'Qora', size: '32', price: 380000, stock: 6 },
-    ],
-    specs: [
-      { labelUz: 'Mato', labelRu: 'Ткань', valueUz: 'Paxta 98% + Elastan 2%', valueRu: 'Хлопок 98% + Эластан 2%' },
-      { labelUz: 'Kesim', labelRu: 'Крой', valueUz: 'Slim', valueRu: 'Slim' },
-    ],
+    slug: 'mol-goshti-yagona-1kg',
+    categorySlug: 'gosht-baliq',
+    brand: 'Mahalliy ferma',
+    titleUz: 'Mol go\'shti (yagona qism), 1 kg',
+    titleRu: 'Говядина (мякоть), 1 кг',
+    descriptionUz: 'Premium, suyaqsiz. Plov va sho\'rva uchun.',
+    descriptionRu: 'Премиум, без костей. Для плова и супов.',
+    basePrice: 105000,
+    images: [IMG.CHICKEN],
+    variants: [{ size: '1 kg', price: 105000, stock: 25 }],
+    specs: [{ labelUz: 'Qismi', labelRu: 'Часть', valueUz: 'Yagona (mякot\')', valueRu: 'Мякоть' }],
   },
-
-  // ============== KOSMETIKA ==============
   {
-    slug: 'maybelline-superstay-matte',
-    categorySlug: 'cosmetics',
-    brand: 'Maybelline',
-    titleUz: 'Maybelline SuperStay Matte Ink pomada',
-    titleRu: 'Помада Maybelline SuperStay Matte Ink',
-    descriptionUz:
-      'Uzoq turuvchi matte formula. 16 soatgacha o\'chmaydi. Lablar uchun yumshoq.',
-    descriptionRu:
-      'Стойкая матовая формула. Держится до 16 часов. Не сушит губы.',
+    slug: 'qoy-goshti-1kg',
+    categorySlug: 'gosht-baliq',
+    brand: 'Mahalliy ferma',
+    titleUz: 'Qo\'y go\'shti, 1 kg',
+    titleRu: 'Баранина, 1 кг',
+    descriptionUz: 'Yosh qo\'y go\'shti. Plov va kebab uchun.',
+    descriptionRu: 'Молодая баранина. Для плова и шашлыка.',
+    basePrice: 135000,
+    images: [IMG.CHICKEN],
+    variants: [{ size: '1 kg', price: 135000, stock: 20 }],
+    specs: [{ labelUz: 'Yosh', labelRu: 'Возраст', valueUz: 'Yosh qo\'y', valueRu: 'Молодая баранина' }],
+  },
+  {
+    slug: 'baliq-forel-500g',
+    categorySlug: 'gosht-baliq',
+    brand: 'Norvegiya',
+    titleUz: 'Forel baliq filesi, 500 g',
+    titleRu: 'Филе форели, 500 г',
+    descriptionUz: 'Yangi muzlatilgan. Omega-3 ga boy.',
+    descriptionRu: 'Свежемороженое. Богато Омега-3.',
     basePrice: 95000,
-    oldPrice: 120000,
-    isFeatured: true,
-    images: [
-      UNSPLASH('photo-1586495777744-4413f21062fa'),
-      UNSPLASH('photo-1631214540242-44c8e21d1f96'),
-    ],
-    variants: [
-      { color: 'Lover (qizg\'ish)', price: 95000, oldPrice: 120000, stock: 25 },
-      { color: 'Pioneer (qizil)', price: 95000, oldPrice: 120000, stock: 22 },
-      { color: 'Heroine (pushti)', price: 95000, oldPrice: 120000, stock: 18 },
-      { color: 'Voyager (qoramtir)', price: 95000, stock: 15 },
-    ],
-    specs: [
-      { labelUz: 'Tip', labelRu: 'Тип', valueUz: 'Suyuq matte', valueRu: 'Жидкая матовая' },
-      { labelUz: 'Davomiyligi', labelRu: 'Стойкость', valueUz: '16 soat', valueRu: '16 часов' },
-    ],
-  },
-  {
-    slug: 'chanel-coco-mademoiselle',
-    categorySlug: 'cosmetics',
-    brand: 'Chanel',
-    titleUz: 'Chanel Coco Mademoiselle ayollar atri 50ml',
-    titleRu: 'Chanel Coco Mademoiselle 50ml',
-    descriptionUz:
-      'Mashhur Chanel atri. Sandalovaye, vetiver va pachuli notalari. Original Fransiyadan.',
-    descriptionRu:
-      'Легендарный аромат Chanel. Сандал, ветивер и пачули. Оригинал из Франции.',
-    basePrice: 1450000,
-    isFeatured: true,
-    images: [
-      UNSPLASH('photo-1541643600914-78b084683601'),
-      UNSPLASH('photo-1592945403244-b3fbafd7f539'),
-    ],
-    variants: [{ size: '50ml', price: 1450000, stock: 8 }, { size: '100ml', price: 2100000, stock: 4 }],
-    specs: [
-      { labelUz: 'Tip', labelRu: 'Тип', valueUz: 'Eau de Parfum', valueRu: 'Парфюмерная вода' },
-      { labelUz: 'Asosiy nota', labelRu: 'Основная нота', valueUz: 'Sandal, pachuli', valueRu: 'Сандал, пачули' },
-    ],
-  },
-  {
-    slug: 'estee-lauder-double-wear',
-    categorySlug: 'cosmetics',
-    brand: 'Estée Lauder',
-    titleUz: 'Estée Lauder Double Wear tonal asos',
-    titleRu: 'Estée Lauder Double Wear тональный крем',
-    descriptionUz:
-      '24 soat turuvchi yuqori qoplama. Yog\'liq teri uchun mos. SPF 10.',
-    descriptionRu:
-      'Стойкое покрытие на 24 часа. Подходит для жирной кожи. SPF 10.',
-    basePrice: 580000,
-    images: [
-      UNSPLASH('photo-1596462502278-27bfdc403348'),
-      UNSPLASH('photo-1599735734574-50ed0d5e3aaf'),
-    ],
-    variants: [
-      { color: '1N1 Ivory Nude', price: 580000, stock: 8 },
-      { color: '2C2 Pale Almond', price: 580000, stock: 10 },
-      { color: '3W1 Tawny', price: 580000, stock: 6 },
-    ],
-    specs: [
-      { labelUz: 'Hajm', labelRu: 'Объем', valueUz: '30ml', valueRu: '30 мл' },
-      { labelUz: 'SPF', labelRu: 'SPF', valueUz: '10', valueRu: '10' },
-    ],
-  },
-  {
-    slug: 'maybelline-lash-sensational',
-    categorySlug: 'cosmetics',
-    brand: 'Maybelline',
-    titleUz: 'Maybelline Lash Sensational tushi',
-    titleRu: 'Тушь Maybelline Lash Sensational',
-    descriptionUz:
-      '10 qatorli yelpig\'ich shchyotka. Hajm va uzunlik beradi. Suvga chidamli versiya ham bor.',
-    descriptionRu:
-      'Веерная щёточка с 10 рядами. Объём и длина. Есть водостойкая версия.',
-    basePrice: 145000,
-    images: [
-      UNSPLASH('photo-1631214524020-7e18db9a8f92'),
-      UNSPLASH('photo-1596704017254-9b121068fb31'),
-    ],
-    variants: [
-      { color: 'Qora', price: 145000, stock: 30 },
-      { color: 'Qora (suvga chidamli)', price: 165000, stock: 20 },
-    ],
-    specs: [
-      { labelUz: 'Effekt', labelRu: 'Эффект', valueUz: 'Hajm + uzunlik', valueRu: 'Объём + длина' },
-    ],
+    images: [IMG.CHICKEN],
+    variants: [{ size: '500 g', price: 95000, stock: 15 }],
+    specs: [{ labelUz: 'Manba', labelRu: 'Происхождение', valueUz: 'Norvegiya', valueRu: 'Норвегия' }],
   },
 
-  // ============== ELEKTRONIKA ==============
+  // ============== SHIRINLIKLAR ==============
   {
-    slug: 'apple-airpods-pro-2',
-    categorySlug: 'electronics',
-    brand: 'Apple',
-    titleUz: 'Apple AirPods Pro 2 (USB-C)',
-    titleRu: 'Apple AirPods Pro 2 (USB-C)',
-    descriptionUz:
-      'Active Noise Cancellation, Adaptive Audio, Spatial Audio. MagSafe charging case. H2 chip.',
-    descriptionRu:
-      'Активное шумоподавление, Adaptive Audio, Spatial Audio. MagSafe футляр. Чип H2.',
-    basePrice: 2890000,
+    slug: 'snickers-50g',
+    categorySlug: 'shirinliklar',
+    brand: 'Mars',
+    titleUz: 'Snickers, 50 g',
+    titleRu: 'Snickers, 50 г',
+    descriptionUz: 'Yong\'oq, karamel va sutli shokoladdan.',
+    descriptionRu: 'С арахисом, карамелью и молочным шоколадом.',
+    basePrice: 8500,
     isFeatured: true,
-    images: [
-      UNSPLASH('photo-1606220588913-b3aacb4d2f46'),
-      UNSPLASH('photo-1572569511254-d8f925fe2cbb'),
-    ],
-    variants: [{ color: 'Oq', price: 2890000, stock: 15 }],
-    specs: [
-      { labelUz: 'Chip', labelRu: 'Чип', valueUz: 'Apple H2', valueRu: 'Apple H2' },
-      { labelUz: 'Batareya', labelRu: 'Батарея', valueUz: '30 soat (case bilan)', valueRu: '30 ч (с футляром)' },
-      { labelUz: 'ANC', labelRu: 'ANC', valueUz: 'Bor', valueRu: 'Есть' },
-    ],
-  },
-  {
-    slug: 'apple-watch-series-9',
-    categorySlug: 'electronics',
-    brand: 'Apple',
-    titleUz: 'Apple Watch Series 9 GPS 45mm',
-    titleRu: 'Apple Watch Series 9 GPS 45mm',
-    descriptionUz:
-      'Double Tap, S9 chip, brighter display, ECG va Blood Oxygen sensorlari.',
-    descriptionRu:
-      'Double Tap, чип S9, ярче дисплей, датчики ECG и SpO2.',
-    basePrice: 4250000,
-    oldPrice: 4800000,
-    images: [
-      UNSPLASH('photo-1546435770-a3e426bf472b'),
-      UNSPLASH('photo-1551816230-ef5deaed4a26'),
-    ],
+    images: [IMG.CHOCOLATE],
     variants: [
-      { color: 'Midnight', size: '41mm', price: 4250000, oldPrice: 4800000, stock: 5 },
-      { color: 'Midnight', size: '45mm', price: 4450000, oldPrice: 5000000, stock: 7 },
-      { color: 'Starlight', size: '45mm', price: 4450000, stock: 4 },
-      { color: '(PRODUCT)RED', size: '45mm', price: 4450000, stock: 3 },
+      { size: '50 g', price: 8500, stock: 250 },
+      { size: '95 g maxi', price: 15000, stock: 100 },
     ],
-    specs: [
-      { labelUz: 'Chip', labelRu: 'Чип', valueUz: 'S9 SiP', valueRu: 'S9 SiP' },
-      { labelUz: 'Display', labelRu: 'Экран', valueUz: 'Retina LTPO OLED', valueRu: 'Retina LTPO OLED' },
-      { labelUz: 'Suvga chidamli', labelRu: 'Водозащита', valueUz: '50m', valueRu: '50 м' },
-    ],
+    specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '50 g / 95 g', valueRu: '50 г / 95 г' }],
   },
   {
-    slug: 'macbook-air-m3-13',
-    categorySlug: 'electronics',
-    brand: 'Apple',
-    titleUz: 'MacBook Air 13" M3 256GB',
-    titleRu: 'MacBook Air 13" M3 256GB',
-    descriptionUz:
-      'Apple M3 chip, 8GB RAM, Liquid Retina display. 18 soat batareya. Yengil va ingichka.',
-    descriptionRu:
-      'Чип Apple M3, 8 ГБ RAM, Liquid Retina. 18 часов работы. Тонкий и лёгкий.',
-    basePrice: 14800000,
-    images: [
-      UNSPLASH('photo-1517336714731-489689fd1ca8'),
-      UNSPLASH('photo-1496181133206-80ce9b88a853'),
-    ],
-    variants: [
-      { color: 'Midnight', size: '256GB', price: 14800000, stock: 4 },
-      { color: 'Midnight', size: '512GB', price: 16800000, stock: 3 },
-      { color: 'Silver', size: '256GB', price: 14800000, stock: 5 },
-      { color: 'Starlight', size: '512GB', price: 16800000, stock: 2 },
-    ],
-    specs: [
-      { labelUz: 'Chip', labelRu: 'Чип', valueUz: 'Apple M3 8-core', valueRu: 'Apple M3 8-core' },
-      { labelUz: 'RAM', labelRu: 'RAM', valueUz: '8GB', valueRu: '8 ГБ' },
-      { labelUz: 'Batareya', labelRu: 'Батарея', valueUz: '18 soat', valueRu: '18 ч' },
-    ],
+    slug: 'mars-50g',
+    categorySlug: 'shirinliklar',
+    brand: 'Mars',
+    titleUz: 'Mars, 50 g',
+    titleRu: 'Mars, 50 г',
+    descriptionUz: 'Karamel va nuga sutli shokoladda.',
+    descriptionRu: 'Карамель и нуга в молочном шоколаде.',
+    basePrice: 8000,
+    images: [IMG.CHOCOLATE],
+    variants: [{ size: '50 g', price: 8000, stock: 200 }],
+    specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '50 g', valueRu: '50 г' }],
   },
   {
-    slug: 'sony-wh-1000xm5',
-    categorySlug: 'electronics',
-    brand: 'Sony',
-    titleUz: 'Sony WH-1000XM5 simsiz quloqchin',
-    titleRu: 'Sony WH-1000XM5 беспроводные наушники',
-    descriptionUz:
-      'Industriya yetakchisi shovqin susaytirish. 30 soat batareya. Hi-Res Audio sertifikati.',
-    descriptionRu:
-      'Лидирующее шумоподавление. 30 часов работы. Hi-Res Audio.',
-    basePrice: 3950000,
-    oldPrice: 4400000,
+    slug: 'twix-50g',
+    categorySlug: 'shirinliklar',
+    brand: 'Mars',
+    titleUz: 'Twix, 50 g',
+    titleRu: 'Twix, 50 г',
+    descriptionUz: 'Pechene, karamel, shokolad. 2 ta tayoq.',
+    descriptionRu: 'Печенье, карамель, шоколад. Две палочки.',
+    basePrice: 8000,
+    images: [IMG.CHOCOLATE],
+    variants: [{ size: '50 g', price: 8000, stock: 180 }],
+    specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '50 g', valueRu: '50 г' }],
+  },
+  {
+    slug: 'milka-tablet-100g',
+    categorySlug: 'shirinliklar',
+    brand: 'Milka',
+    titleUz: 'Milka Alpine Milk shokoladi, 100 g',
+    titleRu: 'Шоколад Milka Alpine Milk, 100 г',
+    descriptionUz: 'Alp tog\'lari sutidan tayyorlangan klassik shokolad.',
+    descriptionRu: 'Классический шоколад из альпийского молока.',
+    basePrice: 18000,
+    oldPrice: 22000,
     isFeatured: true,
-    images: [
-      UNSPLASH('photo-1505740420928-5e560c06d30e'),
-      UNSPLASH('photo-1583394838336-acd977736f90'),
-    ],
+    images: [IMG.CHOCOLATE],
     variants: [
-      { color: 'Qora', price: 3950000, oldPrice: 4400000, stock: 6 },
-      { color: 'Kumush', price: 3950000, oldPrice: 4400000, stock: 4 },
+      { size: 'Klassik 100g', price: 18000, oldPrice: 22000, stock: 90 },
+      { size: 'Yong\'oqli 100g', price: 19000, stock: 60 },
     ],
-    specs: [
-      { labelUz: 'ANC', labelRu: 'ANC', valueUz: 'Industriya yetakchisi', valueRu: 'Лидер индустрии' },
-      { labelUz: 'Batareya', labelRu: 'Батарея', valueUz: '30 soat', valueRu: '30 ч' },
-      { labelUz: 'Bluetooth', labelRu: 'Bluetooth', valueUz: '5.2', valueRu: '5.2' },
+    specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '100 g', valueRu: '100 г' }],
+  },
+  {
+    slug: 'kitkat-41g',
+    categorySlug: 'shirinliklar',
+    brand: 'Nestlé',
+    titleUz: 'Nestlé KitKat, 41 g',
+    titleRu: 'Nestlé KitKat, 41 г',
+    descriptionUz: '4 ta xrustyashchiy tayoq sutli shokoladda.',
+    descriptionRu: '4 хрустящие палочки в молочном шоколаде.',
+    basePrice: 7000,
+    images: [IMG.CHOCOLATE],
+    variants: [{ size: '41 g', price: 7000, stock: 200 }],
+    specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '41 g', valueRu: '41 г' }],
+  },
+  {
+    slug: 'nutella-350g',
+    categorySlug: 'shirinliklar',
+    brand: 'Ferrero',
+    titleUz: 'Nutella shokoladli pasta, 350 g',
+    titleRu: 'Шоколадная паста Nutella, 350 г',
+    descriptionUz: 'Findiq va shokoladdan tayyorlangan pasta.',
+    descriptionRu: 'Паста из фундука и шоколада.',
+    basePrice: 78000,
+    oldPrice: 88000,
+    isFeatured: true,
+    images: [IMG.CHOCOLATE],
+    variants: [
+      { size: '350 g', price: 78000, oldPrice: 88000, stock: 50 },
+      { size: '630 g', price: 135000, stock: 25 },
     ],
+    specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '350 g / 630 g', valueRu: '350 г / 630 г' }],
   },
 
-  // ============== UY UCHUN ==============
+  // ============== UY XO'JALIGI ==============
   {
-    slug: 'dreame-v12-cordless-vacuum',
-    categorySlug: 'home',
-    brand: 'Dreame',
-    titleUz: 'Dreame V12 simsiz changyutkich',
-    titleRu: 'Dreame V12 беспроводной пылесос',
-    descriptionUz:
-      'Simsiz vertikal changyutkich. 185 AW so\'rg\'ich kuchi, 90 daqiqa ishlash, LED ekran.',
-    descriptionRu:
-      'Беспроводной вертикальный пылесос. 185 AW мощность, 90 мин работы, LED дисплей.',
-    basePrice: 3200000,
-    oldPrice: 3800000,
+    slug: 'ariel-kir-kukuni-3kg',
+    categorySlug: 'uy-xojaligi',
+    brand: 'Ariel',
+    titleUz: 'Ariel kir yuvish kukuni, 3 kg',
+    titleRu: 'Стиральный порошок Ariel, 3 кг',
+    descriptionUz: 'Avtomatik mashina uchun. Eng dog\' kirlar uchun.',
+    descriptionRu: 'Для автоматических машин. Против сложных пятен.',
+    basePrice: 95000,
+    oldPrice: 115000,
     isFeatured: true,
-    images: [
-      UNSPLASH('photo-1558317374-067fb5f30001'),
-      UNSPLASH('photo-1581578731548-c64695cc6952'),
-    ],
-    variants: [{ price: 3200000, oldPrice: 3800000, stock: 7 }],
-    specs: [
-      { labelUz: 'So\'rg\'ich kuchi', labelRu: 'Мощность', valueUz: '185 AW', valueRu: '185 AW' },
-      { labelUz: 'Batareya', labelRu: 'Батарея', valueUz: '90 daqiqa', valueRu: '90 мин' },
-      { labelUz: 'HEPA filtr', labelRu: 'HEPA фильтр', valueUz: 'Bor', valueRu: 'Есть' },
-    ],
-  },
-  {
-    slug: 'tramontina-knife-set',
-    categorySlug: 'home',
-    brand: 'Tramontina',
-    titleUz: 'Tramontina oshxona pichoqlari to\'plami',
-    titleRu: 'Набор кухонных ножей Tramontina',
-    descriptionUz:
-      '5 ta pichoq + magnitli stenddan iborat. Brazil zanglamas po\'lat. Original.',
-    descriptionRu:
-      '5 ножей и магнитная подставка. Бразильская нержавеющая сталь. Оригинал.',
-    basePrice: 380000,
-    oldPrice: 480000,
-    images: [
-      UNSPLASH('photo-1593618998160-e34014e67546'),
-      UNSPLASH('photo-1591814468924-caf88d1232e1'),
-    ],
-    variants: [{ price: 380000, oldPrice: 480000, stock: 9 }],
-    specs: [
-      { labelUz: 'Pichoqlar', labelRu: 'Ножей', valueUz: '5 ta', valueRu: '5 шт' },
-      { labelUz: 'Material', labelRu: 'Материал', valueUz: 'Zanglamas po\'lat', valueRu: 'Нержавеющая сталь' },
-    ],
-  },
-  {
-    slug: 'smeg-retro-kettle',
-    categorySlug: 'home',
-    brand: 'Smeg',
-    titleUz: 'Smeg KLF03 retro elektr choynak',
-    titleRu: 'Электрочайник Smeg KLF03 в ретро-стиле',
-    descriptionUz:
-      'Italyan retro dizayn. 1.7L hajm, 2400W quvvat. 4 ta haroratga moslash.',
-    descriptionRu:
-      'Итальянский ретро-дизайн. Объём 1.7 л, мощность 2400 Вт. 4 настройки температуры.',
-    basePrice: 750000,
-    images: [
-      UNSPLASH('photo-1517668808822-9ebb02f2a0e6'),
-      UNSPLASH('photo-1556909114-f6e7ad7d3136'),
-    ],
+    images: [IMG.DETERGENT],
     variants: [
-      { color: 'Pastel ko\'k', price: 750000, stock: 5 },
-      { color: 'Qizil', price: 750000, stock: 4 },
-      { color: 'Krem', price: 750000, stock: 6 },
-      { color: 'Qora', price: 780000, stock: 3 },
+      { size: '3 kg', price: 95000, oldPrice: 115000, stock: 40 },
+      { size: '6 kg', price: 175000, stock: 20 },
     ],
     specs: [
-      { labelUz: 'Hajm', labelRu: 'Объем', valueUz: '1.7L', valueRu: '1.7 л' },
-      { labelUz: 'Quvvat', labelRu: 'Мощность', valueUz: '2400W', valueRu: '2400 Вт' },
+      { labelUz: 'Tur', labelRu: 'Тип', valueUz: 'Avtomat', valueRu: 'Автомат' },
+      { labelUz: 'Vazni', labelRu: 'Вес', valueUz: '3 / 6 kg', valueRu: '3 / 6 кг' },
     ],
   },
   {
-    slug: 'monstera-plant',
-    categorySlug: 'home',
-    brand: 'Plant Studio',
-    titleUz: 'Monstera Deliciosa o\'simligi',
-    titleRu: 'Растение Монстера Делициоза',
-    descriptionUz:
-      'Mashhur ichki o\'simlik. Yashilroq xona, toza havo. O\'rta nurli joylar uchun.',
-    descriptionRu:
-      'Популярное комнатное растение. Зелень в доме, чистый воздух. Для умеренного освещения.',
-    basePrice: 250000,
-    images: [
-      UNSPLASH('photo-1556909114-f6e7ad7d3136'),
-      UNSPLASH('photo-1485955900006-10f4d324d411'),
-    ],
+    slug: 'persil-kir-kukuni-4kg',
+    categorySlug: 'uy-xojaligi',
+    brand: 'Persil',
+    titleUz: 'Persil Color kir yuvish kukuni, 4 kg',
+    titleRu: 'Стиральный порошок Persil Color, 4 кг',
+    descriptionUz: 'Rangli kirlar uchun. Rangni saqlaydi.',
+    descriptionRu: 'Для цветных вещей. Сохраняет цвет.',
+    basePrice: 120000,
+    images: [IMG.DETERGENT],
+    variants: [{ size: '4 kg', price: 120000, stock: 30 }],
+    specs: [{ labelUz: 'Tur', labelRu: 'Тип', valueUz: 'Rangli kir uchun', valueRu: 'Для цветного' }],
+  },
+  {
+    slug: 'fairy-original-1l',
+    categorySlug: 'uy-xojaligi',
+    brand: 'Fairy',
+    titleUz: 'Fairy idish yuvish suyuqligi, 1 L',
+    titleRu: 'Средство для мытья посуды Fairy, 1 л',
+    descriptionUz: 'Idishlarni yog\'dan tozalaydi. Limon hidi.',
+    descriptionRu: 'Удаляет жир с посуды. Лимонный аромат.',
+    basePrice: 28000,
+    images: [IMG.DETERGENT],
     variants: [
-      { color: 'Kichik (30cm)', price: 250000, stock: 8 },
-      { color: 'O\'rta (60cm)', price: 450000, stock: 5 },
-      { color: 'Katta (100cm)', price: 750000, stock: 3 },
+      { size: '450 ml', price: 14000, stock: 80 },
+      { size: '1 L', price: 28000, stock: 50 },
     ],
-    specs: [
-      { labelUz: 'Yorug\'lik', labelRu: 'Освещение', valueUz: 'O\'rta', valueRu: 'Умеренное' },
-      { labelUz: 'Sug\'orish', labelRu: 'Полив', valueUz: 'Haftada 1-2', valueRu: '1-2 раза в неделю' },
+    specs: [{ labelUz: 'Hajmi', labelRu: 'Объём', valueUz: '450 ml / 1 L', valueRu: '450 мл / 1 л' }],
+  },
+  {
+    slug: 'domestos-750ml',
+    categorySlug: 'uy-xojaligi',
+    brand: 'Domestos',
+    titleUz: 'Domestos sanitar tozalovchi, 750 ml',
+    titleRu: 'Дезинфицирующее средство Domestos, 750 мл',
+    descriptionUz: '99.9% mikroblarni o\'ldiradi. Hojatxona va bosh uchun.',
+    descriptionRu: 'Убивает 99.9% микробов. Для туалета и ванной.',
+    basePrice: 32000,
+    images: [IMG.DETERGENT],
+    variants: [{ size: '750 ml', price: 32000, stock: 60 }],
+    specs: [{ labelUz: 'Hajmi', labelRu: 'Объём', valueUz: '750 ml', valueRu: '750 мл' }],
+  },
+  {
+    slug: 'zewa-tualet-qogozi-8rulon',
+    categorySlug: 'uy-xojaligi',
+    brand: 'Zewa',
+    titleUz: 'Zewa Plus tualet qog\'ozi, 8 rulon',
+    titleRu: 'Туалетная бумага Zewa Plus, 8 рулонов',
+    descriptionUz: '2 qatlamli, yumshoq. Oilaviy o\'lcham.',
+    descriptionRu: '2 слоя, мягкая. Семейная упаковка.',
+    basePrice: 38000,
+    images: [IMG.DETERGENT],
+    variants: [
+      { size: '4 rulon', price: 22000, stock: 80 },
+      { size: '8 rulon', price: 38000, stock: 50 },
     ],
+    specs: [{ labelUz: 'Qatlam', labelRu: 'Слои', valueUz: '2', valueRu: '2' }],
+  },
+
+  // ============== SHAXSIY PARVARISH ==============
+  {
+    slug: 'head-shoulders-shampun-400ml',
+    categorySlug: 'shaxsiy-parvarish',
+    brand: 'Head & Shoulders',
+    titleUz: 'Head & Shoulders qazg\'oqqa qarshi shampun, 400 ml',
+    titleRu: 'Шампунь от перхоти Head & Shoulders, 400 мл',
+    descriptionUz: 'Qazg\'oqdan himoya. Klassik mentol formulasi.',
+    descriptionRu: 'Защита от перхоти. Классический ментол.',
+    basePrice: 55000,
+    oldPrice: 65000,
+    isFeatured: true,
+    images: [IMG.SHAMPOO],
+    variants: [
+      { size: '200 ml', price: 32000, stock: 60 },
+      { size: '400 ml', price: 55000, oldPrice: 65000, stock: 40 },
+    ],
+    specs: [{ labelUz: 'Hajmi', labelRu: 'Объём', valueUz: '200 / 400 ml', valueRu: '200 / 400 мл' }],
+  },
+  {
+    slug: 'pantene-shampun-400ml',
+    categorySlug: 'shaxsiy-parvarish',
+    brand: 'Pantene',
+    titleUz: 'Pantene Pro-V shampun, 400 ml',
+    titleRu: 'Шампунь Pantene Pro-V, 400 мл',
+    descriptionUz: 'Quruq va shikastlangan sochlar uchun.',
+    descriptionRu: 'Для сухих и повреждённых волос.',
+    basePrice: 52000,
+    images: [IMG.SHAMPOO],
+    variants: [{ size: '400 ml', price: 52000, stock: 50 }],
+    specs: [{ labelUz: 'Hajmi', labelRu: 'Объём', valueUz: '400 ml', valueRu: '400 мл' }],
+  },
+  {
+    slug: 'dove-sovun-100g',
+    categorySlug: 'shaxsiy-parvarish',
+    brand: 'Dove',
+    titleUz: 'Dove kremli sovun, 100 g',
+    titleRu: 'Крем-мыло Dove, 100 г',
+    descriptionUz: '1/4 hayvonot kremi tarkibida. Yumshoq tozalanish.',
+    descriptionRu: 'Содержит 1/4 увлажняющего крема. Мягкое очищение.',
+    basePrice: 14000,
+    images: [IMG.SOAP],
+    variants: [
+      { size: '100 g', price: 14000, stock: 120 },
+      { size: '4 dona to\'plam', price: 50000, stock: 50 },
+    ],
+    specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '100 g', valueRu: '100 г' }],
+  },
+  {
+    slug: 'nivea-sovun-100g',
+    categorySlug: 'shaxsiy-parvarish',
+    brand: 'Nivea',
+    titleUz: 'Nivea sovun, 100 g',
+    titleRu: 'Мыло Nivea, 100 г',
+    descriptionUz: 'Klassik Nivea formulasi. Tabiiy aromat.',
+    descriptionRu: 'Классическая формула Nivea. Натуральный аромат.',
+    basePrice: 9500,
+    images: [IMG.SOAP],
+    variants: [{ size: '100 g', price: 9500, stock: 150 }],
+    specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '100 g', valueRu: '100 г' }],
+  },
+  {
+    slug: 'colgate-tish-pastasi-100ml',
+    categorySlug: 'shaxsiy-parvarish',
+    brand: 'Colgate',
+    titleUz: 'Colgate Total tish pastasi, 100 ml',
+    titleRu: 'Зубная паста Colgate Total, 100 мл',
+    descriptionUz: 'Karies va qattig\'lashishga qarshi 12 soat himoya.',
+    descriptionRu: '12-часовая защита от кариеса и зубного камня.',
+    basePrice: 22000,
+    oldPrice: 27000,
+    images: [IMG.SOAP],
+    variants: [{ size: '100 ml', price: 22000, oldPrice: 27000, stock: 80 }],
+    specs: [{ labelUz: 'Hajmi', labelRu: 'Объём', valueUz: '100 ml', valueRu: '100 мл' }],
   },
 ];
 
-const SUPERMARKET_CATEGORIES: Array<{
-  slug: string;
-  titleUz: string;
-  titleRu: string;
-  position: number;
-}> = [
-  { slug: 'phones', titleUz: 'Telefonlar', titleRu: 'Телефоны', position: 1 },
-  { slug: 'accessories', titleUz: 'Aksessuarlar', titleRu: 'Аксессуары', position: 2 },
-  { slug: 'clothing-women', titleUz: 'Ayollar kiyimi', titleRu: 'Женская мода', position: 3 },
-  { slug: 'clothing-men', titleUz: 'Erkaklar kiyimi', titleRu: 'Мужская мода', position: 4 },
-  { slug: 'cosmetics', titleUz: 'Kosmetika', titleRu: 'Косметика', position: 5 },
-  { slug: 'electronics', titleUz: 'Elektronika', titleRu: 'Электроника', position: 6 },
-  { slug: 'home', titleUz: 'Uy uchun', titleRu: 'Для дома', position: 7 },
-];
-
+// ============== RUNTIME ==============
 async function main() {
-  console.log('=== Reseed boshlandi (supermarket rejimi) ===');
+  console.log('=== Reseed boshlandi (HAQIQIY supermarket katalogi) ===');
 
   // 0. Supermarket kategoriyalarini upsert qilamiz va ko'rinadigan qilamiz
   const supermarketSlugs = new Set(SUPERMARKET_CATEGORIES.map((c) => c.slug));
@@ -813,16 +878,16 @@ async function main() {
   }
   console.log(`✓ ${SUPERMARKET_CATEGORIES.length} ta supermarket kategoriyasi tayyor`);
 
-  // 0.1. Boshqa hamma kategoriyalarni (jumladan eshiklar) yashiramiz
+  // 0.1. Eshik / telefon / kiyim — hamma boshqa kategoriyalarni yashiramiz
   const hidden = await prisma.category.updateMany({
     where: { slug: { notIn: [...supermarketSlugs] }, isVisible: true },
     data: { isVisible: false },
   });
   if (hidden.count > 0) {
-    console.log(`✓ ${hidden.count} ta eski kategoriya yashirildi (eshiklar va boshqalar)`);
+    console.log(`✓ ${hidden.count} ta eski kategoriya yashirildi`);
   }
 
-  // 0.2. Yashirilgan kategoriyalardagi barcha mahsulotlarni ham deaktivlashtirish
+  // 0.2. Yashirilgan kategoriyalardagi barcha mahsulotlarni deaktivlashtirish
   const hiddenCategoryIds = (
     await prisma.category.findMany({
       where: { slug: { notIn: [...supermarketSlugs] } },
@@ -835,12 +900,11 @@ async function main() {
       data: { isActive: false },
     });
     if (offCount.count > 0) {
-      console.log(`✓ ${offCount.count} ta eshik/eski mahsulot deaktivlashtirildi`);
+      console.log(`✓ ${offCount.count} ta eski mahsulot deaktivlashtirildi`);
     }
   }
 
   // 1. Yangi slug ro'yxatida bo'lmagan eski mahsulotlarni ham deaktivlashtiramiz
-  //    (order history saqlanadi — faqat isActive=false)
   const existingProducts = await prisma.product.findMany({ select: { slug: true } });
   const newSlugs = new Set(products.map((p) => p.slug));
   const toDeactivate = existingProducts.filter((p) => !newSlugs.has(p.slug));
@@ -869,11 +933,9 @@ async function main() {
       ? Math.round(((p.oldPrice - p.basePrice) / p.oldPrice) * 100)
       : null;
 
-    // Avval mavjudligini tekshiramiz
     const existing = await prisma.product.findUnique({ where: { slug: p.slug } });
 
     if (existing) {
-      // Update — eski variants/images/specs o'chirib qaytadan yaratamiz
       await prisma.productImage.deleteMany({ where: { productId: existing.id } });
       await prisma.productVariant.deleteMany({ where: { productId: existing.id } });
       await prisma.productSpec.deleteMany({ where: { productId: existing.id } });
@@ -892,9 +954,7 @@ async function main() {
           discountPct,
           isActive: true,
           isFeatured: p.isFeatured ?? false,
-          images: {
-            create: p.images.map((url, i) => ({ url, position: i })),
-          },
+          images: { create: p.images.map((url, i) => ({ url, position: i })) },
           variants: {
             create: p.variants.map((v) => ({
               color: v.color ?? null,
@@ -918,7 +978,6 @@ async function main() {
       });
       console.log(`  ↻ ${p.titleUz}`);
     } else {
-      // Create
       await prisma.product.create({
         data: {
           slug: p.slug,
@@ -933,9 +992,7 @@ async function main() {
           discountPct,
           isActive: true,
           isFeatured: p.isFeatured ?? false,
-          images: {
-            create: p.images.map((url, i) => ({ url, position: i })),
-          },
+          images: { create: p.images.map((url, i) => ({ url, position: i })) },
           variants: {
             create: p.variants.map((v) => ({
               color: v.color ?? null,
@@ -967,13 +1024,14 @@ async function main() {
     where: { isActive: true },
     _count: true,
   });
-  console.log('\n=== Yangi mahsulotlar bo\'yicha kategoriyalar ===');
+  console.log('\n=== Faol mahsulotlar bo\'yicha kategoriyalar ===');
   for (const s of stats) {
     const cat = categories.find((c) => c.id === s.categoryId);
-    console.log(`  ${cat?.titleUz}: ${s._count} ta`);
+    if (cat) console.log(`  ${cat.titleUz}: ${s._count} ta`);
   }
 
-  console.log('\n✅ Reseed tugadi');
+  console.log(`\n✅ Reseed tugadi — ${products.length} ta mahsulot, ${SUPERMARKET_CATEGORIES.length} ta kategoriya`);
+  console.log('💡 Eslatma: reklama oldidan admin paneldan haqiqiy mahsulot rasmlarini yuklang');
 }
 
 main()
