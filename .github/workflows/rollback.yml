@@ -1,0 +1,119 @@
+# ═══════════════════════════════════════════════════════════════════
+# Qo'lda rollback — GitHub UI'dan ishga tushiriladigan workflow
+#
+# Foydalanish:
+#   Actions → Production Rollback → Run workflow → target commit kiriting
+#   Bo'sh qoldirilsa "HEAD~1" (1 commit orqaga) ishlatiladi.
+# ═══════════════════════════════════════════════════════════════════
+
+name: Production Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Qaysi commit/refga qaytarish (bo'sh = HEAD~1)"
+        type: string
+        default: "HEAD~1"
+        required: false
+      reason:
+        description: "Rollback sababi (logga yoziladi)"
+        type: string
+        required: true
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    name: Rollback to ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      TG_TOKEN: ${{ secrets.TELEGRAM_NOTIFY_TOKEN }}
+      TG_CHAT: ${{ secrets.TELEGRAM_NOTIFY_CHAT_ID }}
+
+    steps:
+      - name: Show input
+        run: |
+          echo "Target: ${{ inputs.target }}"
+          echo "Reason: ${{ inputs.reason }}"
+          echo "Actor:  ${{ github.actor }}"
+
+      # ─── gcloud variant ─────────────────────────────────────
+      - name: Authenticate to Google Cloud
+        if: vars.DEPLOY_MODE == 'gcloud'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Set up gcloud
+        if: vars.DEPLOY_MODE == 'gcloud'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Rollback via gcloud SSH
+        if: vars.DEPLOY_MODE == 'gcloud'
+        env:
+          TELEGRAM_NOTIFY_TOKEN: ${{ secrets.TELEGRAM_NOTIFY_TOKEN }}
+          TELEGRAM_NOTIFY_CHAT_ID: ${{ secrets.TELEGRAM_NOTIFY_CHAT_ID }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          gcloud compute ssh "${{ vars.GCP_INSTANCE_NAME }}" \
+            --zone="${{ vars.GCP_ZONE }}" \
+            --project="${{ vars.GCP_PROJECT_ID }}" \
+            --tunnel-through-iap \
+            --command="export TELEGRAM_NOTIFY_TOKEN='${TELEGRAM_NOTIFY_TOKEN}'; export TELEGRAM_NOTIFY_CHAT_ID='${TELEGRAM_NOTIFY_CHAT_ID}'; cd /opt/marketplace && YES=1 bash deploy/rollback.sh '${TARGET}'" \
+            --quiet
+
+      # ─── SSH variant ────────────────────────────────────────
+      - name: Set up SSH
+        if: vars.DEPLOY_MODE != 'gcloud'
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H -p 22 -T 10 "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Rollback via SSH
+        if: vars.DEPLOY_MODE != 'gcloud'
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          TELEGRAM_NOTIFY_TOKEN: ${{ secrets.TELEGRAM_NOTIFY_TOKEN }}
+          TELEGRAM_NOTIFY_CHAT_ID: ${{ secrets.TELEGRAM_NOTIFY_CHAT_ID }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              "$SSH_USER@$SSH_HOST" \
+              "export TELEGRAM_NOTIFY_TOKEN='${TELEGRAM_NOTIFY_TOKEN}'; \
+               export TELEGRAM_NOTIFY_CHAT_ID='${TELEGRAM_NOTIFY_CHAT_ID}'; \
+               cd /opt/marketplace && YES=1 bash deploy/rollback.sh '${TARGET}'"
+
+      - name: Telegram bildirishnoma
+        if: always() && env.TG_TOKEN != ''
+        env:
+          STATUS: ${{ job.status }}
+          ACTOR: ${{ github.actor }}
+          REASON: ${{ inputs.reason }}
+          TARGET: ${{ inputs.target }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$STATUS" = "success" ]; then
+            EMOJI="↩️"; TITLE="Rollback MUVAFFAQIYATLI"
+          else
+            EMOJI="⚠️"; TITLE="Rollback XATO"
+          fi
+          MSG="${EMOJI} *${TITLE}*%0A%0A👤 ${ACTOR}%0A🎯 \`${TARGET}\`%0A💬 ${REASON}%0A%0A[Workflow ko'rish](${RUN_URL})"
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d "chat_id=${TG_CHAT}" \
+            -d "parse_mode=Markdown" \
+            -d "disable_web_page_preview=true" \
+            -d "text=${MSG}" > /dev/null

@@ -1,0 +1,77 @@
+# ═══════════════════════════════════════════════════════════════════
+# Production health check — har 5 daqiqada barcha endpoint'larni tekshiradi.
+# Agar 2 marta ketma-ket tekshiruv xato bo'lsa, Telegram'ga ogohlantirish yuboradi.
+# ═══════════════════════════════════════════════════════════════════
+
+name: Production Health Check
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # har 5 daqiqada
+  workflow_dispatch:
+
+concurrency:
+  group: healthcheck
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    name: Ping production endpoints
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      TG_TOKEN: ${{ secrets.TELEGRAM_NOTIFY_TOKEN }}
+      TG_CHAT: ${{ secrets.TELEGRAM_NOTIFY_CHAT_ID }}
+
+    steps:
+      - name: Check endpoints
+        id: check
+        run: |
+          set +e
+          FAILED=""
+          for url in \
+            "https://selliostore.uz/" \
+            "https://admin.selliostore.uz/login" \
+            "https://clients.selliostore.uz/" \
+            "https://dev.selliostore.uz/login" \
+            "https://selliostore.uz/api/health"
+          do
+            ok=0
+            for attempt in 1 2 3; do
+              code=$(curl -s -o /dev/null -m 12 -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+              if [[ "$code" =~ ^[23] ]]; then
+                ok=1
+                break
+              fi
+              sleep 5
+            done
+            if [ "$ok" = "1" ]; then
+              echo "  ✓ ${url} → ${code}"
+            else
+              echo "  ✗ ${url} → ${code}"
+              FAILED="${FAILED}${url} (HTTP ${code})%0A"
+            fi
+          done
+          if [ -n "$FAILED" ]; then
+            {
+              echo "failed<<EOF"
+              echo "$FAILED"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            echo "::warning::Health check FAIL"
+            exit 1
+          fi
+
+      - name: Telegram ogohlantirish (xato)
+        if: failure() && env.TG_TOKEN != ''
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FAILED: ${{ steps.check.outputs.failed }}
+        run: |
+          MSG="🚨 *Health check FAIL*%0A%0A${FAILED}%0A[Workflow ko'rish](${RUN_URL})"
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d "chat_id=${TG_CHAT}" \
+            -d "parse_mode=Markdown" \
+            -d "disable_web_page_preview=true" \
+            -d "text=${MSG}" > /dev/null

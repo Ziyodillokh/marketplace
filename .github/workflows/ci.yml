@@ -12,8 +12,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ─── Qaysi app o'zgargani tahlili ────────────────────────────
+  changes:
+    name: Detect changed apps
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      webapp: ${{ steps.filter.outputs.webapp }}
+      admin: ${{ steps.filter.outputs.admin }}
+      superadmin: ${{ steps.filter.outputs.superadmin }}
+      landing: ${{ steps.filter.outputs.landing }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'package.json'
+            webapp:
+              - 'webapp/**'
+            admin:
+              - 'admin/**'
+            superadmin:
+              - 'superadmin/**'
+            landing:
+              - 'landing/**'
+
   build:
     name: Build ${{ matrix.app }}
+    needs: [changes]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -23,11 +52,37 @@ jobs:
     defaults:
       run:
         working-directory: ${{ matrix.app }}
+    env:
+      # PR'da faqat o'zgargan app build qilinadi; push'da hammasi.
+      CHANGED_BACKEND: ${{ needs.changes.outputs.backend }}
+      CHANGED_WEBAPP: ${{ needs.changes.outputs.webapp }}
+      CHANGED_ADMIN: ${{ needs.changes.outputs.admin }}
+      CHANGED_SUPERADMIN: ${{ needs.changes.outputs.superadmin }}
     steps:
+      - name: Decide skip
+        id: skip
+        run: |
+          # Push/workflow_dispatch — hammasini build qilamiz
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # PR — faqat o'zgargan app'ni build qilamiz
+          case "${{ matrix.app }}" in
+            backend)    [ "$CHANGED_BACKEND" = "true" ]    && echo "skip=false" >> "$GITHUB_OUTPUT" || echo "skip=true" >> "$GITHUB_OUTPUT" ;;
+            webapp)     [ "$CHANGED_WEBAPP" = "true" ]     && echo "skip=false" >> "$GITHUB_OUTPUT" || echo "skip=true" >> "$GITHUB_OUTPUT" ;;
+            admin)      [ "$CHANGED_ADMIN" = "true" ]      && echo "skip=false" >> "$GITHUB_OUTPUT" || echo "skip=true" >> "$GITHUB_OUTPUT" ;;
+            superadmin) [ "$CHANGED_SUPERADMIN" = "true" ] && echo "skip=false" >> "$GITHUB_OUTPUT" || echo "skip=true" >> "$GITHUB_OUTPUT" ;;
+          esac
+        shell: bash
+        working-directory: .
+
       - name: Checkout
+        if: steps.skip.outputs.skip != 'true'
         uses: actions/checkout@v4
 
       - name: Set up Node 20
+        if: steps.skip.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -35,6 +90,7 @@ jobs:
           cache-dependency-path: ${{ matrix.app }}/package-lock.json
 
       - name: Install dependencies
+        if: steps.skip.outputs.skip != 'true'
         run: |
           if [ -f package-lock.json ]; then
             npm ci --no-audit --no-fund --legacy-peer-deps
@@ -43,13 +99,56 @@ jobs:
           fi
 
       - name: Prisma generate (backend only)
-        if: matrix.app == 'backend'
+        if: steps.skip.outputs.skip != 'true' && matrix.app == 'backend'
         run: npx prisma generate
 
+      - name: Lint
+        if: steps.skip.outputs.skip != 'true'
+        run: |
+          if npm run | grep -qE '^[[:space:]]+lint( |$)'; then
+            npm run lint || echo "::warning::Lint xato (non-blocking)"
+          else
+            echo "Lint script yo'q — skip"
+          fi
+        continue-on-error: true
+
+      - name: Type check
+        if: steps.skip.outputs.skip != 'true' && matrix.app != 'backend'
+        run: npx tsc --noEmit
+        continue-on-error: true
+
       - name: Build
+        if: steps.skip.outputs.skip != 'true'
         run: npm run build
 
-      - name: Type check (frontends only)
-        if: matrix.app != 'backend'
-        run: npx tsc --noEmit
+      - name: Backend tests
+        if: steps.skip.outputs.skip != 'true' && matrix.app == 'backend'
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test?schema=public"
+          JWT_ACCESS_SECRET: ci-secret-access
+          JWT_REFRESH_SECRET: ci-secret-refresh
+          NODE_ENV: test
+        run: |
+          if npm run | grep -qE '^[[:space:]]+test( |$)'; then
+            npm test -- --passWithNoTests || echo "::warning::Test xato (non-blocking)"
+          else
+            echo "Test script yo'q — skip"
+          fi
+        continue-on-error: true
+
+      - name: Skipped (not changed)
+        if: steps.skip.outputs.skip == 'true'
+        run: echo "ℹ ${{ matrix.app }} PR'da o'zgarmagan — build o'tkazib yuborildi"
+
+  # ─── Bash skript syntax tekshiruvi ────────────────────────────
+  shellcheck:
+    name: Shellcheck deploy scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: './deploy'
+          severity: warning
         continue-on-error: true

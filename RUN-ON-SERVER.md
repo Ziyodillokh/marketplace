@@ -42,7 +42,7 @@ dig +short admin.selliostore.uz
 ssh user@<SERVER_IP>
 
 # 2) Birinchi marta — bootstrap (Node.js, Postgres, Nginx, PM2, Certbot, UFW)
-sudo bash <(curl -sL https://raw.githubusercontent.com/Bekmuhammad-Devoloper/marketplace/main/deploy/00-server-bootstrap.sh)
+sudo bash <(curl -sL https://raw.githubusercontent.com/Ziyodillokh/marketplace/main/deploy/00-server-bootstrap.sh)
 
 # Yoki agar repo allaqachon /opt/marketplace'da bo'lsa:
 sudo bash /opt/marketplace/deploy/00-server-bootstrap.sh

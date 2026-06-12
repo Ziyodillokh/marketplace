@@ -1,105 +1,189 @@
-name: Deploy to production
+# ═══════════════════════════════════════════════════════════════════
+# Production deploy — Google Cloud serveriga avtomatik
+#
+# Ikki rejim qo'llab-quvvatlanadi (vars.DEPLOY_MODE bilan tanlanadi):
+#   1. "gcloud" — Workload Identity Federation + gcloud compute ssh (tavsiya)
+#   2. "ssh"    — oddiy SSH key (sodda, lekin private key GitHub'da)
+#
+# Default: ssh.
+# Kerakli secret/var'lar uchun deploy/DEPLOY.md ga qarang.
+# ═══════════════════════════════════════════════════════════════════
+
+name: Deploy to production (GCP)
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Force deploy (CI tugashini kutmasdan)"
+        type: boolean
+        default: false
+      skip_health_check:
+        description: "Production tekshiruvni o'tkazib yuborish"
+        type: boolean
+        default: false
 
 concurrency:
   group: production-deploy
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  # ─── 1. CI o'tdimi kutamiz ───────────────────────────────
+  wait-for-ci:
+    name: CI tugashini kutish
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    if: github.event_name == 'push'
+    steps:
+      - uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          running-workflow-name: 'CI tugashini kutish'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 15
+          allowed-conclusions: success,skipped
+
+  # ─── 2. Deploy ───────────────────────────────────────────
+  deploy:
+    name: Deploy to ${{ vars.DEPLOY_HOST || 'production' }}
+    needs: [wait-for-ci]
+    if: always() && (needs.wait-for-ci.result == 'success' || needs.wait-for-ci.result == 'skipped' || github.event.inputs.force == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      TG_TOKEN: ${{ secrets.TELEGRAM_NOTIFY_TOKEN }}
+      TG_CHAT: ${{ secrets.TELEGRAM_NOTIFY_CHAT_ID }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ─── Variant A: gcloud (Workload Identity Federation) ───
+      - name: Authenticate to Google Cloud
+        if: vars.DEPLOY_MODE == 'gcloud'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Set up gcloud
+        if: vars.DEPLOY_MODE == 'gcloud'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy via gcloud SSH (IAP tunnel)
+        if: vars.DEPLOY_MODE == 'gcloud'
+        env:
+          TELEGRAM_NOTIFY_TOKEN: ${{ secrets.TELEGRAM_NOTIFY_TOKEN }}
+          TELEGRAM_NOTIFY_CHAT_ID: ${{ secrets.TELEGRAM_NOTIFY_CHAT_ID }}
+        run: |
+          # Telegram env'larini remote serverga uzatish uchun --command ichida export qilamiz
+          gcloud compute ssh "${{ vars.GCP_INSTANCE_NAME }}" \
+            --zone="${{ vars.GCP_ZONE }}" \
+            --project="${{ vars.GCP_PROJECT_ID }}" \
+            --tunnel-through-iap \
+            --command="export TELEGRAM_NOTIFY_TOKEN='${TELEGRAM_NOTIFY_TOKEN}'; export TELEGRAM_NOTIFY_CHAT_ID='${TELEGRAM_NOTIFY_CHAT_ID}'; cd /opt/marketplace && bash deploy/deploy.sh" \
+            --quiet
+
+      # ─── Variant B: Oddiy SSH (default) ──────────────────────
       - name: Set up SSH
+        if: vars.DEPLOY_MODE != 'gcloud'
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           if [ -z "$SSH_HOST" ]; then
-            echo "::error::SSH_HOST secret is empty — set it in repo Settings → Secrets → Actions"
+            echo "::error::SSH_HOST secret bo'sh — Repo Settings → Secrets → Actions'da o'rnating"
             exit 1
           fi
           if [ -z "$SSH_PRIVATE_KEY" ]; then
-            echo "::error::SSH_PRIVATE_KEY secret is empty — paste the OpenSSH private key in repo Settings → Secrets → Actions"
+            echo "::error::SSH_PRIVATE_KEY secret bo'sh"
             exit 1
           fi
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          # Pre-populate known_hosts; failure is non-fatal because StrictHostKeyChecking=accept-new handles first contact
-          ssh-keyscan -H -p 22 -T 10 "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null \
-            || echo "⚠ ssh-keyscan could not reach $SSH_HOST — falling back to accept-new"
+          ssh-keyscan -H -p 22 -T 10 "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Deploy on server
+      - name: Deploy via SSH
+        if: vars.DEPLOY_MODE != 'gcloud'
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
+          TELEGRAM_NOTIFY_TOKEN: ${{ secrets.TELEGRAM_NOTIFY_TOKEN }}
+          TELEGRAM_NOTIFY_CHAT_ID: ${{ secrets.TELEGRAM_NOTIFY_CHAT_ID }}
         run: |
           ssh -i ~/.ssh/id_ed25519 \
               -o IdentitiesOnly=yes \
               -o StrictHostKeyChecking=accept-new \
               -p 22 \
-              "$SSH_USER@$SSH_HOST" 'bash -s' << 'REMOTE_DEPLOY'
-            set -e
-            APP_DIR="/opt/marketplace"
-            cd $APP_DIR
+              "$SSH_USER@$SSH_HOST" \
+              "export TELEGRAM_NOTIFY_TOKEN='${TELEGRAM_NOTIFY_TOKEN}'; \
+               export TELEGRAM_NOTIFY_CHAT_ID='${TELEGRAM_NOTIFY_CHAT_ID}'; \
+               cd /opt/marketplace && bash deploy/deploy.sh"
 
-            echo "=== git pull ==="
-            git fetch origin
-            git reset --hard origin/main
-
-            echo "=== Backend ==="
-            cd $APP_DIR/backend
-            npm ci --omit=dev=false --no-audit --no-fund 2>&1 | tail -3 || npm install --no-audit --no-fund 2>&1 | tail -3
-            npx prisma generate 2>&1 | tail -2
-            npx prisma migrate deploy 2>&1 | tail -5
-            npm run db:seed:supermarket 2>&1 | tail -30 || echo "⚠ supermarket seed failed (non-fatal)"
-            npm run build 2>&1 | tail -3
-
-            echo "=== Webapp ==="
-            cd $APP_DIR/webapp
-            npm install --legacy-peer-deps --no-audit --no-fund 2>&1 | tail -3
-            npm run build 2>&1 | tail -3
-
-            echo "=== Admin ==="
-            cd $APP_DIR/admin
-            npm install --legacy-peer-deps --no-audit --no-fund 2>&1 | tail -3
-            npm run build 2>&1 | tail -3
-
-            echo "=== Superadmin ==="
-            if [ -d "$APP_DIR/superadmin" ]; then
-              cd $APP_DIR/superadmin
-              npm install --legacy-peer-deps --no-audit --no-fund 2>&1 | tail -3
-              npm run build 2>&1 | tail -3
-            else
-              echo "⚠ superadmin/ not found on server — skipping (first sync after git pull will create it)"
-            fi
-
-            echo "=== PM2 reload ==="
-            cd $APP_DIR
-            pm2 reload ecosystem.config.cjs --update-env
-            pm2 save
-
-            echo "=== Health check ==="
-            sleep 3
-            curl -s -f -o /dev/null -m 10 -w "API:        HTTP %{http_code}\n" http://127.0.0.1:2400/health
-            curl -s -f -o /dev/null -m 10 -w "Webapp:     HTTP %{http_code}\n" http://127.0.0.1:2401/
-            curl -s -f -o /dev/null -m 10 -w "Admin:      HTTP %{http_code}\n" http://127.0.0.1:2402/admin/login
-            # Superadmin healthcheck is non-fatal until app is wired up everywhere
-            curl -s -o /dev/null -m 10 -w "Superadmin: HTTP %{http_code}\n" http://127.0.0.1:2403/ || true
-
-            echo "✓ Deploy tugadi"
-          REMOTE_DEPLOY
-
+      # ─── 3. Production tasdiqlash ──────────────────────────
       - name: Verify production
+        if: github.event.inputs.skip_health_check != 'true'
         run: |
-          curl -s -f -o /dev/null -m 15 -w "Production HTTPS: %{http_code}\n" https://marketplace.yuksalish.dev/health
-          echo "✓ Production is alive"
+          set -e
+          echo "═══ Production HTTPS tekshiruvi ═══"
+          FAILED=0
+          for url in \
+            "https://selliostore.uz/" \
+            "https://admin.selliostore.uz/login" \
+            "https://clients.selliostore.uz/" \
+            "https://dev.selliostore.uz/login" \
+            "https://selliostore.uz/api/health"
+          do
+            # 3 ta urinish
+            for attempt in 1 2 3; do
+              code=$(curl -s -o /dev/null -m 15 -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+              if [[ "$code" =~ ^[23] ]]; then
+                echo "  ✓ $url → $code"
+                break
+              fi
+              if [ "$attempt" = "3" ]; then
+                echo "::error::$url qaytardi HTTP $code (3 marta urinishdan keyin)"
+                FAILED=$((FAILED + 1))
+              else
+                echo "  ⚠ $url → $code (qayta urinish ${attempt}/3)"
+                sleep 5
+              fi
+            done
+          done
+          if [ "$FAILED" -gt 0 ]; then
+            echo "::error::${FAILED} ta endpoint sog'lom emas"
+            exit 1
+          fi
+
+      - name: Telegram bildirishnoma (muvaffaqiyatli)
+        if: success() && env.TG_TOKEN != ''
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          MSG="✅ *Deploy MUVAFFAQIYATLI*%0A%0A👤 ${ACTOR}%0A📝 ${COMMIT_MSG//$'\n'/%0A}%0A🔗 \`${COMMIT_SHA:0:7}\`%0A%0A[Workflow ko'rish](${RUN_URL})"
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d "chat_id=${TG_CHAT}" \
+            -d "parse_mode=Markdown" \
+            -d "disable_web_page_preview=true" \
+            -d "text=${MSG}" > /dev/null
+
+      - name: Telegram bildirishnoma (xato)
+        if: failure() && env.TG_TOKEN != ''
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          MSG="❌ *Deploy MUVAFFAQIYATSIZ*%0A%0A👤 ${ACTOR}%0A🔗 \`${COMMIT_SHA:0:7}\`%0A%0A[Log ko'rish](${RUN_URL})"
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d "chat_id=${TG_CHAT}" \
+            -d "parse_mode=Markdown" \
+            -d "disable_web_page_preview=true" \
+            -d "text=${MSG}" > /dev/null

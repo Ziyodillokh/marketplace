@@ -3,7 +3,7 @@
 set -euo pipefail
 
 APP_DIR="/opt/marketplace"
-REPO_URL="${REPO_URL:-https://github.com/Bekmuhammad-Devoloper/marketplace.git}"
+REPO_URL="${REPO_URL:-https://github.com/Ziyodillokh/marketplace.git}"
 BRANCH="${BRANCH:-main}"
 
 echo "═══════════════════════════════════════════════════════════"
