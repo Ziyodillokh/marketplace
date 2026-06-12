@@ -36,6 +36,8 @@ const SUPERMARKET_CATEGORIES: Array<{
   { slug: 'shirinliklar', titleUz: 'Shirinliklar', titleRu: 'Сладости', position: 6 },
   { slug: 'uy-xojaligi', titleUz: 'Uy xo\'jaligi', titleRu: 'Бытовые товары', position: 7 },
   { slug: 'shaxsiy-parvarish', titleUz: 'Shaxsiy parvarish', titleRu: 'Личная гигиена', position: 8 },
+  { slug: 'elektronika', titleUz: 'Elektronika', titleRu: 'Электроника', position: 9 },
+  { slug: 'aksessuarlar', titleUz: 'Aksessuarlar', titleRu: 'Аксессуары', position: 10 },
 ];
 
 // ============== TASDIQLANGAN UNSPLASH RASMLAR ==============
@@ -847,6 +849,268 @@ const products: ProductSeed[] = [
     variants: [{ size: '100 g', price: 9500, stock: 150 }],
     specs: [{ labelUz: 'Vazni', labelRu: 'Вес', valueUz: '100 g', valueRu: '100 г' }],
   },
+  // ============== ELEKTRONIKA ==============
+  {
+    slug: 'samsung-galaxy-s25-ultra-256gb',
+    categorySlug: 'elektronika',
+    brand: 'Samsung',
+    titleUz: 'Samsung Galaxy S25 Ultra 256GB',
+    titleRu: 'Samsung Galaxy S25 Ultra 256GB',
+    descriptionUz:
+      'Galaxy S25 Ultra — Samsung\'ning flagman smartfoni. 6.9" Dynamic AMOLED 2X 120Hz QHD+ ekran, S Pen, 200 MP asosiy kamera, Snapdragon 8 Elite protsessor. Titanium korpus, IP68 himoya, 5000 mAh batareya, Galaxy AI funksiyalari. Rasmiy Samsung kafolati 12 oy.',
+    descriptionRu:
+      'Galaxy S25 Ultra — флагман Samsung. Экран 6.9" Dynamic AMOLED 2X 120Гц QHD+, S Pen, основная камера 200 МП, процессор Snapdragon 8 Elite. Титановый корпус, защита IP68, батарея 5000 мАч, функции Galaxy AI. Официальная гарантия Samsung 12 месяцев.',
+    basePrice: 15800000,
+    oldPrice: 18500000,
+    isFeatured: true,
+    images: [
+      'https://techmall-images-repo.s3.eu-west-2.amazonaws.com/wp-content/uploads/2024/07/12161402/Samsung-Galaxy-S25.png',
+    ],
+    variants: [
+      { color: 'Titanium Black', size: '256GB', price: 15800000, oldPrice: 18500000, stock: 10 },
+      { color: 'Titanium Gray', size: '256GB', price: 15800000, oldPrice: 18500000, stock: 7 },
+      { color: 'Titanium Silver', size: '256GB', price: 15800000, oldPrice: 18500000, stock: 5 },
+      { color: 'Titanium Black', size: '512GB', price: 17900000, stock: 4 },
+      { color: 'Titanium Black', size: '1TB', price: 21500000, stock: 2 },
+    ],
+    specs: [
+      { labelUz: 'Ekran', labelRu: 'Дисплей', valueUz: '6.9" Dynamic AMOLED 2X, 120Hz QHD+', valueRu: '6.9" Dynamic AMOLED 2X, 120Гц QHD+' },
+      { labelUz: 'Protsessor', labelRu: 'Процессор', valueUz: 'Snapdragon 8 Elite', valueRu: 'Snapdragon 8 Elite' },
+      { labelUz: 'Operativ xotira', labelRu: 'ОЗУ', valueUz: '12 GB', valueRu: '12 ГБ' },
+      { labelUz: 'Asosiy kamera', labelRu: 'Основная камера', valueUz: '200 MP + 50 MP + 10 MP + 50 MP', valueRu: '200 МП + 50 МП + 10 МП + 50 МП' },
+      { labelUz: 'Selfi kamera', labelRu: 'Фронтальная камера', valueUz: '12 MP', valueRu: '12 МП' },
+      { labelUz: 'Batareya', labelRu: 'Аккумулятор', valueUz: '5000 mAh, 45W tezkor zaryad', valueRu: '5000 мАч, 45 Вт быстрая зарядка' },
+      { labelUz: 'S Pen', labelRu: 'S Pen', valueUz: 'Bor', valueRu: 'Есть' },
+      { labelUz: 'Galaxy AI', labelRu: 'Galaxy AI', valueUz: 'Bor', valueRu: 'Есть' },
+      { labelUz: 'Himoya', labelRu: 'Защита', valueUz: 'IP68, Titanium korpus', valueRu: 'IP68, титановый корпус' },
+      { labelUz: 'Kafolat', labelRu: 'Гарантия', valueUz: '12 oy (Samsung rasmiy)', valueRu: '12 месяцев (официальная Samsung)' },
+    ],
+  },
+  {
+    slug: 'macbook-pro-14-m1-pro-512gb',
+    categorySlug: 'elektronika',
+    brand: 'Apple',
+    titleUz: 'MacBook Pro 14" M1 Pro, 512GB',
+    titleRu: 'MacBook Pro 14" M1 Pro, 512GB',
+    descriptionUz:
+      'Professional foydalanuvchilar uchun noutbuk. Apple M1 Pro chip (8 yadroli CPU, 14 yadroli GPU), 14.2" Liquid Retina XDR ekran 120Hz, 16 GB unified memory, 512 GB SSD. Video montaj, 3D modellashtirish, dasturlash uchun ideal. 17 soat batareya. macOS Sequoia.',
+    descriptionRu:
+      'Ноутбук для профессионалов. Чип Apple M1 Pro (8-ядерный CPU, 14-ядерный GPU), экран 14.2" Liquid Retina XDR 120Гц, 16 ГБ объединённой памяти, SSD 512 ГБ. Идеален для видеомонтажа, 3D, разработки. 17 часов работы. macOS Sequoia.',
+    basePrice: 18500000,
+    oldPrice: 22000000,
+    isFeatured: true,
+    images: [
+      'https://api.cabinet.smart-market.uz/uploads/images/ff80818136973e97f9260ca7',
+      'https://thumbs.dreamstime.com/b/close-up-top-view-macbook-grey-laptop-apple-mackbook-pro-m-chip-top-view-apple-logo-silver-macbook-cover-312529176.jpg',
+    ],
+    variants: [
+      { color: 'Space Gray', size: '14" / 16GB / 512GB', price: 18500000, oldPrice: 22000000, stock: 5 },
+      { color: 'Silver', size: '14" / 16GB / 512GB', price: 18500000, oldPrice: 22000000, stock: 3 },
+      { color: 'Space Gray', size: '14" / 16GB / 1TB', price: 22500000, stock: 2 },
+    ],
+    specs: [
+      { labelUz: 'Ekran', labelRu: 'Экран', valueUz: '14.2" Liquid Retina XDR, 120Hz', valueRu: '14.2" Liquid Retina XDR, 120Гц' },
+      { labelUz: 'Protsessor', labelRu: 'Процессор', valueUz: 'Apple M1 Pro (8C CPU, 14C GPU)', valueRu: 'Apple M1 Pro (8-ядерный CPU, 14-ядерный GPU)' },
+      { labelUz: 'Operativ xotira', labelRu: 'ОЗУ', valueUz: '16 GB unified memory', valueRu: '16 ГБ объединённой памяти' },
+      { labelUz: 'SSD', labelRu: 'SSD', valueUz: '512 GB', valueRu: '512 ГБ' },
+      { labelUz: 'Batareya', labelRu: 'Аккумулятор', valueUz: '17 soat ishlash', valueRu: 'До 17 часов работы' },
+      { labelUz: 'Portlar', labelRu: 'Порты', valueUz: '3× Thunderbolt 4, HDMI, SDXC, MagSafe 3', valueRu: '3× Thunderbolt 4, HDMI, SDXC, MagSafe 3' },
+      { labelUz: 'OS', labelRu: 'OS', valueUz: 'macOS Sequoia', valueRu: 'macOS Sequoia' },
+      { labelUz: 'Kafolat', labelRu: 'Гарантия', valueUz: '12 oy', valueRu: '12 месяцев' },
+    ],
+  },
+  {
+    slug: 'asus-tuf-gaming-f15-rtx4060',
+    categorySlug: 'elektronika',
+    brand: 'ASUS',
+    titleUz: 'ASUS TUF Gaming F15, i7 + RTX 4060',
+    titleRu: 'ASUS TUF Gaming F15, i7 + RTX 4060',
+    descriptionUz:
+      'Gaming va og\'ir ish uchun noutbuk. Intel Core i7-13620H, NVIDIA GeForce RTX 4060 8GB, 16 GB DDR5 RAM, 512 GB NVMe SSD. 15.6" FHD IPS 144Hz ekran. Harbiy darajadagi (MIL-STD-810H) chidamli korpus, RGB klaviatura. Windows 11 Home oldindan o\'rnatilgan.',
+    descriptionRu:
+      'Ноутбук для игр и работы. Intel Core i7-13620H, NVIDIA GeForce RTX 4060 8 ГБ, 16 ГБ DDR5 ОЗУ, 512 ГБ NVMe SSD. Экран 15.6" FHD IPS 144Гц. Корпус военного класса (MIL-STD-810H), RGB-клавиатура. Windows 11 Home предустановлен.',
+    basePrice: 11500000,
+    oldPrice: 13800000,
+    isFeatured: true,
+    images: [
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRJXwssRqOBIyaHaMfsA-vF1NLtz0nm1YirFA&s',
+    ],
+    variants: [
+      { color: 'Mecha Gray', size: 'i7 / 16GB / 512GB / RTX 4060', price: 11500000, oldPrice: 13800000, stock: 6 },
+      { color: 'Mecha Gray', size: 'i7 / 16GB / 1TB / RTX 4060', price: 12900000, stock: 4 },
+      { color: 'Mecha Gray', size: 'i5 / 16GB / 512GB / RTX 4050', price: 9500000, oldPrice: 11200000, stock: 8 },
+    ],
+    specs: [
+      { labelUz: 'Ekran', labelRu: 'Экран', valueUz: '15.6" FHD IPS, 144Hz', valueRu: '15.6" FHD IPS, 144Гц' },
+      { labelUz: 'Protsessor', labelRu: 'Процессор', valueUz: 'Intel Core i7-13620H', valueRu: 'Intel Core i7-13620H' },
+      { labelUz: 'Video karta', labelRu: 'Видеокарта', valueUz: 'NVIDIA GeForce RTX 4060 8GB', valueRu: 'NVIDIA GeForce RTX 4060 8 ГБ' },
+      { labelUz: 'Operativ xotira', labelRu: 'ОЗУ', valueUz: '16 GB DDR5', valueRu: '16 ГБ DDR5' },
+      { labelUz: 'SSD', labelRu: 'SSD', valueUz: '512 GB NVMe (1TB opsion)', valueRu: '512 ГБ NVMe (опция 1 ТБ)' },
+      { labelUz: 'Klaviatura', labelRu: 'Клавиатура', valueUz: 'RGB yorug\'lik', valueRu: 'RGB-подсветка' },
+      { labelUz: 'Chidamlilik', labelRu: 'Надёжность', valueUz: 'MIL-STD-810H harbiy standart', valueRu: 'MIL-STD-810H военный стандарт' },
+      { labelUz: 'OS', labelRu: 'OS', valueUz: 'Windows 11 Home', valueRu: 'Windows 11 Home' },
+      { labelUz: 'Kafolat', labelRu: 'Гарантия', valueUz: '24 oy', valueRu: '24 месяца' },
+    ],
+  },
+  {
+    slug: 'sony-playstation-5-slim-disc',
+    categorySlug: 'elektronika',
+    brand: 'Sony',
+    titleUz: 'Sony PlayStation 5 Slim (Disc Edition)',
+    titleRu: 'Sony PlayStation 5 Slim (Disc Edition)',
+    descriptionUz:
+      'Yangi PS5 Slim — eski modeldan 30% kichikroq va yengilroq. Disk versiyasi (4K UHD Blu-ray pleyer bor). 825 GB SSD, 16 GB GDDR6, 4K 60FPS gacha (ba\'zi o\'yinlarda 120FPS), 8K tayyor. Komplektda: PS5 Slim konsoli, DualSense controller, HDMI kabel, quvvat kabeli. Yangi Spider-Man 2, GTA 6, Elden Ring uchun.',
+    descriptionRu:
+      'Новый PS5 Slim — на 30% меньше и легче предыдущей модели. Дисковая версия (с проигрывателем 4K UHD Blu-ray). 825 ГБ SSD, 16 ГБ GDDR6, 4K 60 FPS (в некоторых играх 120 FPS), 8K-совместимость. В комплекте: PS5 Slim, контроллер DualSense, HDMI-кабель, кабель питания. Для Spider-Man 2, GTA 6, Elden Ring.',
+    basePrice: 7500000,
+    oldPrice: 9200000,
+    isFeatured: true,
+    images: [
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgg56yfmOe9ZY6nA3nS87C9u2aEEALM5O8dQ&s',
+    ],
+    variants: [
+      { color: 'Oq', size: 'Disc Edition 825GB', price: 7500000, oldPrice: 9200000, stock: 10 },
+      { color: 'Oq', size: 'Digital Edition 825GB', price: 6500000, oldPrice: 8000000, stock: 12 },
+      { color: 'Oq', size: 'Disc + 2 controller', price: 8500000, stock: 6 },
+    ],
+    specs: [
+      { labelUz: 'CPU', labelRu: 'Процессор', valueUz: 'AMD Zen 2 (8 yadro, 3.5 GHz)', valueRu: 'AMD Zen 2 (8 ядер, 3.5 ГГц)' },
+      { labelUz: 'GPU', labelRu: 'Видеокарта', valueUz: 'Custom RDNA 2 (10.28 TFLOPS)', valueRu: 'Custom RDNA 2 (10.28 терафлопс)' },
+      { labelUz: 'Operativ xotira', labelRu: 'ОЗУ', valueUz: '16 GB GDDR6', valueRu: '16 ГБ GDDR6' },
+      { labelUz: 'SSD', labelRu: 'SSD', valueUz: '825 GB ultra-tezkor', valueRu: '825 ГБ сверхбыстрый' },
+      { labelUz: 'Maksimal sifat', labelRu: 'Макс. разрешение', valueUz: '4K @ 60-120FPS, 8K mos', valueRu: '4K @ 60-120 FPS, 8K совместимо' },
+      { labelUz: 'Ray Tracing', labelRu: 'Трассировка лучей', valueUz: 'Bor (apparat darajasi)', valueRu: 'Есть (аппаратная)' },
+      { labelUz: 'Disk', labelRu: 'Привод', valueUz: '4K UHD Blu-ray', valueRu: '4K UHD Blu-ray' },
+      { labelUz: 'Komplekt', labelRu: 'Комплект', valueUz: 'Konsol + DualSense + kabellar', valueRu: 'Консоль + DualSense + кабели' },
+      { labelUz: 'Kafolat', labelRu: 'Гарантия', valueUz: '12 oy (rasmiy)', valueRu: '12 месяцев (официальная)' },
+    ],
+  },
+  {
+    slug: 'samsung-galaxy-s26-ultra-256gb',
+    categorySlug: 'elektronika',
+    brand: 'Samsung',
+    titleUz: 'Samsung Galaxy S26 Ultra 256GB',
+    titleRu: 'Samsung Galaxy S26 Ultra 256GB',
+    descriptionUz:
+      'Galaxy S26 Ultra — 2026 yilning flagman smartfoni. 6.9" Dynamic AMOLED 2X 120Hz ekran, S Pen, 200 MP asosiy kamera, Snapdragon 8 Gen 4 protsessor. Titanium korpus, IP68 himoya, 5000 mAh batareya, 45W tezkor zaryad. Rasmiy Samsung kafolati 12 oy.',
+    descriptionRu:
+      'Galaxy S26 Ultra — флагман 2026 года. Экран 6.9" Dynamic AMOLED 2X 120Hz, S Pen, основная камера 200 МП, процессор Snapdragon 8 Gen 4. Титановый корпус, защита IP68, батарея 5000 мАч, быстрая зарядка 45 Вт. Официальная гарантия Samsung 12 месяцев.',
+    basePrice: 18500000,
+    oldPrice: 22000000,
+    isFeatured: true,
+    images: [
+      'https://api.samsungmobilepress.com/api/v1/file/F0079F4C3B320974850EA001FDD3463F37B966748BDE494FE62748327134D1DCE64158DC226213A89FED047E03845F28FF11247D0F5F079675A5BA7EC119A8674E479D8C6611F18CA1274AB23544EAD1D59F28A1AE5591ADDC088A2826AA2F0B97EDE750BCA1D4633D188D39711E6B63A0AF87D47190E94DC73815539D17511B3AB052BB115C35872B3F0EAC1BAD3CFD',
+    ],
+    variants: [
+      { color: 'Titanium Black', size: '256GB', price: 18500000, oldPrice: 22000000, stock: 12 },
+      { color: 'Titanium Gray', size: '256GB', price: 18500000, oldPrice: 22000000, stock: 8 },
+      { color: 'Titanium Silver', size: '256GB', price: 18500000, oldPrice: 22000000, stock: 6 },
+      { color: 'Titanium Black', size: '512GB', price: 21000000, stock: 5 },
+      { color: 'Titanium Gray', size: '512GB', price: 21000000, stock: 4 },
+      { color: 'Titanium Black', size: '1TB', price: 25000000, stock: 2 },
+    ],
+    specs: [
+      { labelUz: 'Ekran', labelRu: 'Дисплей', valueUz: '6.9" Dynamic AMOLED 2X, 120Hz', valueRu: '6.9" Dynamic AMOLED 2X, 120Гц' },
+      { labelUz: 'Protsessor', labelRu: 'Процессор', valueUz: 'Snapdragon 8 Gen 4', valueRu: 'Snapdragon 8 Gen 4' },
+      { labelUz: 'Operativ xotira', labelRu: 'ОЗУ', valueUz: '12 GB', valueRu: '12 ГБ' },
+      { labelUz: 'Asosiy kamera', labelRu: 'Основная камера', valueUz: '200 MP + 50 MP + 12 MP + 10 MP', valueRu: '200 МП + 50 МП + 12 МП + 10 МП' },
+      { labelUz: 'Selfi kamera', labelRu: 'Фронтальная камера', valueUz: '12 MP', valueRu: '12 МП' },
+      { labelUz: 'Batareya', labelRu: 'Аккумулятор', valueUz: '5000 mAh, 45W tezkor zaryad', valueRu: '5000 мАч, 45 Вт быстрая зарядка' },
+      { labelUz: 'S Pen', labelRu: 'S Pen', valueUz: 'Bor', valueRu: 'Есть' },
+      { labelUz: 'Himoya', labelRu: 'Защита', valueUz: 'IP68, Titanium korpus', valueRu: 'IP68, титановый корпус' },
+      { labelUz: 'Kafolat', labelRu: 'Гарантия', valueUz: '12 oy (Samsung rasmiy)', valueRu: '12 месяцев (официальная Samsung)' },
+    ],
+  },
+
+  // ============== AKSESSUARLAR ==============
+  {
+    slug: 'tws-bluetooth-quloqchin',
+    categorySlug: 'aksessuarlar',
+    brand: 'Pro Audio',
+    titleUz: 'TWS simsiz quloqchin (Bluetooth 5.3)',
+    titleRu: 'TWS беспроводные наушники (Bluetooth 5.3)',
+    descriptionUz:
+      'Yaxshi sifatdagi simsiz quloqchin. Bluetooth 5.3 — barqaror ulanish. 6 soat ishlash + zaryad keysida 24 soat. Touch boshqaruv, mikrofon. iPhone va Android bilan ishlaydi. Suvga chidamli (IPX4).',
+    descriptionRu:
+      'Качественные беспроводные наушники. Bluetooth 5.3 — стабильная связь. 6 часов работы + 24 часа с кейсом. Сенсорное управление, микрофон. Работают с iPhone и Android. Защита IPX4.',
+    basePrice: 95000,
+    oldPrice: 150000,
+    isFeatured: true,
+    images: [
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQrB0bNLM78HpAcl_5YIpMaI5bD749b0uSQdA&s',
+    ],
+    variants: [
+      { color: 'Oq', size: 'TWS Standart', price: 95000, oldPrice: 150000, stock: 50 },
+      { color: 'Qora', size: 'TWS Standart', price: 95000, oldPrice: 150000, stock: 40 },
+      { color: 'Qora', size: 'TWS Pro (ANC)', price: 165000, oldPrice: 220000, stock: 20 },
+    ],
+    specs: [
+      { labelUz: 'Bluetooth', labelRu: 'Bluetooth', valueUz: '5.3', valueRu: '5.3' },
+      { labelUz: 'Ishlash vaqti', labelRu: 'Время работы', valueUz: '6 soat + 24 soat keys', valueRu: '6 ч + 24 ч с кейсом' },
+      { labelUz: 'Suv himoyasi', labelRu: 'Защита от воды', valueUz: 'IPX4', valueRu: 'IPX4' },
+      { labelUz: 'Mikrofon', labelRu: 'Микрофон', valueUz: 'Bor', valueRu: 'Есть' },
+      { labelUz: 'Mosligi', labelRu: 'Совместимость', valueUz: 'iOS, Android', valueRu: 'iOS, Android' },
+    ],
+  },
+  {
+    slug: 'iphone-17-silikon-chexol',
+    categorySlug: 'aksessuarlar',
+    brand: 'Premium Case',
+    titleUz: 'iPhone 17 silikon chexol (MagSafe)',
+    titleRu: 'Силиконовый чехол для iPhone 17 (MagSafe)',
+    descriptionUz:
+      'Yumshoq, premium sifatli silikon chexol. MagSafe magnitlari bilan mos — simsiz zaryadlash bilan ishlaydi. Tushishlardan va chizilishlardan himoya. Yumshoq mikrofibra ichki qatlam.',
+    descriptionRu:
+      'Мягкий силиконовый чехол премиум-качества. Совместим с MagSafe — работает с беспроводной зарядкой. Защищает от падений и царапин. Мягкая подкладка из микрофибры.',
+    basePrice: 95000,
+    oldPrice: 150000,
+    isFeatured: true,
+    images: [
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQrF5XC4ry0bhDK-Rn0V6uJ6M71XEkwXQvvWA&s',
+    ],
+    variants: [
+      { color: 'Qora', size: 'iPhone 17', price: 95000, oldPrice: 150000, stock: 35 },
+      { color: 'Ko\'k', size: 'iPhone 17', price: 95000, oldPrice: 150000, stock: 25 },
+      { color: 'Qizil', size: 'iPhone 17', price: 95000, oldPrice: 150000, stock: 20 },
+      { color: 'Pushti', size: 'iPhone 17', price: 95000, oldPrice: 150000, stock: 18 },
+      { color: 'Transparent', size: 'iPhone 17', price: 75000, stock: 40 },
+    ],
+    specs: [
+      { labelUz: 'Material', labelRu: 'Материал', valueUz: 'Premium silikon', valueRu: 'Премиум силикон' },
+      { labelUz: 'MagSafe', labelRu: 'MagSafe', valueUz: 'Ha', valueRu: 'Да' },
+      { labelUz: 'Mosligi', labelRu: 'Совместимость', valueUz: 'iPhone 17', valueRu: 'iPhone 17' },
+      { labelUz: 'Himoya', labelRu: 'Защита', valueUz: 'Tushish + chiziq', valueRu: 'От падений и царапин' },
+    ],
+  },
+  {
+    slug: 'samsung-s25-silikon-chexol',
+    categorySlug: 'aksessuarlar',
+    brand: 'Premium Case',
+    titleUz: 'Samsung Galaxy S25 silikon chexol',
+    titleRu: 'Силиконовый чехол для Samsung Galaxy S25',
+    descriptionUz:
+      'Galaxy S25 va S25+ uchun original o\'lchamdagi silikon chexol. Yumshoq tutuv, butun himoya. Kamera va portlar ochiq. Yumshoq mikrofibra ichki qatlam.',
+    descriptionRu:
+      'Силиконовый чехол точного размера для Galaxy S25 и S25+. Мягкая фактура, полная защита. Камера и порты открыты. Мягкая подкладка из микрофибры.',
+    basePrice: 75000,
+    oldPrice: 120000,
+    images: [
+      'https://frankfurt.apollo.olxcdn.com/v1/files/2m3cv28rpto61-UZ/image',
+    ],
+    variants: [
+      { color: 'Qora', size: 'Galaxy S25', price: 75000, oldPrice: 120000, stock: 40 },
+      { color: 'Ko\'k', size: 'Galaxy S25', price: 75000, oldPrice: 120000, stock: 25 },
+      { color: 'Yashil', size: 'Galaxy S25', price: 75000, oldPrice: 120000, stock: 20 },
+      { color: 'Transparent', size: 'Galaxy S25', price: 60000, stock: 50 },
+      { color: 'Qora', size: 'Galaxy S25+', price: 85000, stock: 20 },
+    ],
+    specs: [
+      { labelUz: 'Material', labelRu: 'Материал', valueUz: 'Premium silikon', valueRu: 'Премиум силикон' },
+      { labelUz: 'Mosligi', labelRu: 'Совместимость', valueUz: 'Galaxy S25 / S25+', valueRu: 'Galaxy S25 / S25+' },
+      { labelUz: 'Himoya', labelRu: 'Защита', valueUz: 'To\'liq + kamera', valueRu: 'Полная + камера' },
+    ],
+  },
+
   {
     slug: 'colgate-tish-pastasi-100ml',
     categorySlug: 'shaxsiy-parvarish',
