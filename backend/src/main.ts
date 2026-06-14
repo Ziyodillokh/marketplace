@@ -49,7 +49,7 @@ async function bootstrap(): Promise<void> {
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(cookieParser());
 
-  app.setGlobalPrefix('api', { exclude: ['health', 'telegram/webhook'] });
+  app.setGlobalPrefix('api', { exclude: ['telegram/webhook'] });
 
   app.useGlobalPipes(
     new ValidationPipe({

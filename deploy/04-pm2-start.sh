@@ -45,7 +45,7 @@ check_port() {
     fi
 }
 
-check_port "Backend API" 2400 /health
+check_port "Backend API" 2400 /api/health
 check_port "Webapp"      2401 /
 check_port "Admin"       2402 /
 check_port "SuperAdmin"  2403 /
