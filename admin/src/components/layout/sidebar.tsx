@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import {
   LayoutDashboard,
@@ -18,6 +18,7 @@ import {
   Settings,
   ShieldCheck,
   LogOut,
+  ChevronLeft,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { apiLogout } from '@/lib/endpoints';
@@ -112,9 +113,21 @@ export function Sidebar() {
 }
 
 export function MobileTopBar() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const isRoot = pathname === '/';
   return (
-    <header className="md:hidden sticky top-0 z-30 bg-white border-b border-[var(--color-border)]">
-      <div className="px-4 h-14 flex items-center justify-between">
+    <header className="md:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-[var(--color-border)]">
+      <div className="px-3 h-14 flex items-center gap-1">
+        {!isRoot && (
+          <button
+            onClick={() => router.back()}
+            aria-label="Orqaga"
+            className="h-9 w-9 grid place-items-center rounded-full text-[var(--color-text)] hover:bg-gray-100 active:scale-95 transition"
+          >
+            <ChevronLeft size={22} />
+          </button>
+        )}
         <Brand />
       </div>
     </header>
@@ -132,8 +145,8 @@ const BOTTOM_NAV: NavItem[] = [
 export function MobileBottomNav() {
   const pathname = usePathname();
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-[var(--color-border)] pb-[env(safe-area-inset-bottom)]">
-      <ul className="grid grid-cols-5">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/85 backdrop-blur-md border-t border-[var(--color-border)] pb-[env(safe-area-inset-bottom)]">
+      <ul className="grid grid-cols-5 px-1 pt-1">
         {BOTTOM_NAV.map((it) => {
           const active = it.href === '/' ? pathname === '/' : pathname.startsWith(it.href);
           return (
@@ -141,8 +154,10 @@ export function MobileBottomNav() {
               <Link
                 href={it.href}
                 className={cn(
-                  'flex flex-col items-center justify-center gap-1 py-2.5',
-                  active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-muted)]',
+                  'flex flex-col items-center justify-center gap-1 py-2 mx-1 rounded-xl transition-colors',
+                  active
+                    ? 'text-[var(--color-primary)] bg-[var(--color-primary)]/10'
+                    : 'text-[var(--color-text-muted)] active:bg-gray-100',
                 )}
               >
                 <it.icon size={20} />
