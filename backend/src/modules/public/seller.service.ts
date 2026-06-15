@@ -87,7 +87,14 @@ export class SellerOnboardingService {
       `💎 Tarif: <b>${tariff?.label ?? tenant.pendingTariff}</b>` +
       (tariff ? ` — ${tariff.priceMonthly.toLocaleString('ru-RU')} so'm/oy` : '');
 
-    await this.tgbot.sendPaymentReceipt(receipt, caption, tenant.id);
+    try {
+      await this.tgbot.sendPaymentReceipt(receipt, caption, tenant.id);
+    } catch (err) {
+      this.logger.error(`Payment receipt send failed: ${(err as Error).message}`);
+      throw new BadRequestException(
+        "To'lovni yuborishda xatolik. Iltimos keyinroq urinib ko'ring yoki administrator bilan bog'laning.",
+      );
+    }
     return { ok: true };
   }
 
