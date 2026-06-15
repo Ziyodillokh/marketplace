@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, Upload, Store, Bot, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Field, Input, Select } from '@/components/ui/input';
+import { Field, Input } from '@/components/ui/input';
+import { PickerSelect } from '@/components/picker-select';
 import { toast } from '@/stores/toast-store';
 import { setAccessToken } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
@@ -322,16 +323,13 @@ export default function RegisterPage() {
                 />
               </Field>
               <Field label="Biznes turi *">
-                <Select value={businessType} onChange={(e) => setBusinessType(e.target.value)}>
-                  <option value="" disabled>
-                    Tanlang…
-                  </option>
-                  {types.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </Select>
+                <PickerSelect
+                  value={businessType}
+                  onChange={setBusinessType}
+                  options={types}
+                  placeholder="Tanlang…"
+                  title="Biznes turi"
+                />
               </Field>
               <Field label="Logo (ixtiyoriy)" hint="Bo'lmasa Sellio standart logosi ishlatiladi">
                 <label className="flex items-center gap-3 h-14 px-3 rounded-xl border border-dashed border-[var(--color-border)] bg-white cursor-pointer">
