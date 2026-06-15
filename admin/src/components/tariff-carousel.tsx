@@ -9,8 +9,8 @@ function formatPrice(v: number): string {
   return v === 0 ? 'Bepul' : `${v.toLocaleString('ru-RU')} so'm`;
 }
 
-const FAST_MS = 500; // dastlabki tezlik
-const SLOW_MS = 2000; // 10s dan keyin
+const FAST_MS = 1200; // dastlabki tezlik
+const SLOW_MS = 2500; // 10s dan keyin sekinroq
 const SWITCH_AFTER_MS = 10_000;
 
 export function TariffCarousel({
