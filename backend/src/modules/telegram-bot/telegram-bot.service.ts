@@ -1,45 +1,28 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Bot, InlineKeyboard, webhookCallback } from 'grammy';
-import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TelegramBotService.name);
   readonly bot: Bot;
   private readonly useWebhook: boolean;
-  private readonly envWebappUrl: string;
   private readonly adminPanelUrl: string;
   private readonly ordersChannelId: string;
   private readonly botUsername: string;
-  private readonly tunnelFilePath: string;
 
   constructor(private readonly config: ConfigService) {
     const token = this.config.getOrThrow<string>('TELEGRAM_BOT_TOKEN');
     this.bot = new Bot(token);
     this.useWebhook = this.config.get('TELEGRAM_USE_WEBHOOK') === 'true';
-    this.envWebappUrl = this.config.getOrThrow<string>('WEBAPP_URL');
+    // Sellio bot do'kon emas, admin panelni ochadi.
+    // ADMIN_PANEL_URL berilmasa ADMIN_URL (masalan https://admin.selliostore.uz) + /login ishlatiladi.
     this.adminPanelUrl =
       this.config.get<string>('ADMIN_PANEL_URL') ??
-      `${this.config.get<string>('APP_URL') ?? ''}/admin/login`;
+      `${(this.config.get<string>('ADMIN_URL') ?? '').replace(/\/$/, '')}/login`;
     this.ordersChannelId = this.config.getOrThrow<string>('TELEGRAM_ORDERS_CHANNEL_ID');
     this.botUsername = this.config.getOrThrow<string>('TELEGRAM_BOT_USERNAME');
-    this.tunnelFilePath = join(process.cwd(), '.tunnel-url');
     this.registerHandlers();
-  }
-
-  /** WebApp URL ni .tunnel-url fayldan yoki .env'dan oladi. Dinamik — restartsiz yangilanadi. */
-  private getWebappUrl(): string {
-    try {
-      if (existsSync(this.tunnelFilePath)) {
-        const url = readFileSync(this.tunnelFilePath, 'utf-8').trim();
-        if (url.startsWith('https://')) return url;
-      }
-    } catch {
-      // ignore
-    }
-    return this.envWebappUrl;
   }
 
   async onModuleInit(): Promise<void> {
@@ -76,16 +59,16 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       ]);
       this.logger.log('Bot commands ro\'yxati o\'rnatildi');
 
-      const webappUrl = this.getWebappUrl();
-      if (webappUrl.startsWith('https://')) {
+      const adminUrl = this.adminPanelUrl;
+      if (adminUrl.startsWith('https://')) {
         await this.bot.api.setChatMenuButton({
           menu_button: {
             type: 'web_app',
-            text: "🛍 Do'kon",
-            web_app: { url: webappUrl },
+            text: '🔐 Admin panel',
+            web_app: { url: adminUrl },
           },
         });
-        this.logger.log(`Chat menu button o'rnatildi → ${webappUrl}`);
+        this.logger.log(`Chat menu button o'rnatildi → ${adminUrl}`);
       }
     } catch (err) {
       this.logger.warn(`Bot menu setup failed: ${(err as Error).message}`);
@@ -131,21 +114,21 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.command('start', async (ctx) => {
-      const url = this.getWebappUrl();
-      this.logger.log(`/start from user ${ctx.from?.id} (@${ctx.from?.username ?? '-'}) → WebApp URL: ${url}`);
-      const text = `👋 Assalomu alaykum, ${ctx.from?.first_name ?? 'mehmon'}!\n\nMarketplace botiga xush kelibsiz. Quyidagi tugmadan do'konni oching:`;
+      const url = this.adminPanelUrl;
+      this.logger.log(`/start from user ${ctx.from?.id} (@${ctx.from?.username ?? '-'}) → Admin URL: ${url}`);
+      const text = `👋 Assalomu alaykum, ${ctx.from?.first_name ?? 'mehmon'}!\n\nSellio admin paneliga xush kelibsiz. Quyidagi tugmadan panelni oching:`;
       const isHttps = url.startsWith('https://');
       try {
         if (isHttps) {
           await ctx.reply(text, {
             reply_markup: {
-              inline_keyboard: [[{ text: '🛍 Do\'konni ochish', web_app: { url } }]],
+              inline_keyboard: [[{ text: '🔐 Admin panelni ochish', web_app: { url } }]],
             },
           });
         } else {
           await ctx.reply(text + `\n\n${url}`, {
             reply_markup: {
-              inline_keyboard: [[{ text: '🌐 Do\'konni ochish', url }]],
+              inline_keyboard: [[{ text: '🔐 Admin panelni ochish', url }]],
             },
           });
         }
