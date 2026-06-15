@@ -9,6 +9,7 @@ import { toast } from '@/stores/toast-store';
 import { setAccessToken } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { cn } from '@/lib/cn';
+import { TariffCarousel } from '@/components/tariff-carousel';
 import {
   apiSellerBusinessTypes,
   apiSellerMe,
@@ -57,10 +58,6 @@ function loadTelegramSdk(): Promise<TgWebApp | null> {
     s.onerror = () => resolve(null);
     document.head.appendChild(s);
   });
-}
-
-function formatPrice(v: number): string {
-  return v === 0 ? 'Bepul' : `${v.toLocaleString('ru-RU')} so'm/oy`;
 }
 
 const STEPS = ["Do'kon", 'Tarif', 'Bot'];
@@ -357,55 +354,11 @@ export default function RegisterPage() {
                 <h2 className="font-semibold">Tarifni tanlang</h2>
               </div>
 
-              <div className="space-y-2.5">
-                {tariffs.map((t) => {
-                  const selected = tariff === t.value;
-                  return (
-                    <button
-                      type="button"
-                      key={t.value}
-                      onClick={() => setTariff(t.value)}
-                      className={cn(
-                        'w-full text-left rounded-2xl border p-4 transition-colors',
-                        selected
-                          ? 'border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/30 bg-[var(--color-primary)]/[0.03]'
-                          : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/50',
-                      )}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">{t.label}</span>
-                          {t.popular && (
-                            <span className="text-[10px] font-bold uppercase tracking-wide bg-[var(--color-primary)] text-white px-2 py-0.5 rounded-full">
-                              Mashhur
-                            </span>
-                          )}
-                        </div>
-                        <span
-                          className={cn(
-                            'h-5 w-5 rounded-full border-2 grid place-items-center',
-                            selected
-                              ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
-                              : 'border-[var(--color-border)]',
-                          )}
-                        >
-                          {selected && <Check size={12} />}
-                        </span>
-                      </div>
-                      <p className="text-sm font-bold">{formatPrice(t.priceMonthly)}</p>
-                      <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{t.tagline}</p>
-                      <ul className="mt-2 space-y-1">
-                        {t.features.slice(0, 4).map((f) => (
-                          <li key={f} className="flex items-start gap-1.5 text-xs text-[var(--color-text-muted)]">
-                            <Check size={13} className="text-[var(--color-primary)] mt-0.5 shrink-0" />
-                            {f}
-                          </li>
-                        ))}
-                      </ul>
-                    </button>
-                  );
-                })}
-              </div>
+              <p className="text-xs text-[var(--color-text-muted)] -mt-1">
+                Tariflar avtomatik aylanadi — qo'lda surib yoki strelkalar bilan ham tanlashingiz mumkin.
+              </p>
+
+              <TariffCarousel tariffs={tariffs} value={tariff} onChange={setTariff} />
 
               <div className="flex gap-2 pt-1">
                 <Button variant="secondary" fullWidth size="lg" onClick={() => setStep(1)}>
