@@ -100,6 +100,26 @@ export const apiSellerUploadLogo = (file: File) => {
     formData: fd,
   });
 };
+// Joriy admin do'koni (panel ichidan boshqarish)
+export interface MyStore {
+  tenant: null | {
+    id: string;
+    shopName: string;
+    slug: string;
+    businessType: string | null;
+    logoUrl: string | null;
+    tariffPlan: string;
+    pendingTariff: string | null;
+    botUsername: string | null;
+    hasBotToken: boolean;
+  };
+}
+export const apiMyStore = () => api<MyStore>('/admin/store');
+export const apiSetStoreBot = (botToken: string) =>
+  api<{ ok: boolean; username?: string }>('/admin/store/bot', { method: 'PUT', body: { botToken } });
+export const apiRemoveStoreBot = () =>
+  api<{ ok: boolean }>('/admin/store/bot', { method: 'DELETE' });
+
 export const apiSellerSubmitPayment = (initData: string, file: File) => {
   const fd = new FormData();
   fd.append('initData', initData);

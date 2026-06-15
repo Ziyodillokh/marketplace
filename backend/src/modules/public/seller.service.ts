@@ -17,6 +17,7 @@ import { BUSINESS_TYPE_OPTIONS } from './business-types';
 import { TARIFFS } from './tariffs';
 import { PAYMENT_INFO } from './payment-info';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
+import { checkBotToken } from '@/common/helpers/telegram-bot-token';
 
 export interface OnboardInput {
   shopName: string;
@@ -111,24 +112,8 @@ export class SellerOnboardingService {
   }
 
   /** Sotuvchi bot tokenini Telegram getMe orqali tekshiradi. */
-  async validateBotToken(rawToken: string): Promise<BotCheckResult> {
-    const token = rawToken.trim();
-    if (!/^\d+:[A-Za-z0-9_-]{30,}$/.test(token)) {
-      return { ok: false, error: "Token formati noto'g'ri" };
-    }
-    try {
-      const res = await fetch(`https://api.telegram.org/bot${token}/getMe`);
-      const data = (await res.json()) as {
-        ok: boolean;
-        result?: { username?: string; first_name?: string };
-      };
-      if (!data.ok || !data.result) {
-        return { ok: false, error: 'Token yaroqsiz — @BotFather dan tekshiring' };
-      }
-      return { ok: true, username: data.result.username, firstName: data.result.first_name };
-    } catch {
-      return { ok: false, error: "Telegram bilan bog'lanib bo'lmadi" };
-    }
+  validateBotToken(rawToken: string): Promise<BotCheckResult> {
+    return checkBotToken(rawToken);
   }
 
   /** initData'ni tekshiradi va Telegram foydalanuvchini qaytaradi. */
