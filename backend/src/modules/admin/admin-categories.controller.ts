@@ -1,9 +1,9 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsArray, IsBoolean, IsInt, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator';
-import { AdminRole } from '@prisma/client';
+import { AdminRole, type Admin } from '@prisma/client';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
-import { Roles, RolesGuard } from '../admin-auth/roles.guard';
+import { CurrentAdmin, Roles, RolesGuard } from '../admin-auth/roles.guard';
 import { AdminCategoriesService } from './admin-categories.service';
 
 class CreateCategoryDto {
@@ -44,19 +44,19 @@ export class AdminCategoriesController {
   constructor(private readonly categories: AdminCategoriesService) {}
 
   @Get()
-  tree() {
-    return this.categories.tree();
+  tree(@CurrentAdmin() admin: Admin) {
+    return this.categories.tree(admin.tenantId);
   }
 
   @Get(':id')
-  getById(@Param('id') id: string) {
-    return this.categories.getById(id);
+  getById(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
+    return this.categories.getById(id, admin.tenantId);
   }
 
   @Post()
   @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
-  create(@Body() dto: CreateCategoryDto) {
-    return this.categories.create(dto);
+  create(@Body() dto: CreateCategoryDto, @CurrentAdmin() admin: Admin) {
+    return this.categories.create(dto, admin.tenantId);
   }
 
   @Patch('reorder')
@@ -67,13 +67,13 @@ export class AdminCategoriesController {
 
   @Patch(':id')
   @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
-  update(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
-    return this.categories.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateCategoryDto, @CurrentAdmin() admin: Admin) {
+    return this.categories.update(id, dto, admin.tenantId);
   }
 
   @Delete(':id')
   @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
-  delete(@Param('id') id: string) {
-    return this.categories.delete(id);
+  delete(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
+    return this.categories.delete(id, admin.tenantId);
   }
 }

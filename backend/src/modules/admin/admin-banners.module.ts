@@ -1,10 +1,24 @@
-import { Body, Controller, Delete, Get, Module, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Module,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IsBoolean, IsInt, IsOptional, IsString } from 'class-validator';
-import { AdminRole } from '@prisma/client';
+import { AdminRole, type Admin } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
+import { limitsFor } from '@/common/tariff';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
-import { Roles, RolesGuard } from '../admin-auth/roles.guard';
+import { CurrentAdmin, Roles, RolesGuard } from '../admin-auth/roles.guard';
 import { AdminAuthModule } from '../admin-auth/admin-auth.module';
 
 class UpsertBannerDto {
@@ -30,17 +44,37 @@ class AdminBannersController {
   }
 
   @Get()
-  list(@Query('placement') placement?: string) {
+  list(@CurrentAdmin() admin: Admin, @Query('placement') placement?: string) {
     return this.prisma.banner.findMany({
-      where: placement ? { placement } : undefined,
+      where: {
+        ...(admin.tenantId ? { tenantId: admin.tenantId } : {}),
+        ...(placement ? { placement } : {}),
+      },
       orderBy: [{ placement: 'asc' }, { position: 'asc' }],
     });
   }
 
   @Post()
-  async create(@Body() dto: UpsertBannerDto) {
+  async create(@Body() dto: UpsertBannerDto, @CurrentAdmin() admin: Admin) {
+    if (admin.tenantId) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: admin.tenantId },
+        select: { tariffPlan: true },
+      });
+      const max = limitsFor(tenant?.tariffPlan ?? 'FREE').maxBanners;
+      if (max >= 0) {
+        const count = await this.prisma.banner.count({ where: { tenantId: admin.tenantId } });
+        if (count >= max) {
+          throw new ForbiddenException({
+            message: `Banner limiti (${max}) tugadi. Tarifni yangilang.`,
+            upgradeRequired: true,
+          });
+        }
+      }
+    }
     const res = await this.prisma.banner.create({
       data: {
+        tenantId: admin.tenantId ?? null,
         placement: dto.placement ?? 'home',
         imageUrlUz: dto.imageUrlUz,
         imageUrlRu: dto.imageUrlRu ?? null,
@@ -56,8 +90,19 @@ class AdminBannersController {
     return res;
   }
 
+  private async assertOwn(id: string, tenantId: string | null) {
+    if (!tenantId) return;
+    const b = await this.prisma.banner.findUnique({ where: { id }, select: { tenantId: true } });
+    if (!b || b.tenantId !== tenantId) throw new NotFoundException('Banner not found');
+  }
+
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() dto: Partial<UpsertBannerDto>) {
+  async update(
+    @Param('id') id: string,
+    @Body() dto: Partial<UpsertBannerDto>,
+    @CurrentAdmin() admin: Admin,
+  ) {
+    await this.assertOwn(id, admin.tenantId);
     const res = await this.prisma.banner.update({
       where: { id },
       data: {
@@ -77,7 +122,8 @@ class AdminBannersController {
   }
 
   @Delete(':id')
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
+    await this.assertOwn(id, admin.tenantId);
     await this.prisma.banner.delete({ where: { id } });
     this.invalidate();
     return { ok: true };

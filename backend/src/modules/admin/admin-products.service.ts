@@ -1,8 +1,17 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { buildCursorPage, type CursorPage } from '@/common/helpers/pagination';
+import { limitsFor } from '@/common/tariff';
+
+/** tenantId — joriy do'kon (null = platforma egasi, cheklovsiz/global). */
+export type TenantId = string | null | undefined;
 
 export interface AdminListProductsParams {
   q?: string;
@@ -76,10 +85,19 @@ function slugify(s: string): string {
 export class AdminProductsService {
   constructor(private readonly prisma: PrismaService, private readonly events: EventEmitter2) {}
 
-  async list(params: AdminListProductsParams): Promise<CursorPage<unknown>> {
+  /** Mahsulot tenant'ga tegishliligini tekshiradi (owner uchun o'tkazib yuboriladi). */
+  private async assertOwnProduct(id: string, tenantId: TenantId): Promise<void> {
+    if (!tenantId) return;
+    const p = await this.prisma.product.findUnique({ where: { id }, select: { tenantId: true } });
+    if (!p) throw new NotFoundException('Product not found');
+    if (p.tenantId !== tenantId) throw new NotFoundException('Product not found');
+  }
+
+  async list(params: AdminListProductsParams, tenantId?: TenantId): Promise<CursorPage<unknown>> {
     const limit = Math.min(Math.max(params.limit ?? 20, 1), 100);
     const take = limit + 1;
     const where: Prisma.ProductWhereInput = {
+      ...(tenantId ? { tenantId } : {}),
       ...(params.categoryId ? { categoryId: params.categoryId } : {}),
       ...(params.status === 'active' ? { isActive: true } : params.status === 'inactive' ? { isActive: false } : {}),
       ...(params.q
@@ -128,7 +146,8 @@ export class AdminProductsService {
     return buildCursorPage(items, limit);
   }
 
-  async getById(id: string) {
+  async getById(id: string, tenantId?: TenantId) {
+    await this.assertOwnProduct(id, tenantId);
     const p = await this.prisma.product.findUnique({
       where: { id },
       include: {
@@ -195,8 +214,25 @@ export class AdminProductsService {
     });
   }
 
-  async create(input: UpsertProductInput) {
+  async create(input: UpsertProductInput, tenantId?: TenantId) {
     if (!input.titleUz || !input.titleRu) throw new BadRequestException('titles required');
+    // Tarif limiti (faqat tenant'li sotuvchilar uchun)
+    if (tenantId) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { tariffPlan: true },
+      });
+      const max = limitsFor(tenant?.tariffPlan ?? 'FREE').maxProducts;
+      if (max >= 0) {
+        const count = await this.prisma.product.count({ where: { tenantId } });
+        if (count >= max) {
+          throw new ForbiddenException({
+            message: `Mahsulot limiti (${max}) tugadi. Tarifni yangilang.`,
+            upgradeRequired: true,
+          });
+        }
+      }
+    }
     const slug = input.slug || (await this.uniqueSlug(slugify(input.titleUz)));
     const discountPct =
       input.discountPct ??
@@ -205,6 +241,7 @@ export class AdminProductsService {
         : null);
     const created = await this.prisma.product.create({
       data: {
+        tenantId: tenantId ?? null,
         slug,
         sku: input.sku ?? null,
         titleUz: input.titleUz,
@@ -252,12 +289,13 @@ export class AdminProductsService {
     }
 
     this.events.emit('product.created', { productId: created.id });
-    return this.getById(created.id);
+    return this.getById(created.id, tenantId);
   }
 
-  async update(id: string, input: Partial<UpsertProductInput>) {
+  async update(id: string, input: Partial<UpsertProductInput>, tenantId?: TenantId) {
     const existing = await this.prisma.product.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Product not found');
+    if (tenantId && existing.tenantId !== tenantId) throw new NotFoundException('Product not found');
 
     const discountPct =
       input.oldPrice !== undefined || input.basePrice !== undefined
@@ -358,16 +396,18 @@ export class AdminProductsService {
     }
 
     this.events.emit('product.updated', { productId: id });
-    return this.getById(id);
+    return this.getById(id, tenantId);
   }
 
-  async delete(id: string) {
+  async delete(id: string, tenantId?: TenantId) {
+    await this.assertOwnProduct(id, tenantId);
     await this.prisma.product.update({ where: { id }, data: { isActive: false } });
     this.events.emit('product.deleted', { productId: id });
     return { ok: true };
   }
 
-  async hardDelete(id: string) {
+  async hardDelete(id: string, tenantId?: TenantId) {
+    await this.assertOwnProduct(id, tenantId);
     await this.prisma.product.delete({ where: { id } });
     return { ok: true };
   }

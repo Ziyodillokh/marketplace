@@ -1,6 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@/prisma/prisma.service';
+import { limitsFor } from '@/common/tariff';
+
+/** null = platforma egasi (global/cheklovsiz). */
+type TenantId = string | null | undefined;
 
 export interface UpsertCategoryInput {
   slug?: string;
@@ -30,8 +34,11 @@ export class AdminCategoriesService {
     this.events.emit('categories.invalidate');
   }
 
-  async tree() {
+  async tree(tenantId?: TenantId) {
+    // Sotuvchi: global (tenantId=null) + o'ziniki. Owner: hammasi.
+    const where = tenantId ? { OR: [{ tenantId: null }, { tenantId }] } : {};
     const rows = await this.prisma.category.findMany({
+      where,
       orderBy: [{ position: 'asc' }, { titleUz: 'asc' }],
       include: { _count: { select: { products: true, children: true } } },
     });
@@ -58,19 +65,40 @@ export class AdminCategoriesService {
     return build(null);
   }
 
-  async getById(id: string) {
+  async getById(id: string, tenantId?: TenantId) {
     const c = await this.prisma.category.findUnique({
       where: { id },
       include: { _count: { select: { products: true, children: true } } },
     });
     if (!c) throw new NotFoundException('Category not found');
+    // Sotuvchi global (null) yoki o'z kategoriyasini ko'radi
+    if (tenantId && c.tenantId && c.tenantId !== tenantId) {
+      throw new NotFoundException('Category not found');
+    }
     return c;
   }
 
-  async create(input: UpsertCategoryInput) {
+  async create(input: UpsertCategoryInput, tenantId?: TenantId) {
+    if (tenantId) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { tariffPlan: true },
+      });
+      const max = limitsFor(tenant?.tariffPlan ?? 'FREE').maxCategories;
+      if (max >= 0) {
+        const count = await this.prisma.category.count({ where: { tenantId } });
+        if (count >= max) {
+          throw new ForbiddenException({
+            message: `Kategoriya limiti (${max}) tugadi. Tarifni yangilang.`,
+            upgradeRequired: true,
+          });
+        }
+      }
+    }
     const slug = input.slug || (await this.uniqueSlug(slugify(input.titleUz)));
     const res = await this.prisma.category.create({
       data: {
+        tenantId: tenantId ?? null,
         slug,
         titleUz: input.titleUz,
         titleRu: input.titleRu,
@@ -85,9 +113,11 @@ export class AdminCategoriesService {
     return res;
   }
 
-  async update(id: string, input: Partial<UpsertCategoryInput>) {
+  async update(id: string, input: Partial<UpsertCategoryInput>, tenantId?: TenantId) {
     const exists = await this.prisma.category.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('Category not found');
+    // Sotuvchi faqat o'z kategoriyasini tahrirlaydi (global asosiy kategoriyaga tegmaydi)
+    if (tenantId && exists.tenantId !== tenantId) throw new NotFoundException('Category not found');
     const res = await this.prisma.category.update({
       where: { id },
       data: {
@@ -105,7 +135,11 @@ export class AdminCategoriesService {
     return res;
   }
 
-  async delete(id: string) {
+  async delete(id: string, tenantId?: TenantId) {
+    if (tenantId) {
+      const c = await this.prisma.category.findUnique({ where: { id }, select: { tenantId: true } });
+      if (!c || c.tenantId !== tenantId) throw new NotFoundException('Category not found');
+    }
     await this.prisma.category.delete({ where: { id } });
     this.invalidate();
     return { ok: true };

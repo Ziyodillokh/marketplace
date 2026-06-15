@@ -24,9 +24,9 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import { AdminRole } from '@prisma/client';
+import { AdminRole, type Admin } from '@prisma/client';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
-import { Roles, RolesGuard } from '../admin-auth/roles.guard';
+import { CurrentAdmin, Roles, RolesGuard } from '../admin-auth/roles.guard';
 import { AdminProductsService } from './admin-products.service';
 
 class VariantDto {
@@ -110,36 +110,36 @@ export class AdminProductsController {
   constructor(private readonly products: AdminProductsService) {}
 
   @Get()
-  list(@Query() q: ListProductsDto) {
-    return this.products.list(q);
+  list(@Query() q: ListProductsDto, @CurrentAdmin() admin: Admin) {
+    return this.products.list(q, admin.tenantId);
   }
 
   @Get(':id')
-  getById(@Param('id') id: string) {
-    return this.products.getById(id);
+  getById(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
+    return this.products.getById(id, admin.tenantId);
   }
 
   @Post()
   @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
-  create(@Body() dto: CreateProductDto) {
-    return this.products.create(dto);
+  create(@Body() dto: CreateProductDto, @CurrentAdmin() admin: Admin) {
+    return this.products.create(dto, admin.tenantId);
   }
 
   @Patch(':id')
   @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN, AdminRole.MANAGER)
-  update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
-    return this.products.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateProductDto, @CurrentAdmin() admin: Admin) {
+    return this.products.update(id, dto, admin.tenantId);
   }
 
   @Delete(':id')
   @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
-  delete(@Param('id') id: string) {
-    return this.products.delete(id);
+  delete(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
+    return this.products.delete(id, admin.tenantId);
   }
 
   @Delete(':id/hard')
   @Roles(AdminRole.SUPERADMIN)
-  hardDelete(@Param('id') id: string) {
-    return this.products.hardDelete(id);
+  hardDelete(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
+    return this.products.hardDelete(id, admin.tenantId);
   }
 }
