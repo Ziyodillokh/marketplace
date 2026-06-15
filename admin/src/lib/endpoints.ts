@@ -30,6 +30,49 @@ export const apiLogin = (email: string, password: string) =>
   });
 export const apiMe = () => api<AdminDto>('/admin/auth/me');
 export const apiLogout = () => api<{ ok: boolean }>('/admin/auth/logout', { method: 'POST' });
+export const apiTelegramLogin = (initData: string) =>
+  api<{ admin: AdminDto; accessToken: string }>('/admin/auth/telegram', {
+    method: 'POST',
+    body: { initData },
+  });
+
+// Seller onboarding (Telegram Mini App)
+export interface BusinessTypeOption {
+  value: string;
+  label: string;
+}
+export interface SellerProfile {
+  registered: boolean;
+  tenant?: {
+    id: string;
+    slug: string;
+    shopName: string;
+    ownerName: string;
+    ownerPhone: string | null;
+    businessType: string | null;
+    logoUrl: string | null;
+  };
+}
+export const apiSellerBusinessTypes = () =>
+  api<BusinessTypeOption[]>('/public/seller/business-types');
+export const apiSellerMe = (initData: string) =>
+  api<SellerProfile>('/public/seller/me', { method: 'POST', body: { initData } });
+export const apiSellerOnboard = (body: {
+  initData: string;
+  shopName: string;
+  ownerName: string;
+  ownerPhone: string;
+  businessType: string;
+  logoUrl?: string;
+}) => api<SellerProfile>('/public/seller/onboard', { method: 'POST', body });
+export const apiSellerUploadLogo = (file: File) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  return api<{ url: string; thumbUrl: string }>('/public/seller/logo', {
+    method: 'POST',
+    formData: fd,
+  });
+};
 
 // Products
 export const apiListAdminProducts = (params: { q?: string; categoryId?: string; status?: string; cursor?: string; limit?: number }) =>

@@ -1,8 +1,22 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
 import type { Request, Response } from 'express';
 import type { Admin } from '@prisma/client';
+import {
+  InvalidInitDataError,
+  verifyTelegramInitData,
+} from '@/common/helpers/telegram-init-data';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminJwtGuard } from './admin-jwt.guard';
 import { CurrentAdmin } from './roles.guard';
@@ -10,6 +24,10 @@ import { CurrentAdmin } from './roles.guard';
 class LoginDto {
   @IsEmail() email!: string;
   @IsString() @MinLength(6) password!: string;
+}
+
+class TelegramLoginDto {
+  @IsString() @MaxLength(4096) initData!: string;
 }
 
 interface CookieRequest extends Request {
@@ -30,8 +48,10 @@ function serialize(a: Admin) {
 @Controller('admin/auth')
 export class AdminAuthController {
   private readonly isProd: boolean;
+  private readonly botToken: string;
   constructor(private readonly auth: AdminAuthService, config: ConfigService) {
     this.isProd = config.get('NODE_ENV') === 'production';
+    this.botToken = config.get<string>('TELEGRAM_BOT_TOKEN') ?? '';
   }
 
   private setCookies(res: Response, accessToken: string, refreshToken: string, expiresAt: Date) {
@@ -58,6 +78,23 @@ export class AdminAuthController {
   @HttpCode(200)
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const { admin, tokens } = await this.auth.login(dto.email, dto.password);
+    this.setCookies(res, tokens.accessToken, tokens.refreshToken, tokens.expiresAt);
+    return { admin: serialize(admin), accessToken: tokens.accessToken };
+  }
+
+  /** Telegram Mini App orqali parolsiz login (bot'dan ochilganda). */
+  @Post('telegram')
+  @HttpCode(200)
+  async telegramLogin(@Body() dto: TelegramLoginDto, @Res({ passthrough: true }) res: Response) {
+    let parsed;
+    try {
+      parsed = verifyTelegramInitData(dto.initData, this.botToken);
+    } catch (err) {
+      throw new UnauthorizedException(
+        err instanceof InvalidInitDataError ? err.message : 'Telegram tekshiruvi xato',
+      );
+    }
+    const { admin, tokens } = await this.auth.loginWithTelegram(BigInt(parsed.user.id));
     this.setCookies(res, tokens.accessToken, tokens.refreshToken, tokens.expiresAt);
     return { admin: serialize(admin), accessToken: tokens.accessToken };
   }

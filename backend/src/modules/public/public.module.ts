@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
-import { PublicSignupController } from './public-signup.controller';
-import { PublicSignupService } from './public-signup.service';
+import { UploadsModule } from '../uploads/uploads.module';
+import { SellerController } from './seller.controller';
+import { SellerOnboardingService } from './seller.service';
 
 @Module({
-  controllers: [PublicSignupController],
-  providers: [PublicSignupService],
+  imports: [UploadsModule],
+  controllers: [SellerController],
+  providers: [SellerOnboardingService],
 })
 export class PublicModule {}

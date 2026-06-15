@@ -37,21 +37,24 @@ function AuthInit({ children }: { children: React.ReactNode }) {
   const { setAdmin, setInitialized, initialized } = useAuthStore();
 
   useEffect(() => {
+    // Public sahifalar — auth talab qilmaydi (/register Telegram onboarding o'zini boshqaradi)
+    const PUBLIC_PATHS = ['/login', '/register'];
+    const isPublic = PUBLIC_PATHS.includes(pathname);
     const token = loadAccessToken();
     if (!token) {
       setInitialized(true);
-      if (pathname !== '/login') router.replace('/login');
+      if (!isPublic) router.replace('/login');
       return;
     }
     apiMe()
       .then((admin) => {
         setAdmin(admin);
         setInitialized(true);
-        if (pathname === '/login') router.replace('/');
+        if (isPublic) router.replace('/');
       })
       .catch(() => {
         setInitialized(true);
-        if (pathname !== '/login') router.replace('/login');
+        if (!isPublic) router.replace('/login');
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

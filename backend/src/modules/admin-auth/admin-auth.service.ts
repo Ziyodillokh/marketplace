@@ -22,8 +22,20 @@ export class AdminAuthService {
   async login(email: string, password: string): Promise<{ admin: Admin; tokens: AuthTokens }> {
     const admin = await this.prisma.admin.findUnique({ where: { email: email.toLowerCase().trim() } });
     if (!admin || !admin.isActive) throw new UnauthorizedException('Invalid credentials');
+    // Parolsiz (Telegram-only) adminlar email/parol bilan kira olmaydi
+    if (!admin.passwordHash) throw new UnauthorizedException('Invalid credentials');
     const ok = await bcrypt.compare(password, admin.passwordHash);
     if (!ok) throw new UnauthorizedException('Invalid credentials');
+    const tokens = await this.issueTokens(admin);
+    return { admin, tokens };
+  }
+
+  /** Telegram ID bo'yicha login (parolsiz) — onboarding qilingan sotuvchilar uchun. */
+  async loginWithTelegram(telegramId: bigint): Promise<{ admin: Admin; tokens: AuthTokens }> {
+    const admin = await this.prisma.admin.findUnique({ where: { telegramId } });
+    if (!admin || !admin.isActive) {
+      throw new UnauthorizedException("Ro'yxatdan o'tilmagan");
+    }
     const tokens = await this.issueTokens(admin);
     return { admin, tokens };
   }

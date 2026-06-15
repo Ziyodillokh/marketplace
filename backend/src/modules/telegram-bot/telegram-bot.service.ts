@@ -15,11 +15,12 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     const token = this.config.getOrThrow<string>('TELEGRAM_BOT_TOKEN');
     this.bot = new Bot(token);
     this.useWebhook = this.config.get('TELEGRAM_USE_WEBHOOK') === 'true';
-    // Sellio bot do'kon emas, admin panelni ochadi.
-    // ADMIN_PANEL_URL berilmasa ADMIN_URL (masalan https://admin.selliostore.uz) + /login ishlatiladi.
+    // Sellio bot do'kon emas, sotuvchi onboarding/panelini ochadi (/register).
+    // Sahifa o'zi hal qiladi: ro'yxatdan o'tgan bo'lsa panelga kiritadi, bo'lmasa forma ko'rsatadi.
+    // ADMIN_PANEL_URL berilmasa ADMIN_URL (masalan https://admin.selliostore.uz) + /register ishlatiladi.
     this.adminPanelUrl =
       this.config.get<string>('ADMIN_PANEL_URL') ??
-      `${(this.config.get<string>('ADMIN_URL') ?? '').replace(/\/$/, '')}/login`;
+      `${(this.config.get<string>('ADMIN_URL') ?? '').replace(/\/$/, '')}/register`;
     this.ordersChannelId = this.config.getOrThrow<string>('TELEGRAM_ORDERS_CHANNEL_ID');
     this.botUsername = this.config.getOrThrow<string>('TELEGRAM_BOT_USERNAME');
     this.registerHandlers();
@@ -64,7 +65,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
         await this.bot.api.setChatMenuButton({
           menu_button: {
             type: 'web_app',
-            text: '🔐 Admin panel',
+            text: '🏪 Mening do\'konim',
             web_app: { url: adminUrl },
           },
         });
@@ -116,19 +117,19 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     this.bot.command('start', async (ctx) => {
       const url = this.adminPanelUrl;
       this.logger.log(`/start from user ${ctx.from?.id} (@${ctx.from?.username ?? '-'}) → Admin URL: ${url}`);
-      const text = `👋 Assalomu alaykum, ${ctx.from?.first_name ?? 'mehmon'}!\n\nSellio admin paneliga xush kelibsiz. Quyidagi tugmadan panelni oching:`;
+      const text = `👋 Assalomu alaykum, ${ctx.from?.first_name ?? 'mehmon'}!\n\nSellio'ga xush kelibsiz — Telegramda o'z onlayn do'koningizni oching. Quyidagi tugmadan boshlang:`;
       const isHttps = url.startsWith('https://');
       try {
         if (isHttps) {
           await ctx.reply(text, {
             reply_markup: {
-              inline_keyboard: [[{ text: '🔐 Admin panelni ochish', web_app: { url } }]],
+              inline_keyboard: [[{ text: '🚀 Boshlash', web_app: { url } }]],
             },
           });
         } else {
           await ctx.reply(text + `\n\n${url}`, {
             reply_markup: {
-              inline_keyboard: [[{ text: '🔐 Admin panelni ochish', url }]],
+              inline_keyboard: [[{ text: '🚀 Boshlash', url }]],
             },
           });
         }

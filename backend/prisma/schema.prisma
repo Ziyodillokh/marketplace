@@ -88,10 +88,13 @@ model User {
 model Admin {
   id            String         @id @default(cuid())
   email         String         @unique
-  passwordHash  String
+  passwordHash  String?
   fullName      String
   role          AdminRole      @default(ADMIN)
   isActive      Boolean        @default(true)
+  telegramId    BigInt?        @unique
+  tenantId      String?        @unique
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]
@@ -479,6 +482,31 @@ enum TariffPlan {
   PREMIUM
 }
 
+/// Do'kon (biznes) turi — onboarding'da tanlanadi
+enum BusinessType {
+  CLOTHING           // Kiyim-kechak
+  SHOES_ACCESSORIES  // Poyabzal va aksessuarlar
+  ELECTRONICS        // Elektronika va texnika
+  PHONES_GADGETS     // Telefon va gadjetlar
+  FOOD_GROCERY       // Oziq-ovqat va market
+  COSMETICS          // Kosmetika va parfyumeriya
+  BEAUTY_HEALTH      // Go'zallik va sog'liq
+  PHARMACY           // Dorixona
+  HOME_GOODS         // Uy-ro'zg'or buyumlari
+  FURNITURE          // Mebel
+  KIDS               // Bolalar mahsulotlari
+  TOYS               // O'yinchoqlar
+  SPORTS             // Sport va fitnes
+  BOOKS_STATIONERY   // Kitob va kanstovarlar
+  AUTO_PARTS         // Avto ehtiyot qismlar
+  FLOWERS_GIFTS      // Gullar va sovg'alar
+  JEWELRY            // Zargarlik
+  CONSTRUCTION       // Qurilish mollari
+  PET_SUPPLIES       // Uy hayvonlari mahsulotlari
+  RESTAURANT_CAFE    // Restoran va kafe
+  OTHER              // Boshqa
+}
+
 enum TenantStatus {
   ACTIVE
   SUSPENDED
@@ -524,9 +552,10 @@ model Tenant {
   slug            String       @unique
   shopName        String
   ownerName       String
-  ownerEmail      String       @unique
+  ownerEmail      String?      @unique
   ownerPhone      String?
-  ownerTelegramId BigInt?
+  ownerTelegramId BigInt?       @unique
+  businessType    BusinessType?
 
   // Tarif
   tariffPlan      TariffPlan   @default(FREE)
@@ -566,6 +595,7 @@ model Tenant {
   invoices       Invoice[]
   aiUsage        AICreditUsage[]
   resourceStats  TenantResourceStat[]
+  admin          Admin?
 
   @@index([status, tariffPlan])
   @@index([ownerEmail])
