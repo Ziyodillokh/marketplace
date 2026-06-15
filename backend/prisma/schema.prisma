@@ -114,6 +114,7 @@ model RefreshToken {
 
 model Category {
   id        String     @id @default(cuid())
+  tenantId  String?
   slug      String     @unique
   titleUz   String
   titleRu   String
@@ -132,10 +133,12 @@ model Category {
   targetRelatedRules RelatedRule[] @relation("relatedTargetCategory")
 
   @@index([parentId, position])
+  @@index([tenantId])
 }
 
 model Product {
   id            String   @id @default(cuid())
+  tenantId      String?
   slug          String   @unique
   sku           String?  @unique
   titleUz       String
@@ -168,6 +171,7 @@ model Product {
   targetRelatedRules RelatedRule[] @relation("relatedTargetProduct")
 
   @@index([categoryId, isActive])
+  @@index([tenantId, isActive])
   @@index([createdAt])
   @@index([soldCount])
 }
@@ -243,6 +247,7 @@ model Favorite {
 
 model Order {
   id            String        @id @default(cuid())
+  tenantId      String?
   orderNumber   String        @unique
   userId        String
   user          User          @relation(fields: [userId], references: [id])
@@ -275,6 +280,7 @@ model Order {
 
   @@index([userId, status])
   @@index([createdAt])
+  @@index([tenantId, status])
 }
 
 model OrderItem {
@@ -384,6 +390,7 @@ model RelatedRule {
 
 model Banner {
   id          String    @id @default(cuid())
+  tenantId    String?
   placement   String    @default("home")
   imageUrlUz  String
   imageUrlRu  String?
@@ -397,6 +404,7 @@ model Banner {
   updatedAt   DateTime  @updatedAt
 
   @@index([placement, isActive, position])
+  @@index([tenantId])
 }
 
 model UserEvent {
