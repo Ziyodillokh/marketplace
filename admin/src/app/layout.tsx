@@ -3,8 +3,8 @@ import { Providers } from './providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Marketplace Admin',
-  description: 'Marketplace administration panel',
+  title: 'Sellio Admin',
+  description: "Sellio — Telegram do'kon boshqaruvi",
 };
 
 export const viewport: Viewport = {

@@ -53,8 +53,26 @@ export interface SellerProfile {
     logoUrl: string | null;
   };
 }
+export interface TariffOption {
+  value: string;
+  label: string;
+  priceMonthly: number;
+  tagline: string;
+  popular?: boolean;
+  trialDays: number;
+  features: string[];
+}
+export interface BotCheckResult {
+  ok: boolean;
+  username?: string;
+  firstName?: string;
+  error?: string;
+}
 export const apiSellerBusinessTypes = () =>
   api<BusinessTypeOption[]>('/public/seller/business-types');
+export const apiSellerTariffs = () => api<TariffOption[]>('/public/seller/tariffs');
+export const apiSellerValidateBot = (botToken: string) =>
+  api<BotCheckResult>('/public/seller/validate-bot', { method: 'POST', body: { botToken } });
 export const apiSellerMe = (initData: string) =>
   api<SellerProfile>('/public/seller/me', { method: 'POST', body: { initData } });
 export const apiSellerOnboard = (body: {
@@ -63,7 +81,9 @@ export const apiSellerOnboard = (body: {
   ownerName: string;
   ownerPhone: string;
   businessType: string;
+  tariffPlan: string;
   logoUrl?: string;
+  botToken?: string;
 }) => api<SellerProfile>('/public/seller/onboard', { method: 'POST', body });
 export const apiSellerUploadLogo = (file: File) => {
   const fd = new FormData();

@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { LogIn } from 'lucide-react';
 import { apiLogin } from '@/lib/endpoints';
 import { setAccessToken } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
@@ -34,10 +33,9 @@ export default function LoginPage() {
     <div className="min-h-dvh grid place-items-center px-4 bg-gradient-to-br from-[var(--color-bg)] to-blue-50">
       <div className="w-full max-w-sm bg-white rounded-3xl border border-[var(--color-border)] p-6 shadow-sm">
         <div className="text-center mb-6">
-          <div className="inline-flex h-12 w-12 rounded-2xl bg-[var(--color-primary)] text-white items-center justify-center mb-3">
-            <LogIn size={22} />
-          </div>
-          <h1 className="text-xl font-bold">Marketplace Admin</h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Sellio" className="h-12 w-12 object-contain mx-auto mb-3" />
+          <h1 className="text-xl font-bold">Sellio</h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">Boshqaruv paneli</p>
         </div>
         <form

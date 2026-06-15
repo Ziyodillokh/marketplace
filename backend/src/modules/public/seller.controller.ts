@@ -12,8 +12,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
 import { memoryStorage } from 'multer';
-import { IsEnum, IsString, MaxLength, MinLength } from 'class-validator';
-import { BusinessType } from '@prisma/client';
+import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { BusinessType, TariffPlan } from '@prisma/client';
 import { SellerOnboardingService } from './seller.service';
 import { UploadsService } from '../uploads/uploads.service';
 
@@ -46,9 +46,24 @@ class OnboardDto {
   @IsEnum(BusinessType)
   businessType!: BusinessType;
 
+  @IsEnum(TariffPlan)
+  tariffPlan!: TariffPlan;
+
+  @IsOptional()
   @IsString()
   @MaxLength(500)
   logoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  botToken?: string;
+}
+
+class BotTokenDto {
+  @IsString()
+  @MaxLength(100)
+  botToken!: string;
 }
 
 @Controller('public/seller')
@@ -62,6 +77,20 @@ export class SellerController {
   @Get('business-types')
   businessTypes() {
     return this.service.businessTypes();
+  }
+
+  /** Tariflar ro'yxati (4 ta). */
+  @Get('tariffs')
+  tariffs() {
+    return this.service.tariffs();
+  }
+
+  /** Bot tokenini tekshirish (onboarding 3-bosqichда). */
+  @Post('validate-bot')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 30, ttl: 60 * 60 * 1000 } })
+  validateBot(@Body() dto: BotTokenDto) {
+    return this.service.validateBotToken(dto.botToken);
   }
 
   /** Ro'yxatdan o'tganmi tekshirish. */
@@ -81,7 +110,9 @@ export class SellerController {
       ownerName: dto.ownerName,
       ownerPhone: dto.ownerPhone,
       businessType: dto.businessType,
+      tariffPlan: dto.tariffPlan,
       logoUrl: dto.logoUrl,
+      botToken: dto.botToken,
     });
   }
 

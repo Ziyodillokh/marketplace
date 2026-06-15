@@ -1,20 +1,36 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'crypto';
-import type { BusinessType, Tenant } from '@prisma/client';
+import type { BusinessType, TariffPlan, Tenant } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import {
   InvalidInitDataError,
   verifyTelegramInitData,
 } from '@/common/helpers/telegram-init-data';
 import { BUSINESS_TYPE_OPTIONS } from './business-types';
+import { TARIFFS, trialDaysFor } from './tariffs';
 
 export interface OnboardInput {
   shopName: string;
   ownerName: string;
   ownerPhone: string;
   businessType: BusinessType;
+  tariffPlan: TariffPlan;
   logoUrl?: string;
+  botToken?: string;
+}
+
+export interface BotCheckResult {
+  ok: boolean;
+  username?: string;
+  firstName?: string;
+  error?: string;
 }
 
 export interface SellerTenantView {
@@ -43,6 +59,31 @@ export class SellerOnboardingService {
 
   businessTypes() {
     return BUSINESS_TYPE_OPTIONS;
+  }
+
+  tariffs() {
+    return TARIFFS;
+  }
+
+  /** Sotuvchi bot tokenini Telegram getMe orqali tekshiradi. */
+  async validateBotToken(rawToken: string): Promise<BotCheckResult> {
+    const token = rawToken.trim();
+    if (!/^\d+:[A-Za-z0-9_-]{30,}$/.test(token)) {
+      return { ok: false, error: "Token formati noto'g'ri" };
+    }
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+      const data = (await res.json()) as {
+        ok: boolean;
+        result?: { username?: string; first_name?: string };
+      };
+      if (!data.ok || !data.result) {
+        return { ok: false, error: 'Token yaroqsiz — @BotFather dan tekshiring' };
+      }
+      return { ok: true, username: data.result.username, firstName: data.result.first_name };
+    } catch {
+      return { ok: false, error: "Telegram bilan bog'lanib bo'lmadi" };
+    }
   }
 
   /** initData'ni tekshiradi va Telegram foydalanuvchini qaytaradi. */
@@ -97,6 +138,27 @@ export class SellerOnboardingService {
     // Admin.email majburiy va unique — Telegram sotuvchilar uchun sintetik email
     const syntheticEmail = `tg${parsed.user.id}@sellio.bot`;
 
+    // Bot token (ixtiyoriy) — berilgan bo'lsa tekshiramiz va band emasligini ko'ramiz
+    let botToken: string | null = null;
+    let botUsername: string | null = null;
+    if (dto.botToken?.trim()) {
+      const check = await this.validateBotToken(dto.botToken);
+      if (!check.ok) {
+        throw new BadRequestException(check.error ?? "Bot token yaroqsiz");
+      }
+      botToken = dto.botToken.trim();
+      botUsername = check.username ?? null;
+      const taken = await this.prisma.tenant.findUnique({ where: { botToken } });
+      if (taken) {
+        throw new ConflictException('Bu bot token boshqa do\'konda ishlatilgan');
+      }
+    }
+
+    // Tarif sinovi — pulli tariflarda trialDays kun
+    const trialDays = trialDaysFor(dto.tariffPlan);
+    const isOnTrial = trialDays > 0;
+    const trialEndsAt = isOnTrial ? new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000) : null;
+
     const tenant = await this.prisma.$transaction(async (tx) => {
       const t = await tx.tenant.create({
         data: {
@@ -107,7 +169,11 @@ export class SellerOnboardingService {
           ownerTelegramId: telegramId,
           businessType: dto.businessType,
           logoUrl: dto.logoUrl?.trim() || null,
-          tariffPlan: 'FREE',
+          tariffPlan: dto.tariffPlan,
+          isOnTrial,
+          trialEndsAt,
+          botToken,
+          botUsername,
           status: 'ACTIVE',
         },
       });
@@ -128,7 +194,7 @@ export class SellerOnboardingService {
     });
 
     this.logger.log(
-      `Seller onboard: ${shopName} (${slug}) · tg=${parsed.user.id} · ${dto.businessType}`,
+      `Seller onboard: ${shopName} (${slug}) · tg=${parsed.user.id} · ${dto.businessType} · ${dto.tariffPlan}${botUsername ? ` · @${botUsername}` : ''}`,
     );
     return { registered: true, tenant: this.serialize(tenant) };
   }

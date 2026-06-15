@@ -23,6 +23,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { apiLogout } from '@/lib/endpoints';
 import { setAccessToken } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { Brand } from '@/components/brand';
 
 interface NavItem {
   href: string;
@@ -64,7 +65,7 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col w-64 border-r border-[var(--color-border)] bg-white shrink-0 h-dvh sticky top-0">
       <div className="px-5 h-14 flex items-center border-b border-[var(--color-border)]">
-        <h1 className="font-bold text-base">🛍 Marketplace</h1>
+        <Brand />
       </div>
       <nav className="flex-1 overflow-y-auto py-3 px-2">
         <ul className="space-y-0.5">
@@ -114,7 +115,7 @@ export function MobileTopBar() {
   return (
     <header className="md:hidden sticky top-0 z-30 bg-white border-b border-[var(--color-border)]">
       <div className="px-4 h-14 flex items-center justify-between">
-        <h1 className="font-bold text-base">🛍 Marketplace</h1>
+        <Brand />
       </div>
     </header>
   );
