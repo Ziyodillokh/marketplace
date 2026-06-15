@@ -62,6 +62,20 @@ function loadTelegramSdk(): Promise<TgWebApp | null> {
 
 const STEPS = ["Do'kon", 'Tarif', 'Bot'];
 
+/** O'zbek raqamini "+998 98 765 43 21" ko'rinishida formatlaydi. */
+function formatUzPhone(input: string): string {
+  let d = input.replace(/\D/g, '');
+  if (d.startsWith('998')) d = d.slice(3);
+  d = d.slice(0, 9); // operator (2) + raqam (7)
+  if (d.length === 0) return '';
+  let out = '+998';
+  if (d.length > 0) out += ' ' + d.slice(0, 2);
+  if (d.length > 2) out += ' ' + d.slice(2, 5);
+  if (d.length > 5) out += ' ' + d.slice(5, 7);
+  if (d.length > 7) out += ' ' + d.slice(7, 9);
+  return out;
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const setAdmin = useAuthStore((s) => s.setAdmin);
@@ -300,10 +314,11 @@ export default function RegisterPage() {
               <Field label="Telefon raqam *">
                 <Input
                   type="tel"
+                  inputMode="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+998 90 123 45 67"
-                  maxLength={30}
+                  onChange={(e) => setPhone(formatUzPhone(e.target.value))}
+                  placeholder="+998 98 765 43 21"
+                  maxLength={17}
                 />
               </Field>
               <Field label="Biznes turi *">
