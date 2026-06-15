@@ -5,6 +5,7 @@ import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
 import { RolesGuard } from '../admin-auth/roles.guard';
+import { RequireFeature, TariffFeatureGuard } from '../admin-auth/tariff-feature.guard';
 import { AdminAuthModule } from '../admin-auth/admin-auth.module';
 
 class TimeRangeDto {
@@ -32,7 +33,8 @@ function parseRange(dto: TimeRangeDto, defaultDays = 7): { from: Date; to: Date 
 }
 
 @Controller('admin/stats')
-@UseGuards(AdminJwtGuard, RolesGuard)
+@UseGuards(AdminJwtGuard, RolesGuard, TariffFeatureGuard)
+@RequireFeature('analytics')
 class AdminStatsController {
   constructor(private readonly prisma: PrismaService) {}
 

@@ -15,6 +15,7 @@ import {
   apiUpsertSetting,
 } from '@/lib/endpoints';
 import { toast } from '@/stores/toast-store';
+import { TariffUpgrade } from '@/components/tariff-upgrade';
 
 interface StoreSettings {
   name?: string;
@@ -55,6 +56,9 @@ export default function SettingsPage() {
   // Do'kon (tenant) — bot token va tarif
   const { data: storeInfo } = useQuery({ queryKey: ['my-store'], queryFn: apiMyStore });
   const tenant = storeInfo?.tenant ?? null;
+  const limits = storeInfo?.limits;
+  const usage = storeInfo?.usage;
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const [botToken, setBotToken] = useState('');
   const setBot = useMutation({
     mutationFn: () => apiSetStoreBot(botToken.trim()),
@@ -142,7 +146,7 @@ export default function SettingsPage() {
         {tenant && (
           <Card>
             <CardHeader title="Tarif" />
-            <CardBody className="space-y-1 text-sm">
+            <CardBody className="space-y-3 text-sm">
               <p>
                 Joriy tarif:{' '}
                 <span className="font-semibold">
@@ -157,6 +161,35 @@ export default function SettingsPage() {
                   </span>{' '}
                   — tasdiqlanishi bilan faollashadi
                 </p>
+              )}
+              {limits && usage && (
+                <ul className="space-y-1 text-[var(--color-text-muted)]">
+                  <li>
+                    Mahsulotlar: {usage.products} /{' '}
+                    {limits.maxProducts < 0 ? '∞' : limits.maxProducts}
+                  </li>
+                  <li>
+                    Kategoriyalar: {usage.categories} /{' '}
+                    {limits.maxCategories < 0 ? '∞' : limits.maxCategories}
+                  </li>
+                  <li>
+                    Bannerlar: {usage.banners} / {limits.maxBanners < 0 ? '∞' : limits.maxBanners}
+                  </li>
+                  <li>Statistika: {limits.analytics ? '✅' : '🔒'}</li>
+                  <li>Onlayn to&apos;lov: {limits.onlinePayment ? '✅' : '🔒'}</li>
+                  <li>O&apos;z brendingiz: {limits.branding ? '✅' : '🔒'}</li>
+                </ul>
+              )}
+              {showUpgrade ? (
+                <TariffUpgrade
+                  currentPlan={tenant.tariffPlan}
+                  onClose={() => {
+                    setShowUpgrade(false);
+                    qc.invalidateQueries({ queryKey: ['my-store'] });
+                  }}
+                />
+              ) : (
+                <Button onClick={() => setShowUpgrade(true)}>Tarifni yangilash</Button>
               )}
             </CardBody>
           </Card>

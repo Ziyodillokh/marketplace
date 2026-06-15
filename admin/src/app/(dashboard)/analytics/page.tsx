@@ -1,14 +1,18 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Lock } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
 import {
+  apiMyStore,
   apiStatsCartAbandonment,
   apiStatsFunnel,
   apiStatsTopCategories,
@@ -29,22 +33,54 @@ export default function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>('7d');
   const { from, to } = rangeFor(period);
 
+  const { data: store } = useQuery({ queryKey: ['my-store'], queryFn: apiMyStore });
+  // Tenant'siz admin (owner) → ruxsat; tenant bo'lsa tarifga qarab
+  const analyticsAllowed = store ? (store.limits?.analytics ?? true) : undefined;
+  const enabled = analyticsAllowed === true;
+
   const { data: funnel, isLoading: funnelLoading } = useQuery({
     queryKey: ['stats', 'funnel', period],
     queryFn: () => apiStatsFunnel(from, to),
+    enabled,
   });
   const { data: topProducts } = useQuery({
     queryKey: ['stats', 'top-products', 'sales', period],
     queryFn: () => apiStatsTopProducts('sales', from, to, 10),
+    enabled,
   });
   const { data: topCategories } = useQuery({
     queryKey: ['stats', 'top-categories', period],
     queryFn: () => apiStatsTopCategories(from, to),
+    enabled,
   });
   const { data: abandonment } = useQuery({
     queryKey: ['stats', 'cart-abandonment', period],
     queryFn: () => apiStatsCartAbandonment(from, to),
+    enabled,
   });
+
+  if (analyticsAllowed === false) {
+    return (
+      <div>
+        <PageHeader title="Analytics" />
+        <Card>
+          <CardBody className="text-center py-10 space-y-3">
+            <div className="inline-flex h-12 w-12 rounded-2xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] items-center justify-center">
+              <Lock size={22} />
+            </div>
+            <h2 className="text-lg font-bold">Statistika yopiq</h2>
+            <p className="text-sm text-[var(--color-text-muted)] max-w-xs mx-auto">
+              Do&apos;kon statistikasi <b>Standart</b> va undan yuqori tariflarda mavjud. Ochish uchun
+              tarifingizni yangilang.
+            </p>
+            <Link href="/settings" className="inline-block">
+              <Button>Tarifni yangilash</Button>
+            </Link>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div>

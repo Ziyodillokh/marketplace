@@ -6,15 +6,25 @@ import {
   Delete,
   Get,
   HttpCode,
+  ParseFilePipeBuilder,
+  Post,
   Put,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { IsString, MaxLength } from 'class-validator';
-import type { Admin } from '@prisma/client';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { IsEnum, IsString, MaxLength } from 'class-validator';
+import { TariffPlan, type Admin } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { checkBotToken } from '@/common/helpers/telegram-bot-token';
+import { limitsFor } from '@/common/tariff';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
 import { CurrentAdmin } from '../admin-auth/roles.guard';
+import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
+import { PAYMENT_INFO } from '../public/payment-info';
+import { TARIFFS } from '../public/tariffs';
 
 class BotTokenDto {
   @IsString()
@@ -22,17 +32,33 @@ class BotTokenDto {
   botToken!: string;
 }
 
-/** Joriy admin o'z do'koni (tenant) sozlamalarini boshqaradi — bot token va h.k. */
+class UpgradeDto {
+  @IsEnum(TariffPlan)
+  tariffPlan!: TariffPlan;
+}
+
+/** Joriy admin o'z do'koni (tenant): bot token, tarif, limit, yangilash. */
 @Controller('admin/store')
 @UseGuards(AdminJwtGuard)
 export class AdminStoreController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tgbot: TelegramBotService,
+  ) {}
 
   @Get()
   async myStore(@CurrentAdmin() admin: Admin) {
     if (!admin.tenantId) return { tenant: null };
     const t = await this.prisma.tenant.findUnique({ where: { id: admin.tenantId } });
     if (!t) return { tenant: null };
+
+    const limits = limitsFor(t.tariffPlan);
+    const [products, categories, banners] = await Promise.all([
+      this.prisma.product.count(),
+      this.prisma.category.count(),
+      this.prisma.banner.count(),
+    ]);
+
     return {
       tenant: {
         id: t.id,
@@ -45,6 +71,8 @@ export class AdminStoreController {
         botUsername: t.botUsername,
         hasBotToken: !!t.botToken,
       },
+      limits,
+      usage: { products, categories, banners },
     };
   }
 
@@ -74,6 +102,58 @@ export class AdminStoreController {
       where: { id: admin.tenantId },
       data: { botToken: null, botUsername: null },
     });
+    return { ok: true };
+  }
+
+  /** Tarifni yangilash so'rovi — pendingTariff o'rnatadi, to'lov ma'lumotini qaytaradi. */
+  @Post('upgrade')
+  @HttpCode(200)
+  async upgrade(@CurrentAdmin() admin: Admin, @Body() dto: UpgradeDto) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    if (dto.tariffPlan === 'FREE') throw new BadRequestException("Free tarif uchun to'lov shart emas");
+    await this.prisma.tenant.update({
+      where: { id: admin.tenantId },
+      data: { pendingTariff: dto.tariffPlan },
+    });
+    return { ok: true, payment: PAYMENT_INFO };
+  }
+
+  /** To'lov chekini yuklab, admin chatiga tasdiqlash xabarini yuboradi. */
+  @Post('upgrade/receipt')
+  @HttpCode(200)
+  @UseInterceptors(
+    FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } }),
+  )
+  async upgradeReceipt(
+    @CurrentAdmin() admin: Admin,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({ fileType: /image\/(png|jpe?g|webp)/ })
+        .addMaxSizeValidator({ maxSize: 8 * 1024 * 1024 })
+        .build({ fileIsRequired: true }),
+    )
+    file: Express.Multer.File,
+  ) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    const t = await this.prisma.tenant.findUnique({ where: { id: admin.tenantId } });
+    if (!t || !t.pendingTariff) throw new BadRequestException("To'lov kutilayotgan tarif yo'q");
+
+    const tariff = TARIFFS.find((x) => x.value === t.pendingTariff);
+    const caption =
+      `💳 <b>Tarif yangilash — tasdiqlash kerak</b>\n\n` +
+      `👤 Ism: ${t.ownerName}\n` +
+      `📞 Telefon: ${t.ownerPhone ?? '-'}\n` +
+      `🆔 TG ID: <code>${t.ownerTelegramId ?? '-'}</code>\n` +
+      `🏪 Do'kon: ${t.shopName}\n` +
+      `🤖 Bot: ${t.botUsername ? '@' + t.botUsername : '-'}\n` +
+      `💎 Tarif: <b>${tariff?.label ?? t.pendingTariff}</b>` +
+      (tariff ? ` — ${tariff.priceMonthly.toLocaleString('ru-RU')} so'm/oy` : '');
+
+    try {
+      await this.tgbot.sendPaymentReceipt(file.buffer, caption, t.id);
+    } catch {
+      throw new BadRequestException("To'lovni yuborishda xatolik. Keyinroq urinib ko'ring.");
+    }
     return { ok: true };
   }
 }

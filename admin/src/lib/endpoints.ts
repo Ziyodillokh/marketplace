@@ -101,6 +101,19 @@ export const apiSellerUploadLogo = (file: File) => {
   });
 };
 // Joriy admin do'koni (panel ichidan boshqarish)
+export interface TariffLimits {
+  maxCategories: number;
+  maxProducts: number;
+  maxBanners: number;
+  maxImagesPerProduct: number;
+  maxOptionsPerProduct: number;
+  aiImageEnhance: number;
+  aiAutofill: number;
+  analytics: boolean;
+  onlinePayment: boolean;
+  branding: boolean;
+  maxStores: number;
+}
 export interface MyStore {
   tenant: null | {
     id: string;
@@ -113,8 +126,20 @@ export interface MyStore {
     botUsername: string | null;
     hasBotToken: boolean;
   };
+  limits?: TariffLimits;
+  usage?: { products: number; categories: number; banners: number };
 }
 export const apiMyStore = () => api<MyStore>('/admin/store');
+export const apiUpgradeTariff = (tariffPlan: string) =>
+  api<{ ok: boolean; payment: PaymentInfo }>('/admin/store/upgrade', {
+    method: 'POST',
+    body: { tariffPlan },
+  });
+export const apiUploadUpgradeReceipt = (file: File) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  return api<{ ok: boolean }>('/admin/store/upgrade/receipt', { method: 'POST', formData: fd });
+};
 export const apiSetStoreBot = (botToken: string) =>
   api<{ ok: boolean; username?: string }>('/admin/store/bot', { method: 'PUT', body: { botToken } });
 export const apiRemoveStoreBot = () =>
