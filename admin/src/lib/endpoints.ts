@@ -68,9 +68,16 @@ export interface BotCheckResult {
   firstName?: string;
   error?: string;
 }
+export interface PaymentInfo {
+  cards: { type: string; number: string }[];
+  holder: string;
+  channelUrl: string;
+  confirmNote: string;
+}
 export const apiSellerBusinessTypes = () =>
   api<BusinessTypeOption[]>('/public/seller/business-types');
 export const apiSellerTariffs = () => api<TariffOption[]>('/public/seller/tariffs');
+export const apiSellerPaymentInfo = () => api<PaymentInfo>('/public/seller/payment-info');
 export const apiSellerValidateBot = (botToken: string) =>
   api<BotCheckResult>('/public/seller/validate-bot', { method: 'POST', body: { botToken } });
 export const apiSellerMe = (initData: string) =>

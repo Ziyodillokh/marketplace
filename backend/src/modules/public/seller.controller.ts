@@ -85,6 +85,12 @@ export class SellerController {
     return this.service.tariffs();
   }
 
+  /** To'lov ma'lumotlari (pulli tarif tanlanganda). */
+  @Get('payment-info')
+  paymentInfo() {
+    return this.service.paymentInfo();
+  }
+
   /** Bot tokenini tekshirish (onboarding 3-bosqichда). */
   @Post('validate-bot')
   @HttpCode(200)

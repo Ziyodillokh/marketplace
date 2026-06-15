@@ -14,7 +14,8 @@ import {
   verifyTelegramInitData,
 } from '@/common/helpers/telegram-init-data';
 import { BUSINESS_TYPE_OPTIONS } from './business-types';
-import { TARIFFS, trialDaysFor } from './tariffs';
+import { TARIFFS } from './tariffs';
+import { PAYMENT_INFO } from './payment-info';
 
 export interface OnboardInput {
   shopName: string;
@@ -63,6 +64,10 @@ export class SellerOnboardingService {
 
   tariffs() {
     return TARIFFS;
+  }
+
+  paymentInfo() {
+    return PAYMENT_INFO;
   }
 
   /** Sotuvchi bot tokenini Telegram getMe orqali tekshiradi. */
@@ -154,10 +159,9 @@ export class SellerOnboardingService {
       }
     }
 
-    // Tarif sinovi — pulli tariflarda trialDays kun
-    const trialDays = trialDaysFor(dto.tariffPlan);
-    const isOnTrial = trialDays > 0;
-    const trialEndsAt = isOnTrial ? new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000) : null;
+    // Pulli tarif tanlansa — faol tarif FREE bo'lib turadi, so'ralgan tarif
+    // to'lov tasdiqlanguncha pendingTariff sifatida saqlanadi.
+    const isPaid = dto.tariffPlan !== 'FREE';
 
     const tenant = await this.prisma.$transaction(async (tx) => {
       const t = await tx.tenant.create({
@@ -169,9 +173,8 @@ export class SellerOnboardingService {
           ownerTelegramId: telegramId,
           businessType: dto.businessType,
           logoUrl: dto.logoUrl?.trim() || null,
-          tariffPlan: dto.tariffPlan,
-          isOnTrial,
-          trialEndsAt,
+          tariffPlan: 'FREE',
+          pendingTariff: isPaid ? dto.tariffPlan : null,
           botToken,
           botUsername,
           status: 'ACTIVE',

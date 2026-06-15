@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Upload, Store, Bot, Crown } from 'lucide-react';
+import { Check, Upload, Store, Bot, Crown, Copy, CreditCard, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
 import { PickerSelect } from '@/components/picker-select';
@@ -15,11 +15,13 @@ import {
   apiSellerBusinessTypes,
   apiSellerMe,
   apiSellerOnboard,
+  apiSellerPaymentInfo,
   apiSellerTariffs,
   apiSellerUploadLogo,
   apiSellerValidateBot,
   apiTelegramLogin,
   type BusinessTypeOption,
+  type PaymentInfo,
   type TariffOption,
 } from '@/lib/endpoints';
 
@@ -81,12 +83,13 @@ export default function RegisterPage() {
   const router = useRouter();
   const setAdmin = useAuthStore((s) => s.setAdmin);
 
-  const [phase, setPhase] = useState<'loading' | 'wizard' | 'no-telegram'>('loading');
+  const [phase, setPhase] = useState<'loading' | 'wizard' | 'no-telegram' | 'payment'>('loading');
   const [step, setStep] = useState(1);
   const [initData, setInitData] = useState('');
 
   const [types, setTypes] = useState<BusinessTypeOption[]>([]);
   const [tariffs, setTariffs] = useState<TariffOption[]>([]);
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
 
   // Step 1
   const [shopName, setShopName] = useState('');
@@ -124,6 +127,7 @@ export default function RegisterPage() {
 
       apiSellerBusinessTypes().then((t) => !cancelled && setTypes(t)).catch(() => undefined);
       apiSellerTariffs().then((t) => !cancelled && setTariffs(t)).catch(() => undefined);
+      apiSellerPaymentInfo().then((p) => !cancelled && setPaymentInfo(p)).catch(() => undefined);
 
       try {
         const profile = await apiSellerMe(id);
@@ -215,14 +219,32 @@ export default function RegisterPage() {
       const res = await apiTelegramLogin(initData);
       setAccessToken(res.accessToken);
       setAdmin(res.admin);
-      toast.success("Do'koningiz yaratildi! 🎉");
-      router.replace('/');
+
+      if (tariff !== 'FREE') {
+        // Pulli tarif — to'lov sahifasiga o'tamiz (do'kon hozircha Free'da)
+        toast.success("Do'koningiz yaratildi! 🎉");
+        setPhase('payment');
+      } else {
+        toast.success("Do'koningiz yaratildi! 🎉");
+        router.replace('/');
+      }
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
       setSubmitting(false);
     }
   }
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Nusxa olindi');
+    } catch {
+      toast.error('Nusxa olishda xato');
+    }
+  }
+
+  const selectedTariff = tariffs.find((t) => t.value === tariff);
 
   if (phase === 'loading') {
     return (
@@ -245,6 +267,89 @@ export default function RegisterPage() {
           <a href={BOT_URL} className="inline-block">
             <Button>Sellio botini ochish</Button>
           </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'payment') {
+    return (
+      <div className="min-h-dvh px-4 py-8 bg-gradient-to-br from-[var(--color-bg)] to-blue-50">
+        <div className="w-full max-w-md mx-auto">
+          <div className="flex flex-col items-center mb-5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Sellio" className="h-11 w-11 object-contain mb-2" />
+            <h1 className="text-xl font-bold tracking-tight">To'lov</h1>
+            <p className="text-sm text-[var(--color-text-muted)]">Tarifni faollashtirish uchun</p>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-[var(--color-border)] p-6 shadow-sm space-y-4">
+            {selectedTariff && (
+              <div className="rounded-2xl bg-[var(--color-primary)]/[0.05] border border-[var(--color-primary)]/20 p-4">
+                <p className="text-xs text-[var(--color-text-muted)]">Tanlangan tarif</p>
+                <p className="font-bold">{selectedTariff.label}</p>
+                <p className="text-2xl font-extrabold tracking-tight mt-0.5">
+                  {selectedTariff.priceMonthly.toLocaleString('ru-RU')}
+                  <span className="text-sm font-medium text-[var(--color-text-muted)]"> so'm/oy</span>
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <CreditCard size={18} className="text-[var(--color-primary)]" />
+              <h2 className="font-semibold">Karta orqali to'lov</h2>
+            </div>
+
+            <div className="space-y-2">
+              {paymentInfo?.cards.map((c, i) => (
+                <div
+                  key={`${c.type}-${i}`}
+                  className="flex items-center justify-between rounded-xl border border-[var(--color-border)] p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs text-[var(--color-text-muted)]">{c.type}</p>
+                    <p className="font-mono font-semibold tracking-wider">{c.number}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copyText(c.number.replace(/\s/g, ''))}
+                    className="h-9 w-9 grid place-items-center rounded-full border border-[var(--color-border)] text-[var(--color-text-muted)] shrink-0"
+                    aria-label="Nusxa olish"
+                  >
+                    <Copy size={16} />
+                  </button>
+                </div>
+              ))}
+              {paymentInfo && (
+                <div className="rounded-xl border border-[var(--color-border)] p-3">
+                  <p className="text-xs text-[var(--color-text-muted)]">Karta egasi</p>
+                  <p className="font-semibold">{paymentInfo.holder}</p>
+                </div>
+              )}
+            </div>
+
+            {paymentInfo && (
+              <p className="text-[13px] text-[var(--color-text-muted)] leading-relaxed">
+                {paymentInfo.confirmNote}
+              </p>
+            )}
+
+            {paymentInfo && (
+              <a href={paymentInfo.channelUrl} target="_blank" rel="noopener noreferrer" className="block">
+                <Button fullWidth size="lg">
+                  <Send size={16} /> Chekni kanalga yuborish
+                </Button>
+              </a>
+            )}
+
+            <button
+              type="button"
+              onClick={() => router.replace('/')}
+              className="w-full text-center text-sm text-[var(--color-text-muted)] py-1"
+            >
+              Hozircha tekin versiyada davom etish →
+            </button>
+          </div>
         </div>
       </div>
     );
