@@ -3,7 +3,7 @@
 ## 🌐 Live
 
 - **WebApp:** https://marketplace.yuksalish.dev
-- **Admin:** https://marketplace.yuksalish.dev/admin (admin@marketplace.yuksalish.dev / Marketplace2026!)
+- **Admin:** https://marketplace.yuksalish.dev/admin (credentials `backend/.env` ichida — public yozilmaydi)
 - **API:** https://marketplace.yuksalish.dev/api/*
 - **Bot:** @savora_aibot
 - **Server:** 104.248.25.130 (DigitalOcean Frankfurt)
@@ -159,7 +159,6 @@ Agar nimadir buzilsa:
 
 ## 👥 Admin credentials
 
-- Email: `admin@marketplace.yuksalish.dev`
-- Password: `Marketplace2026!`
+Credentials initial deploy paytida `backend/.env` da `ADMIN_BOOTSTRAP_EMAIL` va `ADMIN_BOOTSTRAP_PASSWORD` orqali beriladi va birinchi ishga tushishda DB'ga seed qilinadi. Ular **HECH QACHON GitHub'ga commit qilinmaydi**.
 
-> **MUHIM:** Ishlatishni boshlashdan oldin parolni o'zgartiring (`/admins` sahifasi orqali yoki DB'da `passwordHash`).
+> **MUHIM:** Bootstrap parolni darhol almashtiring — `/admins` sahifasi yoki DB'da `passwordHash` orqali. Eski parolda ishlash xavfli (yopiq qoldirilgan plaintext credential — kim biri o'qishi mumkin).

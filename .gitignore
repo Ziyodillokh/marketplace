@@ -30,4 +30,23 @@ tsconfig.tsbuildinfo
 **/.env
 **/.env.local
 **/.env.production
+**/.env.OLD*
+**/.env.BAK*
+**/.env.bak*
+**/.env.backup*
+**/*.OLD.*
 .claude/
+
+# SSH keys, private credentials — must never be committed
+**/id_rsa
+**/id_ed25519
+**/*.pem
+**/*.key
+**/authorized_keys
+**/known_hosts
+**/yuksalish_deploy*
+:USERPROFILE*
+
+# Local secrets folder
+secrets/
+**/secrets/
