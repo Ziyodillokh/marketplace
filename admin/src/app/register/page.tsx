@@ -16,6 +16,7 @@ import {
   apiSellerMe,
   apiSellerOnboard,
   apiSellerPaymentInfo,
+  apiSellerSubmitPayment,
   apiSellerTariffs,
   apiSellerUploadLogo,
   apiSellerValidateBot,
@@ -106,6 +107,12 @@ export default function RegisterPage() {
   const [checkingBot, setCheckingBot] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
+
+  // To'lov bosqichi
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [sendingReceipt, setSendingReceipt] = useState(false);
+  const [receiptSent, setReceiptSent] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -244,6 +251,29 @@ export default function RegisterPage() {
     }
   }
 
+  function onPickReceipt(file: File | undefined) {
+    if (!file) return;
+    setReceiptFile(file);
+    setReceiptPreview(URL.createObjectURL(file));
+  }
+
+  async function submitReceipt() {
+    if (!receiptFile) {
+      toast.error('Chek rasmini tanlang');
+      return;
+    }
+    setSendingReceipt(true);
+    try {
+      await apiSellerSubmitPayment(initData, receiptFile);
+      setReceiptSent(true);
+      toast.success('Chek yuborildi! Tasdiqlashni kuting.');
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSendingReceipt(false);
+    }
+  }
+
   const selectedTariff = tariffs.find((t) => t.value === tariff);
 
   if (phase === 'loading') {
@@ -334,12 +364,52 @@ export default function RegisterPage() {
               </p>
             )}
 
-            {paymentInfo && (
-              <a href={paymentInfo.channelUrl} target="_blank" rel="noopener noreferrer" className="block">
-                <Button fullWidth size="lg">
-                  <Send size={16} /> Chekni kanalga yuborish
+            {receiptSent ? (
+              <div className="rounded-2xl bg-green-50 border border-green-200 p-4 text-center">
+                <div className="inline-flex h-10 w-10 rounded-full bg-green-500 text-white items-center justify-center mb-2">
+                  <Check size={20} />
+                </div>
+                <p className="font-semibold text-green-700">Chek yuborildi!</p>
+                <p className="text-[13px] text-green-700/80 mt-1">
+                  Tasdiqlash 2–30 daqiqa davom etadi. Tasdiqlanguncha tekin versiyadan
+                  foydalanib turing.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 pt-1">
+                  <Send size={18} className="text-[var(--color-primary)]" />
+                  <h2 className="font-semibold">To'lov chekini yuboring</h2>
+                </div>
+                <label className="flex items-center gap-3 h-16 px-3 rounded-xl border border-dashed border-[var(--color-border)] bg-white cursor-pointer">
+                  {receiptPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={receiptPreview} alt="chek" className="h-12 w-12 rounded-lg object-cover" />
+                  ) : (
+                    <span className="inline-flex h-12 w-12 rounded-lg bg-[var(--color-bg)] items-center justify-center text-[var(--color-text-muted)]">
+                      <Upload size={20} />
+                    </span>
+                  )}
+                  <span className="text-sm text-[var(--color-text-muted)] truncate">
+                    {receiptFile ? receiptFile.name : 'Chek rasmini tanlash (PNG/JPG)'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={(e) => onPickReceipt(e.target.files?.[0])}
+                  />
+                </label>
+                <Button
+                  fullWidth
+                  size="lg"
+                  loading={sendingReceipt}
+                  disabled={!receiptFile}
+                  onClick={submitReceipt}
+                >
+                  Tasdiqlashga yuborish
                 </Button>
-              </a>
+              </>
             )}
 
             <button
@@ -347,7 +417,7 @@ export default function RegisterPage() {
               onClick={() => router.replace('/')}
               className="w-full text-center text-sm text-[var(--color-text-muted)] py-1"
             >
-              Hozircha tekin versiyada davom etish →
+              {receiptSent ? 'Panelga o\'tish →' : 'Hozircha tekin versiyada davom etish →'}
             </button>
           </div>
         </div>

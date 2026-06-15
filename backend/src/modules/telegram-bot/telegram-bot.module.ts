@@ -3,10 +3,16 @@ import { TelegramBotService } from './telegram-bot.service';
 import { TelegramWebhookController } from './telegram-webhook.controller';
 import { TelegramOrdersListener } from './telegram-orders.listener';
 import { TelegramSupportListener } from './telegram-support.listener';
+import { TelegramPaymentsListener } from './telegram-payments.listener';
 
 @Module({
   controllers: [TelegramWebhookController],
-  providers: [TelegramBotService, TelegramOrdersListener, TelegramSupportListener],
+  providers: [
+    TelegramBotService,
+    TelegramOrdersListener,
+    TelegramSupportListener,
+    TelegramPaymentsListener,
+  ],
   exports: [TelegramBotService],
 })
 export class TelegramBotModule {}

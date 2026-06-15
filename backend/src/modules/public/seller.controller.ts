@@ -122,6 +122,30 @@ export class SellerController {
     });
   }
 
+  /** To'lov chekini yuklash + admin chatiga tasdiqlash so'rovini yuborish. */
+  @Post('payment-request')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 15, ttl: 60 * 60 * 1000 } })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 8 * 1024 * 1024 },
+    }),
+  )
+  async paymentRequest(
+    @Body() dto: InitDataDto,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({ fileType: /image\/(png|jpe?g|webp)/ })
+        .addMaxSizeValidator({ maxSize: 8 * 1024 * 1024 })
+        .build({ fileIsRequired: true }),
+    )
+    file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Chek rasmi kerak');
+    return this.service.submitPaymentReceipt(dto.initData, file.buffer);
+  }
+
   /** Logo yuklash (ixtiyoriy) — onboarding'dan oldin. URL qaytaradi. */
   @Post('logo')
   @HttpCode(200)

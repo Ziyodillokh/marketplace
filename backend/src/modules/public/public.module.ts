@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { UploadsModule } from '../uploads/uploads.module';
+import { TelegramBotModule } from '../telegram-bot/telegram-bot.module';
 import { SellerController } from './seller.controller';
 import { SellerOnboardingService } from './seller.service';
 
 @Module({
-  imports: [UploadsModule],
+  imports: [UploadsModule, TelegramBotModule],
   controllers: [SellerController],
   providers: [SellerOnboardingService],
 })

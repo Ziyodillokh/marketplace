@@ -100,6 +100,15 @@ export const apiSellerUploadLogo = (file: File) => {
     formData: fd,
   });
 };
+export const apiSellerSubmitPayment = (initData: string, file: File) => {
+  const fd = new FormData();
+  fd.append('initData', initData);
+  fd.append('file', file);
+  return api<{ ok: boolean }>('/public/seller/payment-request', {
+    method: 'POST',
+    formData: fd,
+  });
+};
 
 // Products
 export const apiListAdminProducts = (params: { q?: string; categoryId?: string; status?: string; cursor?: string; limit?: number }) =>

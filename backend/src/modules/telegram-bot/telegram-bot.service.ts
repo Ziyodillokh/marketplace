@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Bot, InlineKeyboard, webhookCallback } from 'grammy';
+import { Bot, InlineKeyboard, InputFile, webhookCallback } from 'grammy';
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
@@ -9,6 +9,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   private readonly useWebhook: boolean;
   private readonly adminPanelUrl: string;
   private readonly ordersChannelId: string;
+  private readonly paymentsChatId: string;
   private readonly botUsername: string;
 
   constructor(private readonly config: ConfigService) {
@@ -22,6 +23,9 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       this.config.get<string>('ADMIN_PANEL_URL') ??
       `${(this.config.get<string>('ADMIN_URL') ?? '').replace(/\/$/, '')}/register`;
     this.ordersChannelId = this.config.getOrThrow<string>('TELEGRAM_ORDERS_CHANNEL_ID');
+    // To'lov tasdiqlash xabarlari shu chatga boradi (berilmasa orders kanaliga)
+    this.paymentsChatId =
+      this.config.get<string>('TELEGRAM_PAYMENTS_CHAT_ID') ?? this.ordersChannelId;
     this.botUsername = this.config.getOrThrow<string>('TELEGRAM_BOT_USERNAME');
     this.registerHandlers();
   }
@@ -180,6 +184,16 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       this.callbackEmitter?.emit('callback', { action, orderId, ctx });
       await ctx.answerCallbackQuery({ text: '✓' });
     });
+
+    // To'lovni tasdiqlash / bekor qilish tugmalari
+    this.bot.callbackQuery(/^pay:(approve|reject):(.+)$/, async (ctx) => {
+      const match = ctx.match;
+      if (!match) return;
+      const action = match[1];
+      const tenantId = match[2];
+      this.callbackEmitter?.emit('payment-callback', { action, tenantId, ctx });
+      await ctx.answerCallbackQuery({ text: action === 'approve' ? '✅' : '❌' });
+    });
   }
 
   private callbackEmitter?: { emit: (event: string, data: unknown) => void };
@@ -189,6 +203,23 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
 
   webhookHandler() {
     return webhookCallback(this.bot, 'express');
+  }
+
+  /** To'lov chekini (rasm) tasdiqlash chatiga tugmalar bilan yuboradi. */
+  async sendPaymentReceipt(
+    photo: Buffer,
+    caption: string,
+    tenantId: string,
+  ): Promise<{ messageId: number }> {
+    const keyboard = new InlineKeyboard()
+      .text('✅ Tasdiqlash', `pay:approve:${tenantId}`)
+      .text('❌ Bekor qilish', `pay:reject:${tenantId}`);
+    const msg = await this.bot.api.sendPhoto(this.paymentsChatId, new InputFile(photo, 'chek.jpg'), {
+      caption,
+      parse_mode: 'HTML',
+      reply_markup: keyboard,
+    });
+    return { messageId: msg.message_id };
   }
 
   async sendToOrdersChannel(text: string, replyMarkup?: InlineKeyboard): Promise<{ messageId: number }> {

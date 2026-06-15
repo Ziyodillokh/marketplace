@@ -16,6 +16,7 @@ import {
 import { BUSINESS_TYPE_OPTIONS } from './business-types';
 import { TARIFFS } from './tariffs';
 import { PAYMENT_INFO } from './payment-info';
+import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 
 export interface OnboardInput {
   shopName: string;
@@ -54,8 +55,40 @@ export class SellerOnboardingService {
   private readonly logger = new Logger(SellerOnboardingService.name);
   private readonly botToken: string;
 
-  constructor(private readonly prisma: PrismaService, config: ConfigService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tgbot: TelegramBotService,
+    config: ConfigService,
+  ) {
     this.botToken = config.get<string>('TELEGRAM_BOT_TOKEN') ?? '';
+  }
+
+  /** To'lov chekini yuklab, admin chatiga tasdiqlash xabarini yuboradi. */
+  async submitPaymentReceipt(initData: string, receipt: Buffer): Promise<{ ok: true }> {
+    const parsed = this.verify(initData);
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { ownerTelegramId: BigInt(parsed.user.id) },
+    });
+    if (!tenant) throw new BadRequestException("Do'kon topilmadi");
+    if (!tenant.pendingTariff) {
+      throw new BadRequestException("To'lov kutilayotgan tarif yo'q");
+    }
+
+    const tariff = TARIFFS.find((t) => t.value === tenant.pendingTariff);
+    const username = parsed.user.username ? `@${parsed.user.username}` : '-';
+    const caption =
+      `💳 <b>Yangi to'lov — tasdiqlash kerak</b>\n\n` +
+      `👤 Ism: ${tenant.ownerName}\n` +
+      `📞 Telefon: ${tenant.ownerPhone ?? '-'}\n` +
+      `🆔 TG ID: <code>${parsed.user.id}</code>\n` +
+      `👤 Username: ${username}\n` +
+      `🏪 Do'kon: ${tenant.shopName}\n` +
+      `🤖 Bot: ${tenant.botUsername ? '@' + tenant.botUsername : '-'}\n` +
+      `💎 Tarif: <b>${tariff?.label ?? tenant.pendingTariff}</b>` +
+      (tariff ? ` — ${tariff.priceMonthly.toLocaleString('ru-RU')} so'm/oy` : '');
+
+    await this.tgbot.sendPaymentReceipt(receipt, caption, tenant.id);
+    return { ok: true };
   }
 
   businessTypes() {
