@@ -22,14 +22,14 @@ export function CardHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)]">
-      <div className="min-w-0">
-        <h2 className="font-semibold text-sm">{title}</h2>
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 border-b border-[var(--color-border)]">
+      <div className="min-w-0 flex-1">
+        <h2 className="font-semibold text-sm whitespace-nowrap truncate">{title}</h2>
         {subtitle && (
-          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{subtitle}</p>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">{subtitle}</p>
         )}
       </div>
-      {action}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }

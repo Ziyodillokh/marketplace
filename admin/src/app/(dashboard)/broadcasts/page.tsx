@@ -102,8 +102,8 @@ export default function BroadcastsPage() {
   return (
     <div>
       <PageHeader
-        title="Xabarnomalar (Broadcasts)"
-        description="Filter qo'yib foydalanuvchilarga ommaviy xabar yuborish"
+        title="Xabarnomalar"
+        description="Foydalanuvchilarga ommaviy xabar yuborish"
         rightSlot={
           <Button size="sm" onClick={() => setOpen(true)}>
             <Plus size={16} /> Yangi xabar

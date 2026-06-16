@@ -18,7 +18,7 @@ export function PageHeader({
   const router = useRouter();
   return (
     <div className="flex items-start justify-between gap-3 mb-4">
-      <div className="flex items-start gap-2 min-w-0">
+      <div className="flex items-start gap-2 min-w-0 flex-1">
         {backHref !== undefined && (
           <button
             onClick={() => (backHref ? router.push(backHref) : router.back())}
@@ -27,9 +27,13 @@ export function PageHeader({
             <ChevronLeft size={18} />
           </button>
         )}
-        <div className="min-w-0">
-          <h1 className="text-lg md:text-xl font-bold truncate">{title}</h1>
-          {description && <p className="text-xs text-[var(--color-text-muted)] truncate mt-0.5">{description}</p>}
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg md:text-xl font-bold leading-tight">{title}</h1>
+          {description && (
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5 leading-snug">
+              {description}
+            </p>
+          )}
         </div>
       </div>
       {rightSlot && <div className="flex items-center gap-2 shrink-0">{rightSlot}</div>}

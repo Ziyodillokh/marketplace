@@ -58,8 +58,8 @@ export default function RelatedRulesPage() {
   return (
     <div>
       <PageHeader
-        title="Related rules"
-        description="Bog'liq mahsulotlar qoidalari (kategoriya → kategoriya)"
+        title="Bog'liq qoidalar"
+        description="Kategoriya bo'yicha bog'liq mahsulotlar"
         rightSlot={<Button size="sm" onClick={() => setOpen(true)}><Plus size={16} /> Yangi</Button>}
       />
 

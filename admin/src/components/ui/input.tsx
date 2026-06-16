@@ -1,5 +1,6 @@
 'use client';
 import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input(
@@ -41,17 +42,24 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(
   function Select({ className, children, ...rest }, ref) {
     return (
-      <select
-        ref={ref}
-        className={cn(
-          'w-full h-11 px-3 rounded-xl border border-[var(--color-border)] bg-white text-sm',
-          'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent',
-          className,
-        )}
-        {...rest}
-      >
-        {children}
-      </select>
+      <div className="relative w-full">
+        <select
+          ref={ref}
+          className={cn(
+            'w-full h-11 pl-3 pr-9 rounded-xl border border-[var(--color-border)] bg-white text-sm',
+            'appearance-none cursor-pointer',
+            'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent',
+            className,
+          )}
+          {...rest}
+        >
+          {children}
+        </select>
+        <ChevronDown
+          size={16}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none"
+        />
+      </div>
     );
   },
 );
