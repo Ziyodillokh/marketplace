@@ -34,7 +34,6 @@ function parseRange(dto: TimeRangeDto, defaultDays = 7): { from: Date; to: Date 
 
 @Controller('admin/stats')
 @UseGuards(AdminJwtGuard, RolesGuard, TariffFeatureGuard)
-@RequireFeature('analytics')
 class AdminStatsController {
   constructor(private readonly prisma: PrismaService) {}
 
@@ -114,6 +113,7 @@ class AdminStatsController {
   }
 
   @Get('timeseries')
+  @RequireFeature('analytics')
   async timeseries(@Query() dto: TimeRangeDto) {
     const { from, to } = parseRange(dto, 30);
     const rows = await this.prisma.$queryRaw<
@@ -204,6 +204,7 @@ class AdminStatsController {
   }
 
   @Get('funnel')
+  @RequireFeature('analytics')
   async funnel(@Query() dto: TimeRangeDto) {
     const { from, to } = parseRange(dto, 7);
     const rows = await this.prisma.$queryRaw<
@@ -239,6 +240,7 @@ class AdminStatsController {
   }
 
   @Get('top-categories')
+  @RequireFeature('analytics')
   async topCategories(@Query() dto: TimeRangeDto) {
     const { from, to } = parseRange(dto, 7);
     const rows = await this.prisma.$queryRaw<
@@ -269,6 +271,7 @@ class AdminStatsController {
   }
 
   @Get('cart-abandonment')
+  @RequireFeature('analytics')
   async cartAbandonment(@Query() dto: TimeRangeDto) {
     const { from, to } = parseRange(dto, 14);
     const rows = await this.prisma.$queryRaw<
