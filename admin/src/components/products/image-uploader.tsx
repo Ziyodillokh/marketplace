@@ -2,8 +2,8 @@
 
 import Image from 'next/image';
 import { useRef, useState } from 'react';
-import { Upload, X } from 'lucide-react';
-import { apiUploadImage } from '@/lib/endpoints';
+import { Upload, X, Sparkles } from 'lucide-react';
+import { apiAiEnhanceImage, apiUploadImage } from '@/lib/endpoints';
 import { toast } from '@/stores/toast-store';
 
 export function ImageUploader({
@@ -15,6 +15,20 @@ export function ImageUploader({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [enhancingIdx, setEnhancingIdx] = useState<number | null>(null);
+
+  async function enhance(i: number) {
+    setEnhancingIdx(i);
+    try {
+      const res = await apiAiEnhanceImage(images[i].url);
+      onChange(images.map((img, idx) => (idx === i ? { url: res.url } : img)));
+      toast.success('Rasm yaxshilandi');
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setEnhancingIdx(null);
+    }
+  }
 
   async function handleFiles(files: FileList) {
     setUploading(true);
@@ -49,6 +63,19 @@ export function ImageUploader({
               className="absolute top-1 right-1 h-6 w-6 grid place-items-center rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100"
             >
               <X size={12} />
+            </button>
+            <button
+              type="button"
+              onClick={() => enhance(i)}
+              disabled={enhancingIdx !== null}
+              title="AI bilan yaxshilash"
+              className="absolute top-1 left-1 h-6 w-6 grid place-items-center rounded-full bg-[var(--color-primary)] text-white opacity-0 group-hover:opacity-100 disabled:opacity-100"
+            >
+              {enhancingIdx === i ? (
+                <span className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+              ) : (
+                <Sparkles size={12} />
+              )}
             </button>
             {i === 0 && (
               <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-[var(--color-primary)] text-white text-[10px] font-medium">

@@ -26,6 +26,10 @@ class AutofillDto {
   @IsOptional() @IsString() @MaxLength(500) imageUrl?: string;
 }
 
+class EnhanceDto {
+  @IsOptional() @IsString() @MaxLength(500) imageUrl?: string;
+}
+
 @Controller('admin/ai')
 @UseGuards(AdminJwtGuard)
 export class AiController {
@@ -130,16 +134,27 @@ export class AiController {
   )
   async enhance(
     @CurrentAdmin() admin: Admin,
+    @Body() dto: EnhanceDto,
     @UploadedFile(
       new ParseFilePipeBuilder()
         .addFileTypeValidator({ fileType: /image\/(png|jpe?g|webp)/ })
         .addMaxSizeValidator({ maxSize: 8 * 1024 * 1024 })
-        .build({ fileIsRequired: true }),
+        .build({ fileIsRequired: false }),
     )
-    file: Express.Multer.File,
+    file?: Express.Multer.File,
   ) {
+    let source: Buffer;
+    if (file) {
+      source = file.buffer;
+    } else if (dto.imageUrl?.trim()) {
+      const r = await fetch(dto.imageUrl.trim());
+      if (!r.ok) throw new BadRequestException('Rasmni yuklab bo\'lmadi');
+      source = Buffer.from(await r.arrayBuffer());
+    } else {
+      throw new BadRequestException('Rasm kerak');
+    }
     await this.assertQuota(admin.tenantId, AIOperation.IMAGE_ENHANCE, 'aiImageEnhance');
-    const { buffer, model } = await this.openai.enhanceImage(file.buffer);
+    const { buffer, model } = await this.openai.enhanceImage(source);
     const saved = await this.uploads.saveImage(buffer);
     await this.record(admin.tenantId, AIOperation.IMAGE_ENHANCE, model, { imagesCount: 1 });
     return { url: saved.url, thumbUrl: saved.thumbUrl };

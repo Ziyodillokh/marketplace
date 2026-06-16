@@ -175,14 +175,11 @@ export const apiAiAutofill = (body: { imageUrl?: string; hint?: string }) =>
     '/admin/ai/autofill',
     { method: 'POST', body },
   );
-export const apiAiEnhanceImage = (file: File) => {
-  const fd = new FormData();
-  fd.append('file', file);
-  return api<{ url: string; thumbUrl: string }>('/admin/ai/enhance-image', {
+export const apiAiEnhanceImage = (imageUrl: string) =>
+  api<{ url: string; thumbUrl: string }>('/admin/ai/enhance-image', {
     method: 'POST',
-    formData: fd,
+    body: { imageUrl },
   });
-};
 
 // Products
 export const apiListAdminProducts = (params: { q?: string; categoryId?: string; status?: string; cursor?: string; limit?: number }) =>
