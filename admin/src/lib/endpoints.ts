@@ -129,6 +129,7 @@ export interface MyStore {
     address: string | null;
     workingHours: string | null;
     about: string | null;
+    customersCount: number;
   };
   limits?: TariffLimits;
   usage?: { products: number; categories: number; banners: number };

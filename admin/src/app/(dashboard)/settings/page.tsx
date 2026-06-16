@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Info, ShoppingCart, Truck, Gift } from 'lucide-react';
+import { Info, ShoppingCart, Truck, Gift, Bot, Users as UsersIcon } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input, Select, Textarea } from '@/components/ui/input';
@@ -188,17 +188,53 @@ export default function SettingsPage() {
             <CardHeader title="Telegram bot" />
             <CardBody className="space-y-3">
               {tenant.botUsername ? (
-                <div className="flex items-center justify-between rounded-xl border border-[var(--color-border)] p-3">
-                  <div>
-                    <p className="text-xs text-[var(--color-text-muted)]">Ulangan bot</p>
-                    <p className="font-semibold">@{tenant.botUsername}</p>
+                <div className="rounded-2xl border border-[var(--color-border)] overflow-hidden">
+                  <div className="flex items-center gap-3 p-4 bg-gradient-to-br from-[var(--color-primary)]/10 to-blue-50">
+                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[var(--color-primary)] to-blue-500 text-white grid place-items-center shrink-0 shadow-sm">
+                      <Bot size={26} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold truncate">@{tenant.botUsername}</p>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full shrink-0">
+                          <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> Faol
+                        </span>
+                      </div>
+                      <a
+                        href={`https://t.me/${tenant.botUsername}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-[var(--color-primary)]"
+                      >
+                        t.me/{tenant.botUsername}
+                      </a>
+                    </div>
                   </div>
-                  <Button variant="secondary" loading={removeBot.isPending} onClick={() => removeBot.mutate()}>
-                    O&apos;chirish
-                  </Button>
+                  <div className="grid grid-cols-2 divide-x divide-[var(--color-border)] border-t border-[var(--color-border)]">
+                    <div className="px-4 py-3 text-center">
+                      <p className="text-lg font-extrabold leading-none">{tenant.customersCount}</p>
+                      <p className="text-[11px] text-[var(--color-text-muted)] mt-1 flex items-center justify-center gap-1">
+                        <UsersIcon size={12} /> Mijozlar
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => removeBot.mutate()}
+                      disabled={removeBot.isPending}
+                      className="px-4 py-3 text-center text-[var(--color-danger)] text-sm font-medium hover:bg-red-50 disabled:opacity-50"
+                    >
+                      Botni uzish
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <p className="text-sm text-[var(--color-text-muted)]">Hozircha bot ulanmagan.</p>
+                <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-5 text-center">
+                  <div className="inline-flex h-12 w-12 rounded-2xl bg-[var(--color-bg)] text-[var(--color-text-muted)] items-center justify-center mb-2">
+                    <Bot size={24} />
+                  </div>
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    Hozircha bot ulanmagan. Pastdan tokeningizni kiriting.
+                  </p>
+                </div>
               )}
               <Field
                 label={tenant.botUsername ? 'Botni almashtirish' : 'Bot token'}

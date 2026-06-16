@@ -66,10 +66,13 @@ export class AdminStoreController {
 
     const limits = limitsFor(t.tariffPlan);
     // Faqat shu sotuvchiga tegishli (o'z do'koni) sonlar
-    const [products, categories, banners] = await Promise.all([
+    const [products, categories, banners, customers] = await Promise.all([
       this.prisma.product.count({ where: { tenantId: t.id } }),
       this.prisma.category.count({ where: { tenantId: t.id } }),
       this.prisma.banner.count({ where: { tenantId: t.id } }),
+      this.prisma.order
+        .findMany({ where: { tenantId: t.id }, distinct: ['userId'], select: { userId: true } })
+        .then((r) => r.length),
     ]);
 
     return {
@@ -87,6 +90,7 @@ export class AdminStoreController {
         address: t.address,
         workingHours: t.workingHours,
         about: t.about,
+        customersCount: customers,
       },
       limits,
       usage: { products, categories, banners },
