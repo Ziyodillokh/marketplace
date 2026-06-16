@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { apiStatsTimeseries } from '@/lib/endpoints';
-import { Card, CardHeader } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/cn';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -31,25 +31,25 @@ export function TimeseriesChart() {
 
   return (
     <Card>
-      <CardHeader
-        title="So'nggi 30 kun"
-        action={
-          <div className="flex items-center gap-1">
-            {(['orders', 'revenue', 'visitors'] as Metric[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMetric(m)}
-                className={cn(
-                  'h-7 px-2.5 rounded-md text-xs font-medium',
-                  metric === m ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-muted)] hover:bg-gray-50',
-                )}
-              >
-                {METRIC_LABEL[m]}
-              </button>
-            ))}
-          </div>
-        }
-      />
+      <div className="px-4 py-3 border-b border-[var(--color-border)]">
+        <h2 className="font-semibold text-sm mb-2">So&apos;nggi 30 kun</h2>
+        <div className="flex items-center gap-1 overflow-x-auto -mx-1 px-1">
+          {(['orders', 'revenue', 'visitors'] as Metric[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMetric(m)}
+              className={cn(
+                'h-7 px-2.5 rounded-md text-xs font-medium whitespace-nowrap shrink-0',
+                metric === m
+                  ? 'bg-[var(--color-primary)] text-white'
+                  : 'text-[var(--color-text-muted)] hover:bg-gray-50',
+              )}
+            >
+              {METRIC_LABEL[m]}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="p-3 h-64">
         {isLoading || !data ? (
           <Skeleton className="h-full w-full" />
