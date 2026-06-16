@@ -4,6 +4,7 @@ import {
   ConflictException,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   ParseFilePipeBuilder,
@@ -19,7 +20,7 @@ import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { TariffPlan, type Admin } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { checkBotToken } from '@/common/helpers/telegram-bot-token';
-import { limitsFor } from '@/common/tariff';
+import { limitsFor, hasFeature } from '@/common/tariff';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
 import { CurrentAdmin } from '../admin-auth/roles.guard';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
@@ -45,6 +46,15 @@ class StoreInfoDto {
   @IsOptional() @IsString() @MaxLength(300) address?: string;
   @IsOptional() @IsString() @MaxLength(120) workingHours?: string;
   @IsOptional() @IsString() @MaxLength(2000) about?: string;
+}
+
+class PaymentsDto {
+  @IsOptional() @IsString() @MaxLength(100) paymeMerchantId?: string;
+  @IsOptional() @IsString() @MaxLength(200) paymeKey?: string;
+  @IsOptional() @IsString() @MaxLength(100) clickServiceId?: string;
+  @IsOptional() @IsString() @MaxLength(100) clickMerchantId?: string;
+  @IsOptional() @IsString() @MaxLength(100) clickMerchantUserId?: string;
+  @IsOptional() @IsString() @MaxLength(200) clickSecretKey?: string;
 }
 
 /** Joriy admin o'z do'koni (tenant): bot token, tarif, limit, yangilash. */
@@ -91,6 +101,16 @@ export class AdminStoreController {
         workingHours: t.workingHours,
         about: t.about,
         customersCount: customers,
+        payme: {
+          merchantId: t.paymeMerchantId ?? '',
+          hasKey: !!t.paymeKey,
+        },
+        click: {
+          serviceId: t.clickServiceId ?? '',
+          merchantId: t.clickMerchantId ?? '',
+          merchantUserId: t.clickMerchantUserId ?? '',
+          hasSecret: !!t.clickSecretKey,
+        },
       },
       limits,
       usage: { products, categories, banners },
@@ -115,6 +135,33 @@ export class AdminStoreController {
       select: { slug: true },
     });
     this.tenantScope.invalidate(updated.slug);
+    return { ok: true };
+  }
+
+  /** Onlayn to'lov (Payme/Click) merchant ma'lumotlari — Standart+ tariflarda. */
+  @Put('payments')
+  @HttpCode(200)
+  async updatePayments(@CurrentAdmin() admin: Admin, @Body() dto: PaymentsDto) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    const t = await this.prisma.tenant.findUnique({
+      where: { id: admin.tenantId },
+      select: { tariffPlan: true },
+    });
+    if (!hasFeature(t?.tariffPlan ?? 'FREE', 'onlinePayment')) {
+      throw new ForbiddenException({
+        message: "Onlayn to'lov Standart+ tariflarda mavjud. Tarifni yangilang.",
+        upgradeRequired: true,
+      });
+    }
+    const data: Record<string, string | null> = {};
+    if (dto.paymeMerchantId !== undefined) data.paymeMerchantId = dto.paymeMerchantId.trim() || null;
+    if (dto.paymeKey) data.paymeKey = dto.paymeKey.trim(); // faqat berilsa yangilanadi
+    if (dto.clickServiceId !== undefined) data.clickServiceId = dto.clickServiceId.trim() || null;
+    if (dto.clickMerchantId !== undefined) data.clickMerchantId = dto.clickMerchantId.trim() || null;
+    if (dto.clickMerchantUserId !== undefined)
+      data.clickMerchantUserId = dto.clickMerchantUserId.trim() || null;
+    if (dto.clickSecretKey) data.clickSecretKey = dto.clickSecretKey.trim();
+    await this.prisma.tenant.update({ where: { id: admin.tenantId }, data });
     return { ok: true };
   }
 

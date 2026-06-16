@@ -23,6 +23,35 @@ enum OrderStatus {
 enum PaymentMethod {
   CASH_ON_DELIVERY
   CARD_ON_DELIVERY
+  PAYME
+  CLICK
+}
+
+enum PaymentProvider {
+  PAYME
+  CLICK
+}
+
+/// Onlayn to'lov tranzaksiyasi (Payme/Click). Payme state: 1=yaratilgan, 2=to'langan, -1/-2=bekor.
+model PaymentTransaction {
+  id           String          @id @default(cuid())
+  tenantId     String
+  orderId      String
+  order        Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider     PaymentProvider
+  providerTxId String
+  amount       Decimal         @db.Decimal(12, 2)
+  state        Int             @default(1)
+  reason       Int?
+  createTime   BigInt?
+  performTime  BigInt?
+  cancelTime   BigInt?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@unique([provider, providerTxId])
+  @@index([orderId])
+  @@index([tenantId])
 }
 
 enum PromoType {
@@ -269,6 +298,9 @@ model Order {
   promoCodeId   String?
   promoCode     PromoCode? @relation(fields: [promoCodeId], references: [id])
   promoSnapshot String?
+
+  paidAt        DateTime?
+  transactions  PaymentTransaction[]
 
   channelMessageId Int?
 
@@ -583,6 +615,14 @@ model Tenant {
   status          TenantStatus @default(ACTIVE)
   suspendedReason String?
   suspendedAt     DateTime?
+
+  // Onlayn to'lov — har sotuvchi o'z merchant hisobi (Payme/Click)
+  paymeMerchantId     String?
+  paymeKey            String?
+  clickServiceId      String?
+  clickMerchantId     String?
+  clickMerchantUserId String?
+  clickSecretKey      String?
 
   // Brendlash
   logoUrl         String?

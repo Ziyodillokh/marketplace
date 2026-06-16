@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Info, ShoppingCart, Truck, Gift, Bot, Users as UsersIcon } from 'lucide-react';
+import { Info, ShoppingCart, Truck, Gift, Bot, Users as UsersIcon, CreditCard, Lock } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input, Select, Textarea } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import {
   apiRemoveStoreBot,
   apiSetStoreBot,
   apiUpdateStoreInfo,
+  apiUpdateStorePayments,
   apiUpsertSetting,
 } from '@/lib/endpoints';
 import { toast } from '@/stores/toast-store';
@@ -109,6 +110,37 @@ export default function SettingsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-store'] });
       toast.success("Bot o'chirildi");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Onlayn to'lov (Payme/Click) merchant ma'lumotlari
+  const onlinePaymentAllowed = storeInfo?.limits?.onlinePayment ?? false;
+  const [pay, setPay] = useState({
+    paymeMerchantId: '',
+    paymeKey: '',
+    clickServiceId: '',
+    clickMerchantId: '',
+    clickMerchantUserId: '',
+    clickSecretKey: '',
+  });
+  useEffect(() => {
+    if (tenant) {
+      setPay((s) => ({
+        ...s,
+        paymeMerchantId: tenant.payme.merchantId,
+        clickServiceId: tenant.click.serviceId,
+        clickMerchantId: tenant.click.merchantId,
+        clickMerchantUserId: tenant.click.merchantUserId,
+      }));
+    }
+  }, [tenant]);
+  const savePay = useMutation({
+    mutationFn: () => apiUpdateStorePayments(pay),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-store'] });
+      setPay((s) => ({ ...s, paymeKey: '', clickSecretKey: '' }));
+      toast.success("To'lov sozlamalari saqlandi");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -281,6 +313,80 @@ export default function SettingsPage() {
                   qc.invalidateQueries({ queryKey: ['my-store'] });
                 }}
               />
+            </CardBody>
+          </Card>
+        )}
+
+        {tenant && (
+          <Card>
+            <CardHeader title="Onlayn to'lov (Payme / Click)" />
+            <CardBody className="space-y-3">
+              {!onlinePaymentAllowed ? (
+                <div className="flex gap-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] px-3 py-3 text-sm">
+                  <Lock size={16} className="text-[var(--color-text-muted)] shrink-0 mt-0.5" />
+                  <p className="text-[var(--color-text-muted)]">
+                    Onlayn to&apos;lov (Payme/Click) <b>Standart</b> va undan yuqori tariflarda. Yuqoridagi
+                    &quot;Tarif&quot; bo&apos;limidan yangilang.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 font-semibold">
+                    <CreditCard size={16} className="text-[var(--color-primary)]" /> Payme
+                  </div>
+                  <Field label="Merchant ID">
+                    <Input
+                      value={pay.paymeMerchantId}
+                      onChange={(e) => setPay({ ...pay, paymeMerchantId: e.target.value })}
+                      placeholder="Payme merchant ID"
+                    />
+                  </Field>
+                  <Field label={tenant.payme.hasKey ? 'Kalit (almashtirish uchun yangisini yozing)' : 'Kalit (Key)'}>
+                    <Input
+                      type="password"
+                      value={pay.paymeKey}
+                      onChange={(e) => setPay({ ...pay, paymeKey: e.target.value })}
+                      placeholder={tenant.payme.hasKey ? '•••••• (o\'rnatilgan)' : 'Payme key'}
+                      autoComplete="off"
+                    />
+                  </Field>
+
+                  <div className="flex items-center gap-2 font-semibold pt-2">
+                    <CreditCard size={16} className="text-[var(--color-primary)]" /> Click
+                  </div>
+                  <Field label="Service ID">
+                    <Input value={pay.clickServiceId} onChange={(e) => setPay({ ...pay, clickServiceId: e.target.value })} />
+                  </Field>
+                  <Field label="Merchant ID">
+                    <Input value={pay.clickMerchantId} onChange={(e) => setPay({ ...pay, clickMerchantId: e.target.value })} />
+                  </Field>
+                  <Field label="Merchant User ID">
+                    <Input value={pay.clickMerchantUserId} onChange={(e) => setPay({ ...pay, clickMerchantUserId: e.target.value })} />
+                  </Field>
+                  <Field label={tenant.click.hasSecret ? 'Secret key (almashtirish uchun yangisini yozing)' : 'Secret key'}>
+                    <Input
+                      type="password"
+                      value={pay.clickSecretKey}
+                      onChange={(e) => setPay({ ...pay, clickSecretKey: e.target.value })}
+                      placeholder={tenant.click.hasSecret ? '•••••• (o\'rnatilgan)' : 'Click secret key'}
+                      autoComplete="off"
+                    />
+                  </Field>
+
+                  <Button loading={savePay.isPending} onClick={() => savePay.mutate()}>
+                    Saqlash
+                  </Button>
+
+                  <div className="rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] p-3 text-[11px] text-[var(--color-text-muted)] leading-relaxed break-all">
+                    <p className="font-medium text-[var(--color-text)] mb-1">Kabinetda sozlanadigan URL&apos;lar:</p>
+                    Payme endpoint: https://selliostore.uz/api/payments/payme/{tenant.id}
+                    <br />
+                    Click Prepare: https://selliostore.uz/api/payments/click/prepare
+                    <br />
+                    Click Complete: https://selliostore.uz/api/payments/click/complete
+                  </div>
+                </>
+              )}
             </CardBody>
           </Card>
         )}

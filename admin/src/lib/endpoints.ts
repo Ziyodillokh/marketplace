@@ -130,11 +130,23 @@ export interface MyStore {
     workingHours: string | null;
     about: string | null;
     customersCount: number;
+    payme: { merchantId: string; hasKey: boolean };
+    click: { serviceId: string; merchantId: string; merchantUserId: string; hasSecret: boolean };
   };
   limits?: TariffLimits;
   usage?: { products: number; categories: number; banners: number };
 }
 export const apiMyStore = () => api<MyStore>('/admin/store');
+export interface PaymentsInput {
+  paymeMerchantId?: string;
+  paymeKey?: string;
+  clickServiceId?: string;
+  clickMerchantId?: string;
+  clickMerchantUserId?: string;
+  clickSecretKey?: string;
+}
+export const apiUpdateStorePayments = (data: PaymentsInput) =>
+  api<{ ok: boolean }>('/admin/store/payments', { method: 'PUT', body: data });
 export interface StoreInfoInput {
   name?: string;
   phone?: string;

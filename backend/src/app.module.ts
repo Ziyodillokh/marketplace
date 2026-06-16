@@ -44,6 +44,7 @@ import { WebAppNotificationsModule } from './modules/webapp-notifications/webapp
 import { SuperAdminModule } from './modules/super-admin/super-admin.module';
 import { PublicModule } from './modules/public/public.module';
 import { AiModule } from './modules/ai/ai.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -109,6 +110,7 @@ import { AiModule } from './modules/ai/ai.module';
     // Public (landing signup)
     PublicModule,
     AiModule,
+    PaymentsModule,
   ],
 })
 export class AppModule {}
