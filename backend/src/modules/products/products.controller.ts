@@ -45,8 +45,9 @@ export class ProductsController {
     @Param('id') id: string,
     @CurrentLanguage() lang: Locale,
     @CurrentUser() user: User,
+    @CurrentTenantId() tenantId: string | null,
   ) {
-    return this.products.getById(id, lang, user.id);
+    return this.products.getById(id, lang, user.id, tenantId);
   }
 
   @Get(':id/related')
@@ -54,7 +55,8 @@ export class ProductsController {
     @Param('id') id: string,
     @CurrentLanguage() lang: Locale,
     @CurrentUser() user: User,
+    @CurrentTenantId() tenantId: string | null,
   ) {
-    return this.related.getRelatedFor(id, lang, user.id);
+    return this.related.getRelatedFor(id, lang, user.id, tenantId);
   }
 }

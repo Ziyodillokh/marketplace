@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@/prisma/prisma.service';
 import { limitsFor } from '@/common/tariff';
@@ -32,6 +37,21 @@ export class AdminCategoriesService {
 
   private invalidate(): void {
     this.events.emit('categories.invalidate');
+  }
+
+  /** Ota-kategoriya global yoki shu tenant'niki ekanini tekshiradi. */
+  private async assertParentAllowed(
+    parentId: string | null | undefined,
+    tenantId: TenantId,
+  ): Promise<void> {
+    if (!tenantId || !parentId) return;
+    const p = await this.prisma.category.findUnique({
+      where: { id: parentId },
+      select: { tenantId: true },
+    });
+    if (!p || (p.tenantId && p.tenantId !== tenantId)) {
+      throw new BadRequestException("Noto'g'ri ota-kategoriya");
+    }
   }
 
   async tree(tenantId?: TenantId) {
@@ -95,6 +115,7 @@ export class AdminCategoriesService {
         }
       }
     }
+    await this.assertParentAllowed(input.parentId, tenantId);
     const slug = input.slug || (await this.uniqueSlug(slugify(input.titleUz)));
     const res = await this.prisma.category.create({
       data: {
@@ -118,6 +139,7 @@ export class AdminCategoriesService {
     if (!exists) throw new NotFoundException('Category not found');
     // Sotuvchi faqat o'z kategoriyasini tahrirlaydi (global asosiy kategoriyaga tegmaydi)
     if (tenantId && exists.tenantId !== tenantId) throw new NotFoundException('Category not found');
+    await this.assertParentAllowed(input.parentId, tenantId);
     const res = await this.prisma.category.update({
       where: { id },
       data: {
@@ -145,8 +167,18 @@ export class AdminCategoriesService {
     return { ok: true };
   }
 
-  async reorder(items: Array<{ id: string; position: number; parentId?: string | null }>) {
+  async reorder(
+    items: Array<{ id: string; position: number; parentId?: string | null }>,
+    tenantId?: TenantId,
+  ) {
     for (const it of items) {
+      if (tenantId) {
+        const c = await this.prisma.category.findUnique({
+          where: { id: it.id },
+          select: { tenantId: true },
+        });
+        if (!c || c.tenantId !== tenantId) continue; // o'zga/global kategoriyaga tegmaymiz
+      }
       await this.prisma.category.update({
         where: { id: it.id },
         data: { position: it.position, parentId: it.parentId ?? null },

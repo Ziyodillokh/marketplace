@@ -7,12 +7,19 @@ import type { ProductCardDto } from '../products/products.service';
 export class RelatedProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getRelatedFor(productId: string, lang: Locale, userId?: string, limit = 8): Promise<ProductCardDto[]> {
+  async getRelatedFor(
+    productId: string,
+    lang: Locale,
+    userId?: string,
+    tenantId?: string | null,
+    limit = 8,
+  ): Promise<ProductCardDto[]> {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
       select: { id: true, categoryId: true },
     });
     if (!product) return [];
+    const tenantFilter = { tenantId: tenantId ?? null };
 
     const rules = await this.prisma.relatedRule.findMany({
       where: {
@@ -47,7 +54,7 @@ export class RelatedProductsService {
 
     if (productIds.size > 0) {
       const direct = await this.prisma.product.findMany({
-        where: { id: { in: [...productIds] }, isActive: true, NOT: { id: productId } },
+        where: { id: { in: [...productIds] }, isActive: true, NOT: { id: productId }, ...tenantFilter },
         include: {
           images: { orderBy: { position: 'asc' }, take: 1 },
           variants: { where: { isActive: true }, select: { id: true, stock: true }, orderBy: { id: 'asc' } },
@@ -63,6 +70,7 @@ export class RelatedProductsService {
           categoryId: { in: [...categoryIds] },
           isActive: true,
           NOT: { id: productId },
+          ...tenantFilter,
           ...(products.length > 0 ? { id: { notIn: products.map((p) => p.id) } } : {}),
         },
         orderBy: [{ isFeatured: 'desc' }, { soldCount: 'desc' }],
@@ -82,6 +90,7 @@ export class RelatedProductsService {
           categoryId: product.categoryId,
           isActive: true,
           NOT: { id: productId },
+          ...tenantFilter,
           ...(products.length > 0 ? { id: { notIn: products.map((p) => p.id) } } : {}),
         },
         orderBy: [{ isFeatured: 'desc' }, { soldCount: 'desc' }],

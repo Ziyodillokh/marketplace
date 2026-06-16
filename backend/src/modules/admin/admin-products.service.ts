@@ -85,6 +85,21 @@ function slugify(s: string): string {
 export class AdminProductsService {
   constructor(private readonly prisma: PrismaService, private readonly events: EventEmitter2) {}
 
+  /** Kategoriya global yoki shu tenant'niki ekanini tekshiradi. */
+  private async assertCategoryAllowed(
+    categoryId: string | undefined,
+    tenantId: TenantId,
+  ): Promise<void> {
+    if (!tenantId || !categoryId) return;
+    const cat = await this.prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { tenantId: true },
+    });
+    if (!cat || (cat.tenantId && cat.tenantId !== tenantId)) {
+      throw new BadRequestException("Noto'g'ri kategoriya");
+    }
+  }
+
   /** Mahsulot tenant'ga tegishliligini tekshiradi (owner uchun o'tkazib yuboriladi). */
   private async assertOwnProduct(id: string, tenantId: TenantId): Promise<void> {
     if (!tenantId) return;
@@ -233,6 +248,7 @@ export class AdminProductsService {
         }
       }
     }
+    await this.assertCategoryAllowed(input.categoryId, tenantId);
     const slug = input.slug || (await this.uniqueSlug(slugify(input.titleUz)));
     const discountPct =
       input.discountPct ??
@@ -296,6 +312,7 @@ export class AdminProductsService {
     const existing = await this.prisma.product.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Product not found');
     if (tenantId && existing.tenantId !== tenantId) throw new NotFoundException('Product not found');
+    await this.assertCategoryAllowed(input.categoryId, tenantId);
 
     const discountPct =
       input.oldPrice !== undefined || input.basePrice !== undefined

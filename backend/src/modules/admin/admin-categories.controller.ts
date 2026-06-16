@@ -61,8 +61,8 @@ export class AdminCategoriesController {
 
   @Patch('reorder')
   @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
-  reorder(@Body() dto: ReorderDto) {
-    return this.categories.reorder(dto.items);
+  reorder(@Body() dto: ReorderDto, @CurrentAdmin() admin: Admin) {
+    return this.categories.reorder(dto.items, admin.tenantId);
   }
 
   @Patch(':id')

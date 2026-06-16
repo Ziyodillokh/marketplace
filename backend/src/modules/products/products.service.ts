@@ -160,7 +160,12 @@ export class ProductsService {
     return buildCursorPage(items, limit);
   }
 
-  async getById(id: string, lang: Locale, userId?: string): Promise<ProductDetailDto> {
+  async getById(
+    id: string,
+    lang: Locale,
+    userId?: string,
+    tenantId?: string | null,
+  ): Promise<ProductDetailDto> {
     const p = await this.prisma.product.findUnique({
       where: { id },
       include: {
@@ -171,6 +176,8 @@ export class ProductsService {
       },
     });
     if (!p || !p.isActive) throw new NotFoundException('Product not found');
+    // Boshqa do'kon mahsulotini ko'rsatmaymiz
+    if ((p.tenantId ?? null) !== (tenantId ?? null)) throw new NotFoundException('Product not found');
 
     await this.prisma.product.update({
       where: { id: p.id },

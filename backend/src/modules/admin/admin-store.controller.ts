@@ -112,6 +112,7 @@ export class AdminStoreController {
       select: { slug: true },
     });
     this.tenantScope.invalidate(updated.slug);
+    this.tenantBot.forget(admin.tenantId);
     return { ok: true };
   }
 

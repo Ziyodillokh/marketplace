@@ -26,7 +26,9 @@ export class TenantScopeService {
     });
     const scope: TenantScope | null =
       t && t.status === 'ACTIVE' ? { tenantId: t.id, slug: t.slug, botToken: t.botToken } : null;
-    this.cache.set(slug, scope);
+    // Faqat topilgan (positive) natijani keshlaymiz — aks holda hali faollashmagan
+    // do'kon abadiy null bo'lib qoladi.
+    if (scope) this.cache.set(slug, scope);
     return scope;
   }
 

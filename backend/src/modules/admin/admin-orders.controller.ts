@@ -35,19 +35,19 @@ export class AdminOrdersController {
   }
 
   @Get(':id')
-  getById(@Param('id') id: string) {
-    return this.orders.getById(id);
+  getById(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
+    return this.orders.getById(id, admin.tenantId);
   }
 
   @Patch(':id/status')
   @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN, AdminRole.MANAGER)
   updateStatus(@Param('id') id: string, @Body() dto: UpdateStatusDto, @CurrentAdmin() admin: Admin) {
-    return this.orders.updateStatus(id, dto.status, dto.comment, admin.id);
+    return this.orders.updateStatus(id, dto.status, dto.comment, admin.id, admin.tenantId);
   }
 
   @Post(':id/message')
   @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN, AdminRole.MANAGER)
-  message(@Param('id') id: string, @Body() dto: MessageDto) {
-    return this.orders.sendMessageToUser(id, dto.text);
+  message(@Param('id') id: string, @Body() dto: MessageDto, @CurrentAdmin() admin: Admin) {
+    return this.orders.sendMessageToUser(id, dto.text, admin.tenantId);
   }
 }

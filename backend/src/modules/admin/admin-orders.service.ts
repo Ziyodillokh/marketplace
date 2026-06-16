@@ -83,7 +83,7 @@ export class AdminOrdersService {
     return buildCursorPage(items, limit);
   }
 
-  async getById(id: string) {
+  async getById(id: string, tenantId?: string | null) {
     const o = await this.prisma.order.findUnique({
       where: { id },
       include: {
@@ -94,6 +94,7 @@ export class AdminOrdersService {
       },
     });
     if (!o) throw new NotFoundException('Order not found');
+    if (tenantId && o.tenantId !== tenantId) throw new NotFoundException('Order not found');
     return {
       ...o,
       subtotal: Number(o.subtotal),
@@ -112,9 +113,16 @@ export class AdminOrdersService {
     };
   }
 
-  async updateStatus(id: string, status: OrderStatus, comment: string | undefined, adminId: string) {
+  async updateStatus(
+    id: string,
+    status: OrderStatus,
+    comment: string | undefined,
+    adminId: string,
+    tenantId?: string | null,
+  ) {
     const o = await this.prisma.order.findUnique({ where: { id } });
     if (!o) throw new NotFoundException('Order not found');
+    if (tenantId && o.tenantId !== tenantId) throw new NotFoundException('Order not found');
     if (o.status === status) throw new BadRequestException('Same status');
 
     await this.prisma.$transaction(async (tx) => {
@@ -150,15 +158,16 @@ export class AdminOrdersService {
       status,
       orderNumber: o.orderNumber,
     });
-    return this.getById(id);
+    return this.getById(id, tenantId);
   }
 
-  async sendMessageToUser(id: string, text: string) {
+  async sendMessageToUser(id: string, text: string, tenantId?: string | null) {
     const o = await this.prisma.order.findUnique({
       where: { id },
       include: { user: true },
     });
     if (!o) throw new NotFoundException('Order not found');
+    if (tenantId && o.tenantId !== tenantId) throw new NotFoundException('Order not found');
     await this.bot.sendDirectMessage(o.user.telegramId, text);
     return { ok: true };
   }

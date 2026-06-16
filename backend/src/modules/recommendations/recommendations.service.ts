@@ -138,7 +138,13 @@ export class RecommendationsService {
       const sourceItem = order.items.find((i) => i.productId === pid);
       const sourceTitle = sourceItem ? (lang === 'ru' ? sourceItem.titleRu : sourceItem.titleUz) : '';
 
-      const related = await this.related.getRelatedFor(pid, lang, order.userId, this.maxItems);
+      const related = await this.related.getRelatedFor(
+        pid,
+        lang,
+        order.userId,
+        order.tenantId ?? null,
+        this.maxItems,
+      );
       // Buyurtmadagi mahsulotlarni va boshqa source'lar uchun avval taklif qilinganlarni chetlatamiz
       const filtered = related.filter(
         (r) => !uniqueProductIds.includes(r.id) && !alreadySuggested.has(r.id),

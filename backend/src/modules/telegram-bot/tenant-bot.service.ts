@@ -60,6 +60,11 @@ export class TenantBotService {
     return bot;
   }
 
+  /** Keshdagi bot instansiyasini unutadi (token o'zgargan/o'chirilganda). */
+  forget(tenantId: string): void {
+    this.bots.delete(tenantId);
+  }
+
   /** Webhook'dan kelgan update'ni shu tenant boti bilan ishlaydi. */
   async handleUpdate(tenantId: string, update: unknown): Promise<void> {
     const bot = await this.loadBot(tenantId);

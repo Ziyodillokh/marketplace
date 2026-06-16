@@ -98,7 +98,7 @@ export class OrdersService {
     input: CreateOrderInput,
     tenantId?: string | null,
   ): Promise<OrderDetailDto> {
-    const cartItems = await this.prisma.cartItem.findMany({
+    const allCartItems = await this.prisma.cartItem.findMany({
       where: { userId },
       include: {
         product: {
@@ -107,6 +107,10 @@ export class OrdersService {
         variant: true,
       },
     });
+    // Faqat shu do'kon (tenant) mahsulotlari bilan buyurtma tuziladi
+    const cartItems = allCartItems.filter(
+      (ci) => (ci.product.tenantId ?? null) === (tenantId ?? null),
+    );
     if (cartItems.length === 0) throw new BadRequestException('Cart is empty');
 
     let subtotal = 0;
