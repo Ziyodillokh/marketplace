@@ -56,7 +56,12 @@ export interface ProductDetailDto extends ProductCardDto {
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(params: ListProductsParams, lang: Locale, userId?: string): Promise<CursorPage<ProductCardDto>> {
+  async list(
+    params: ListProductsParams,
+    lang: Locale,
+    userId?: string,
+    tenantId?: string | null,
+  ): Promise<CursorPage<ProductCardDto>> {
     const limit = Math.min(Math.max(params.limit ?? 20, 1), 100);
     const take = limit + 1;
 
@@ -68,6 +73,8 @@ export class ProductsService {
 
     const where: Prisma.ProductWhereInput = {
       isActive: true,
+      // Multi-tenant: do'kon bo'lsa o'sha sotuvchi mahsulotlari, bo'lmasa legacy (null)
+      tenantId: tenantId ?? null,
       ...(categoryId ? { categoryId } : {}),
       ...(params.brand ? { brand: { equals: params.brand, mode: 'insensitive' } } : {}),
       ...(params.featuredOnly ? { isFeatured: true } : {}),

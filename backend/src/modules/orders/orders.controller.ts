@@ -15,6 +15,7 @@ import {
 import { OrderStatus, PaymentMethod, type User } from '@prisma/client';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { CurrentLanguage, CurrentUser } from '@/common/decorators/current-user.decorator';
+import { CurrentTenantId } from '@/common/decorators/tenant.decorator';
 import type { Locale } from '@/common/helpers/localize';
 import { OrdersService } from './orders.service';
 
@@ -41,8 +42,12 @@ export class OrdersController {
   constructor(private readonly orders: OrdersService) {}
 
   @Post()
-  create(@CurrentUser() user: User, @Body() dto: CreateOrderDto) {
-    return this.orders.create(user.id, dto);
+  create(
+    @CurrentUser() user: User,
+    @Body() dto: CreateOrderDto,
+    @CurrentTenantId() tenantId: string | null,
+  ) {
+    return this.orders.create(user.id, dto, tenantId);
   }
 
   @Get()

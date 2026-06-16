@@ -13,8 +13,8 @@ export class AuthService {
     this.botToken = config.get<string>('TELEGRAM_BOT_TOKEN') ?? '';
   }
 
-  async authenticate(initData: string): Promise<User> {
-    const parsed = verifyTelegramInitData(initData, this.botToken);
+  async authenticate(initData: string, botToken?: string): Promise<User> {
+    const parsed = verifyTelegramInitData(initData, botToken || this.botToken);
     return this.users.upsertFromTelegram(parsed.user);
   }
 

@@ -30,8 +30,8 @@ export class AdminOrdersController {
   constructor(private readonly orders: AdminOrdersService) {}
 
   @Get()
-  list(@Query() q: ListOrdersDto) {
-    return this.orders.list(q);
+  list(@Query() q: ListOrdersDto, @CurrentAdmin() admin: Admin) {
+    return this.orders.list(q, admin.tenantId);
   }
 
   @Get(':id')

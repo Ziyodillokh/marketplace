@@ -23,6 +23,8 @@ import { limitsFor } from '@/common/tariff';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
 import { CurrentAdmin } from '../admin-auth/roles.guard';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
+import { TenantBotService } from '../telegram-bot/tenant-bot.service';
+import { TenantScopeService } from '@/common/tenant-scope/tenant-scope.service';
 import { PAYMENT_INFO } from '../public/payment-info';
 import { TARIFFS } from '../public/tariffs';
 
@@ -44,6 +46,8 @@ export class AdminStoreController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tgbot: TelegramBotService,
+    private readonly tenantBot: TenantBotService,
+    private readonly tenantScope: TenantScopeService,
   ) {}
 
   @Get()
@@ -87,10 +91,13 @@ export class AdminStoreController {
       where: { botToken: token, NOT: { id: admin.tenantId } },
     });
     if (taken) throw new ConflictException("Bu token boshqa do'konda ishlatilgan");
-    await this.prisma.tenant.update({
+    const updated = await this.prisma.tenant.update({
       where: { id: admin.tenantId },
       data: { botToken: token, botUsername: check.username ?? null },
+      select: { slug: true },
     });
+    this.tenantScope.invalidate(updated.slug);
+    await this.tenantBot.configure(admin.tenantId).catch(() => undefined);
     return { ok: true, username: check.username };
   }
 
@@ -98,10 +105,12 @@ export class AdminStoreController {
   @HttpCode(200)
   async removeBot(@CurrentAdmin() admin: Admin) {
     if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
-    await this.prisma.tenant.update({
+    const updated = await this.prisma.tenant.update({
       where: { id: admin.tenantId },
       data: { botToken: null, botUsername: null },
+      select: { slug: true },
     });
+    this.tenantScope.invalidate(updated.slug);
     return { ok: true };
   }
 

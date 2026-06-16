@@ -93,7 +93,11 @@ export class OrdersService {
     throw new Error('Failed to generate unique order number');
   }
 
-  async create(userId: string, input: CreateOrderInput): Promise<OrderDetailDto> {
+  async create(
+    userId: string,
+    input: CreateOrderInput,
+    tenantId?: string | null,
+  ): Promise<OrderDetailDto> {
     const cartItems = await this.prisma.cartItem.findMany({
       where: { userId },
       include: {
@@ -137,6 +141,7 @@ export class OrdersService {
       const order = await tx.order.create({
         data: {
           orderNumber,
+          tenantId: tenantId ?? null,
           userId,
           status: OrderStatus.PENDING,
           paymentMethod: input.paymentMethod ?? PaymentMethod.CASH_ON_DELIVERY,

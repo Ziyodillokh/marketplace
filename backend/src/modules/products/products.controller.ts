@@ -4,6 +4,7 @@ import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import type { User } from '@prisma/client';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { CurrentLanguage, CurrentUser } from '@/common/decorators/current-user.decorator';
+import { CurrentTenantId } from '@/common/decorators/tenant.decorator';
 import type { Locale } from '@/common/helpers/localize';
 import { ProductsService, type ProductSort } from './products.service';
 import { RelatedProductsService } from '../related-products/related-products.service';
@@ -30,8 +31,13 @@ export class ProductsController {
   ) {}
 
   @Get()
-  list(@Query() q: ListProductsQuery, @CurrentLanguage() lang: Locale, @CurrentUser() user: User) {
-    return this.products.list(q, lang, user.id);
+  list(
+    @Query() q: ListProductsQuery,
+    @CurrentLanguage() lang: Locale,
+    @CurrentUser() user: User,
+    @CurrentTenantId() tenantId: string | null,
+  ) {
+    return this.products.list(q, lang, user.id, tenantId);
   }
 
   @Get(':id')

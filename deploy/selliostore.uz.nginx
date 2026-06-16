@@ -60,12 +60,10 @@ server {
         return 301 https://selliostore.uz$request_uri;
     }
 
-    # Telegram webhook → backend
-    # Backend global prefiks 'api' dan istisno qilingan (main.ts: exclude 'telegram/webhook'),
-    # shuning uchun /api/ ostida emas, to'g'ridan-to'g'ri /telegram/webhook bo'lib keladi.
-    # Bu yo'l bo'lmasa, Telegram POST'lari `location /` orqali landing'ga ketadi (404) va
-    # bot /start'ga javob bermaydi.
-    location = /telegram/webhook {
+    # Telegram webhook'lar → backend (markaziy /telegram/webhook va har sotuvchi
+    # boti /telegram/t/<id>/webhook). Backend global 'api' prefiksidan istisno qilingan.
+    # Bu yo'l bo'lmasa, Telegram POST'lari landing'ga ketadi (404).
+    location /telegram/ {
         proxy_pass http://marketplace_api;
         proxy_read_timeout 30s;
     }

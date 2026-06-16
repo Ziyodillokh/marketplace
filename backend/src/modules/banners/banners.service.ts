@@ -14,12 +14,13 @@ export interface BannerView {
 export class BannersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(placement: string, lang: Locale): Promise<BannerView[]> {
+  async list(placement: string, lang: Locale, tenantId?: string | null): Promise<BannerView[]> {
     const now = new Date();
     const rows = await this.prisma.banner.findMany({
       where: {
         placement,
         isActive: true,
+        tenantId: tenantId ?? null,
         OR: [{ startsAt: null }, { startsAt: { lte: now } }],
         AND: [{ OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
       },

@@ -17,6 +17,7 @@ import { BUSINESS_TYPE_OPTIONS } from './business-types';
 import { TARIFFS } from './tariffs';
 import { PAYMENT_INFO } from './payment-info';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
+import { TenantBotService } from '../telegram-bot/tenant-bot.service';
 import { checkBotToken } from '@/common/helpers/telegram-bot-token';
 
 export interface OnboardInput {
@@ -59,6 +60,7 @@ export class SellerOnboardingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tgbot: TelegramBotService,
+    private readonly tenantBot: TenantBotService,
     config: ConfigService,
   ) {
     this.botToken = config.get<string>('TELEGRAM_BOT_TOKEN') ?? '';
@@ -224,6 +226,10 @@ export class SellerOnboardingService {
     this.logger.log(
       `Seller onboard: ${shopName} (${slug}) · tg=${parsed.user.id} · ${dto.businessType} · ${dto.tariffPlan}${botUsername ? ` · @${botUsername}` : ''}`,
     );
+    // Bot ulangan bo'lsa — webhook o'rnatamiz (mijoz bot orqali shu do'konni ochadi)
+    if (botToken) {
+      await this.tenantBot.configure(tenant.id).catch(() => undefined);
+    }
     return { registered: true, tenant: this.serialize(tenant) };
   }
 

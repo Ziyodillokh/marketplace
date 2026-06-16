@@ -20,6 +20,32 @@ export function getApiLocale(): Locale {
   return currentLocale;
 }
 
+/**
+ * Qaysi do'kon (sotuvchi) ochilgan — URL ?shop=, Telegram start_param yoki localStorage'dan.
+ * Bir marta aniqlanib, SPA navigatsiyasida saqlanadi.
+ */
+let shopSlug: string | undefined;
+export function getShopSlug(): string | null {
+  if (shopSlug !== undefined) return shopSlug || null;
+  if (typeof window === 'undefined') return null;
+  let slug = '';
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('shop');
+    const tg = (
+      window as unknown as {
+        Telegram?: { WebApp?: { initDataUnsafe?: { start_param?: string } } };
+      }
+    ).Telegram?.WebApp?.initDataUnsafe?.start_param;
+    const stored = window.localStorage.getItem('shop_slug');
+    slug = (fromUrl || tg || stored || '').trim();
+    if (slug) window.localStorage.setItem('shop_slug', slug);
+  } catch {
+    slug = '';
+  }
+  shopSlug = slug;
+  return slug || null;
+}
+
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
   body?: unknown;
@@ -61,6 +87,9 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     const initData = getInitData();
     if (initData) headers['X-Telegram-Init-Data'] = initData;
   }
+  // Multi-tenant: qaysi do'kon (sotuvchi) ochilganini bildiramiz
+  const shop = getShopSlug();
+  if (shop) headers['X-Tenant-Slug'] = shop;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 
   const res = await fetch(buildUrl(path, query), {

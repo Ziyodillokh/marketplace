@@ -22,10 +22,11 @@ export class AdminOrdersService {
     private readonly bot: TelegramBotService,
   ) {}
 
-  async list(params: ListOrdersParams): Promise<CursorPage<unknown>> {
+  async list(params: ListOrdersParams, tenantId?: string | null): Promise<CursorPage<unknown>> {
     const limit = Math.min(Math.max(params.limit ?? 30, 1), 100);
     const take = limit + 1;
     const where: Prisma.OrderWhereInput = {
+      ...(tenantId ? { tenantId } : {}),
       ...(params.status ? { status: params.status } : {}),
       ...(params.from || params.to
         ? {

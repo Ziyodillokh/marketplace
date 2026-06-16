@@ -7,6 +7,7 @@ import { LoggerModule } from 'nestjs-pino';
 
 import { validateEnv } from './config/env.validation';
 import { PrismaModule } from './prisma/prisma.module';
+import { TenantScopeModule } from './common/tenant-scope/tenant-scope.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -67,6 +68,7 @@ import { PublicModule } from './modules/public/public.module';
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
+    TenantScopeModule,
     HealthModule,
     AuthModule,
     UsersModule,

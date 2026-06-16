@@ -92,12 +92,19 @@ export class CategoriesService implements OnModuleInit {
     }
   }
 
-  async list(params: { onlyRoot?: boolean; parentId?: string | null }, lang: Locale): Promise<CategoryDto[]> {
-    const where = params.onlyRoot
+  async list(
+    params: { onlyRoot?: boolean; parentId?: string | null },
+    lang: Locale,
+    tenantId?: string | null,
+  ): Promise<CategoryDto[]> {
+    const base = params.onlyRoot
       ? { parentId: null, isVisible: true }
       : params.parentId !== undefined
         ? { parentId: params.parentId, isVisible: true }
         : { isVisible: true };
+    // Sotuvchi: global (null) + o'ziniki; do'konsiz: faqat global
+    const tenantFilter = tenantId ? { OR: [{ tenantId: null }, { tenantId }] } : { tenantId: null };
+    const where = { ...base, ...tenantFilter };
 
     const rows = await this.prisma.category.findMany({
       where,
@@ -117,12 +124,18 @@ export class CategoriesService implements OnModuleInit {
     }));
   }
 
-  async getBySlug(slug: string, lang: Locale): Promise<CategoryDto & { children: CategoryDto[] }> {
+  async getBySlug(
+    slug: string,
+    lang: Locale,
+    tenantId?: string | null,
+  ): Promise<CategoryDto & { children: CategoryDto[] }> {
     const cat = await this.prisma.category.findUnique({
       where: { slug },
       include: {
         children: {
-          where: { isVisible: true },
+          where: tenantId
+            ? { isVisible: true, OR: [{ tenantId: null }, { tenantId }] }
+            : { isVisible: true, tenantId: null },
           orderBy: { position: 'asc' },
           include: { _count: { select: { children: true } } },
         },
@@ -130,6 +143,10 @@ export class CategoriesService implements OnModuleInit {
       },
     });
     if (!cat || !cat.isVisible) throw new NotFoundException('Category not found');
+    // Boshqa sotuvchining (global bo'lmagan) kategoriyasini yashiramiz
+    if (tenantId && cat.tenantId && cat.tenantId !== tenantId) {
+      throw new NotFoundException('Category not found');
+    }
 
     return {
       id: cat.id,
