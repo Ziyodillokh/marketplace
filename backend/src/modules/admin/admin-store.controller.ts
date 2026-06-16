@@ -26,7 +26,7 @@ import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { TenantBotService } from '../telegram-bot/tenant-bot.service';
 import { TenantScopeService } from '@/common/tenant-scope/tenant-scope.service';
 import { PAYMENT_INFO } from '../public/payment-info';
-import { TARIFFS } from '../public/tariffs';
+import { buildPaymentCaption } from '../public/payment-caption';
 
 class BotTokenDto {
   @IsString()
@@ -186,16 +186,7 @@ export class AdminStoreController {
     const t = await this.prisma.tenant.findUnique({ where: { id: admin.tenantId } });
     if (!t || !t.pendingTariff) throw new BadRequestException("To'lov kutilayotgan tarif yo'q");
 
-    const tariff = TARIFFS.find((x) => x.value === t.pendingTariff);
-    const caption =
-      `💳 <b>Tarif yangilash — tasdiqlash kerak</b>\n\n` +
-      `👤 Ism: ${t.ownerName}\n` +
-      `📞 Telefon: ${t.ownerPhone ?? '-'}\n` +
-      `🆔 TG ID: <code>${t.ownerTelegramId ?? '-'}</code>\n` +
-      `🏪 Do'kon: ${t.shopName}\n` +
-      `🤖 Bot: ${t.botUsername ? '@' + t.botUsername : '-'}\n` +
-      `💎 Tarif: <b>${tariff?.label ?? t.pendingTariff}</b>` +
-      (tariff ? ` — ${tariff.priceMonthly.toLocaleString('ru-RU')} so'm/oy` : '');
+    const caption = buildPaymentCaption(t, 'Tarif yangilash — tasdiqlash kerak');
 
     try {
       await this.tgbot.sendPaymentReceipt(file.buffer, caption, t.id);

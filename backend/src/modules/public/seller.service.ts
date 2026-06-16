@@ -16,6 +16,7 @@ import {
 import { BUSINESS_TYPE_OPTIONS } from './business-types';
 import { TARIFFS } from './tariffs';
 import { PAYMENT_INFO } from './payment-info';
+import { buildPaymentCaption } from './payment-caption';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { TenantBotService } from '../telegram-bot/tenant-bot.service';
 import { checkBotToken } from '@/common/helpers/telegram-bot-token';
@@ -77,18 +78,11 @@ export class SellerOnboardingService {
       throw new BadRequestException("To'lov kutilayotgan tarif yo'q");
     }
 
-    const tariff = TARIFFS.find((t) => t.value === tenant.pendingTariff);
-    const username = parsed.user.username ? `@${parsed.user.username}` : '-';
-    const caption =
-      `💳 <b>Yangi to'lov — tasdiqlash kerak</b>\n\n` +
-      `👤 Ism: ${tenant.ownerName}\n` +
-      `📞 Telefon: ${tenant.ownerPhone ?? '-'}\n` +
-      `🆔 TG ID: <code>${parsed.user.id}</code>\n` +
-      `👤 Username: ${username}\n` +
-      `🏪 Do'kon: ${tenant.shopName}\n` +
-      `🤖 Bot: ${tenant.botUsername ? '@' + tenant.botUsername : '-'}\n` +
-      `💎 Tarif: <b>${tariff?.label ?? tenant.pendingTariff}</b>` +
-      (tariff ? ` — ${tariff.priceMonthly.toLocaleString('ru-RU')} so'm/oy` : '');
+    // Username onboarding'da saqlanmagan bo'lsa (eski tenant) — initData'dan to'ldiramiz
+    if (!tenant.ownerUsername && parsed.user.username) {
+      tenant.ownerUsername = parsed.user.username;
+    }
+    const caption = buildPaymentCaption(tenant, "Yangi to'lov — tasdiqlash kerak");
 
     try {
       await this.tgbot.sendPaymentReceipt(receipt, caption, tenant.id);
@@ -198,6 +192,7 @@ export class SellerOnboardingService {
           ownerName,
           ownerPhone,
           ownerTelegramId: telegramId,
+          ownerUsername: parsed.user.username ?? null,
           businessType: dto.businessType,
           logoUrl: dto.logoUrl?.trim() || null,
           tariffPlan: 'FREE',

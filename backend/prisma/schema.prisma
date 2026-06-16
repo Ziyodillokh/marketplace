@@ -563,6 +563,7 @@ model Tenant {
   ownerEmail      String?      @unique
   ownerPhone      String?
   ownerTelegramId BigInt?       @unique
+  ownerUsername   String?
   businessType    BusinessType?
 
   // Do'kon ma'lumotlari (admin settings sahifasidan tahrirlanadi)
