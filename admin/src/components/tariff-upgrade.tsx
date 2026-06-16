@@ -89,7 +89,7 @@ export function TariffUpgrade({
                 <span className="font-extrabold">{fmt(t.priceMonthly)}</span>
               </div>
               <ul className="mt-2 space-y-1 mb-3">
-                {t.features.slice(0, 5).map((f) => (
+                {t.features.map((f) => (
                   <li key={f} className="flex items-start gap-1.5 text-xs text-[var(--color-text-muted)]">
                     <Check size={13} className="text-[var(--color-primary)] mt-0.5 shrink-0" />
                     {f}
