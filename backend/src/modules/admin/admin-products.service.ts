@@ -249,7 +249,8 @@ export class AdminProductsService {
       }
     }
     await this.assertCategoryAllowed(input.categoryId, tenantId);
-    const slug = input.slug || (await this.uniqueSlug(slugify(input.titleUz)));
+    // Aniq slug ham unique tekshiruvidan o'tadi (dublikat → 500 emas, suffiks qo'shiladi)
+    const slug = await this.uniqueSlug(slugify(input.slug ?? input.titleUz));
     const discountPct =
       input.discountPct ??
       (input.oldPrice && input.oldPrice > input.basePrice

@@ -143,8 +143,8 @@ export class CategoriesService implements OnModuleInit {
       },
     });
     if (!cat || !cat.isVisible) throw new NotFoundException('Category not found');
-    // Boshqa sotuvchining (global bo'lmagan) kategoriyasini yashiramiz
-    if (tenantId && cat.tenantId && cat.tenantId !== tenantId) {
+    // Tenant kategoriyasi faqat o'z do'konida ko'rinadi (shop'siz/o'zga shop'da yashiriladi)
+    if (cat.tenantId && cat.tenantId !== tenantId) {
       throw new NotFoundException('Category not found');
     }
 

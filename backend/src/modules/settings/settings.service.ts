@@ -37,10 +37,32 @@ export class SettingsService {
     return (row?.value as T | undefined) ?? null;
   }
 
-  async getStore(): Promise<StoreSettings> {
+  async getStore(tenantId?: string | null): Promise<StoreSettings> {
+    // Tenant (do'kon) bo'lsa — o'sha sotuvchining ma'lumotini qaytaramiz
+    if (tenantId) {
+      const t = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: {
+          shopName: true,
+          ownerPhone: true,
+          address: true,
+          workingHours: true,
+          about: true,
+        },
+      });
+      if (t) {
+        return {
+          name: t.shopName,
+          phone: t.ownerPhone ?? undefined,
+          address: t.address ?? undefined,
+          workingHours: t.workingHours ?? undefined,
+          about: t.about ?? undefined,
+        };
+      }
+    }
     return (
       (await this.get<StoreSettings>('store')) ?? {
-        name: 'Marketplace',
+        name: 'Sellio',
         phone: '+998901234567',
         address: '',
         workingHours: '09:00–22:00',
@@ -68,9 +90,9 @@ export class SettingsService {
     };
   }
 
-  async getPublic(): Promise<PublicSettings> {
+  async getPublic(tenantId?: string | null): Promise<PublicSettings> {
     return {
-      store: await this.getStore(),
+      store: await this.getStore(tenantId),
       business: await this.getBusiness(),
     };
   }

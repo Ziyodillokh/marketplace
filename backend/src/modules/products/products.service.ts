@@ -230,9 +230,14 @@ export class ProductsService {
     };
   }
 
-  async getBySlug(slug: string, lang: Locale, userId?: string): Promise<ProductDetailDto> {
+  async getBySlug(
+    slug: string,
+    lang: Locale,
+    userId?: string,
+    tenantId?: string | null,
+  ): Promise<ProductDetailDto> {
     const p = await this.prisma.product.findUnique({ where: { slug }, select: { id: true } });
     if (!p) throw new NotFoundException('Product not found');
-    return this.getById(p.id, lang, userId);
+    return this.getById(p.id, lang, userId, tenantId);
   }
 }

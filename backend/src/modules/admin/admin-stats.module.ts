@@ -1,10 +1,10 @@
 import { Controller, Get, Module, Query, UseGuards } from '@nestjs/common';
 import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, type Admin } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
-import { RolesGuard } from '../admin-auth/roles.guard';
+import { CurrentAdmin, RolesGuard } from '../admin-auth/roles.guard';
 import { RequireFeature, TariffFeatureGuard } from '../admin-auth/tariff-feature.guard';
 import { AdminAuthModule } from '../admin-auth/admin-auth.module';
 
@@ -38,47 +38,57 @@ class AdminStatsController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get('overview')
-  async overview() {
+  async overview(@CurrentAdmin() admin: Admin) {
     const todayStart = startOfDay(new Date());
     const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
+    // Sotuvchi faqat o'z do'koni raqamlarini ko'radi; owner (tenantId yo'q) — hammasini
+    const tenantId = admin.tenantId ?? undefined;
+    const tenantFilter = tenantId ? { tenantId } : {};
 
-    const [todayOrders, yesterdayOrders, todayRevenue, yesterdayRevenue, todayViews, yesterdayViews, totals] =
+    const [todayOrders, yesterdayOrders, todayRevenue, yesterdayRevenue, todayViews, yesterdayViews, totals, usersTotal] =
       await Promise.all([
         this.prisma.order.count({
-          where: { createdAt: { gte: todayStart }, status: { not: OrderStatus.CANCELLED } },
+          where: { ...tenantFilter, createdAt: { gte: todayStart }, status: { not: OrderStatus.CANCELLED } },
         }),
         this.prisma.order.count({
           where: {
+            ...tenantFilter,
             createdAt: { gte: yesterdayStart, lt: todayStart },
             status: { not: OrderStatus.CANCELLED },
           },
         }),
         this.prisma.order.aggregate({
-          where: { createdAt: { gte: todayStart }, status: { not: OrderStatus.CANCELLED } },
+          where: { ...tenantFilter, createdAt: { gte: todayStart }, status: { not: OrderStatus.CANCELLED } },
           _sum: { total: true },
         }),
         this.prisma.order.aggregate({
           where: {
+            ...tenantFilter,
             createdAt: { gte: yesterdayStart, lt: todayStart },
             status: { not: OrderStatus.CANCELLED },
           },
           _sum: { total: true },
         }),
-        this.prisma.userEvent.findMany({
-          where: { type: 'VIEW_HOME', createdAt: { gte: todayStart } },
-          distinct: ['userId'],
-          select: { userId: true },
-        }),
-        this.prisma.userEvent.findMany({
-          where: { type: 'VIEW_HOME', createdAt: { gte: yesterdayStart, lt: todayStart } },
-          distinct: ['userId'],
-          select: { userId: true },
-        }),
+        // Tashriflar UserEvent'da tenantId yo'q — sotuvchi uchun hozircha hisoblanmaydi
+        tenantId
+          ? Promise.resolve([] as { userId: string }[])
+          : this.prisma.userEvent.findMany({
+              where: { type: 'VIEW_HOME', createdAt: { gte: todayStart } },
+              distinct: ['userId'],
+              select: { userId: true },
+            }),
+        tenantId
+          ? Promise.resolve([] as { userId: string }[])
+          : this.prisma.userEvent.findMany({
+              where: { type: 'VIEW_HOME', createdAt: { gte: yesterdayStart, lt: todayStart } },
+              distinct: ['userId'],
+              select: { userId: true },
+            }),
         this.prisma.$transaction([
-          this.prisma.user.count(),
-          this.prisma.product.count({ where: { isActive: true } }),
-          this.prisma.order.count(),
+          this.prisma.product.count({ where: { ...tenantFilter, isActive: true } }),
+          this.prisma.order.count({ where: tenantFilter }),
         ]),
+        tenantId ? Promise.resolve(0) : this.prisma.user.count(),
       ]);
 
     const todayRev = todayRevenue._sum.total ? Number(todayRevenue._sum.total) : 0;
@@ -105,9 +115,9 @@ class AdminStatsController {
         conversion: conversion - conversionYesterday,
       },
       totals: {
-        users: totals[0],
-        activeProducts: totals[1],
-        ordersTotal: totals[2],
+        users: usersTotal,
+        activeProducts: totals[0],
+        ordersTotal: totals[1],
       },
     };
   }

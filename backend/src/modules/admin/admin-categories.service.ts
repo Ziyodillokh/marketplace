@@ -116,7 +116,8 @@ export class AdminCategoriesService {
       }
     }
     await this.assertParentAllowed(input.parentId, tenantId);
-    const slug = input.slug || (await this.uniqueSlug(slugify(input.titleUz)));
+    // Aniq slug ham unique tekshiruvidan o'tadi (dublikat → 500 emas)
+    const slug = await this.uniqueSlug(slugify(input.slug ?? input.titleUz));
     const res = await this.prisma.category.create({
       data: {
         tenantId: tenantId ?? null,
