@@ -57,10 +57,11 @@ export class AdminStoreController {
     if (!t) return { tenant: null };
 
     const limits = limitsFor(t.tariffPlan);
+    // Faqat shu sotuvchiga tegishli (o'z do'koni) sonlar
     const [products, categories, banners] = await Promise.all([
-      this.prisma.product.count(),
-      this.prisma.category.count(),
-      this.prisma.banner.count(),
+      this.prisma.product.count({ where: { tenantId: t.id } }),
+      this.prisma.category.count({ where: { tenantId: t.id } }),
+      this.prisma.banner.count({ where: { tenantId: t.id } }),
     ]);
 
     return {

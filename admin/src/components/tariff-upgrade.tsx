@@ -33,9 +33,10 @@ export function TariffUpgrade({
   const [receipt, setReceipt] = useState<File | null>(null);
   const [sent, setSent] = useState(false);
 
-  const paid = (tariffs ?? []).filter((t) => t.value !== 'FREE');
+  const all = tariffs ?? [];
 
   async function choose(t: TariffOption) {
+    if (t.value === 'FREE') return;
     setBusy(true);
     try {
       const res = await apiUpgradeTariff(t.value);
@@ -78,8 +79,9 @@ export function TariffUpgrade({
   if (step === 'choose') {
     return (
       <div className="space-y-2.5">
-        {paid.map((t) => {
+        {all.map((t) => {
           const isCurrent = t.value === currentPlan;
+          const isFree = t.value === 'FREE';
           return (
             <div key={t.value} className="rounded-2xl border border-[var(--color-border)] p-4">
               <div className="flex items-center justify-between mb-1">
@@ -96,8 +98,13 @@ export function TariffUpgrade({
                   </li>
                 ))}
               </ul>
-              <Button fullWidth loading={busy} disabled={isCurrent} onClick={() => choose(t)}>
-                {isCurrent ? 'Joriy tarif' : 'Tanlash'}
+              <Button
+                fullWidth
+                loading={busy}
+                disabled={isCurrent || isFree}
+                onClick={() => choose(t)}
+              >
+                {isCurrent ? 'Joriy tarif' : isFree ? 'Bepul tarif' : 'Tanlash'}
               </Button>
             </div>
           );
