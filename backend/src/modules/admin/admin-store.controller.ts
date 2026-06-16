@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { IsEnum, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { TariffPlan, type Admin } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { checkBotToken } from '@/common/helpers/telegram-bot-token';
@@ -37,6 +37,14 @@ class BotTokenDto {
 class UpgradeDto {
   @IsEnum(TariffPlan)
   tariffPlan!: TariffPlan;
+}
+
+class StoreInfoDto {
+  @IsOptional() @IsString() @MaxLength(120) name?: string;
+  @IsOptional() @IsString() @MaxLength(40)  phone?: string;
+  @IsOptional() @IsString() @MaxLength(300) address?: string;
+  @IsOptional() @IsString() @MaxLength(120) workingHours?: string;
+  @IsOptional() @IsString() @MaxLength(2000) about?: string;
 }
 
 /** Joriy admin o'z do'koni (tenant): bot token, tarif, limit, yangilash. */
@@ -75,10 +83,35 @@ export class AdminStoreController {
         pendingTariff: t.pendingTariff,
         botUsername: t.botUsername,
         hasBotToken: !!t.botToken,
+        phone: t.ownerPhone,
+        address: t.address,
+        workingHours: t.workingHours,
+        about: t.about,
       },
       limits,
       usage: { products, categories, banners },
     };
+  }
+
+  /** Do'kon ma'lumotlari (nomi, telefon, manzil, ish vaqti, biz haqimizda). */
+  @Put('info')
+  @HttpCode(200)
+  async updateInfo(@CurrentAdmin() admin: Admin, @Body() dto: StoreInfoDto) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    const data: Record<string, string | null> = {};
+    if (dto.name !== undefined) data.shopName = dto.name.trim();
+    if (dto.phone !== undefined) data.ownerPhone = dto.phone.trim() || null;
+    if (dto.address !== undefined) data.address = dto.address.trim() || null;
+    if (dto.workingHours !== undefined) data.workingHours = dto.workingHours.trim() || null;
+    if (dto.about !== undefined) data.about = dto.about.trim() || null;
+    if (data.shopName === '') throw new BadRequestException("Do'kon nomi bo'sh bo'lmasin");
+    const updated = await this.prisma.tenant.update({
+      where: { id: admin.tenantId },
+      data,
+      select: { slug: true },
+    });
+    this.tenantScope.invalidate(updated.slug);
+    return { ok: true };
   }
 
   @Put('bot')

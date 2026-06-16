@@ -565,6 +565,11 @@ model Tenant {
   ownerTelegramId BigInt?       @unique
   businessType    BusinessType?
 
+  // Do'kon ma'lumotlari (admin settings sahifasidan tahrirlanadi)
+  address         String?
+  workingHours    String?
+  about           String?
+
   // Tarif
   tariffPlan      TariffPlan   @default(FREE)
   pendingTariff   TariffPlan?  // To'lov kutilayotgan pulli tarif (tasdiqlanguncha FREE ishlaydi)

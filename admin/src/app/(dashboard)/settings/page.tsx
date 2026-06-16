@@ -8,11 +8,10 @@ import { Field, Input, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  apiListSettings,
   apiMyStore,
   apiRemoveStoreBot,
   apiSetStoreBot,
-  apiUpsertSetting,
+  apiUpdateStoreInfo,
 } from '@/lib/endpoints';
 import { toast } from '@/stores/toast-store';
 import { TariffUpgrade } from '@/components/tariff-upgrade';
@@ -34,28 +33,34 @@ const TARIFF_LABELS: Record<string, string> = {
 
 export default function SettingsPage() {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ['admin-settings'], queryFn: apiListSettings });
 
-  const storeData = (data?.find((s) => s.key === 'store')?.value as StoreSettings | undefined) ?? {};
+  // Do'kon (tenant) — ma'lumotlar, bot token va tarif
+  const { data: storeInfo, isLoading } = useQuery({ queryKey: ['my-store'], queryFn: apiMyStore });
+  const tenant = storeInfo?.tenant ?? null;
+
   const [store, setStore] = useState<StoreSettings>({});
 
   useEffect(() => {
-    setStore(storeData);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+    if (tenant) {
+      setStore({
+        name: tenant.shopName ?? '',
+        phone: tenant.phone ?? '',
+        address: tenant.address ?? '',
+        workingHours: tenant.workingHours ?? '',
+        about: tenant.about ?? '',
+      });
+    }
+  }, [tenant]);
 
   const save = useMutation({
-    mutationFn: () => apiUpsertSetting('store', store as Record<string, unknown>),
+    mutationFn: () => apiUpdateStoreInfo(store),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-settings'] });
+      qc.invalidateQueries({ queryKey: ['my-store'] });
       toast.success('Saqlandi');
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
-  // Do'kon (tenant) — bot token va tarif
-  const { data: storeInfo } = useQuery({ queryKey: ['my-store'], queryFn: apiMyStore });
-  const tenant = storeInfo?.tenant ?? null;
   const [botToken, setBotToken] = useState('');
   const setBot = useMutation({
     mutationFn: () => apiSetStoreBot(botToken.trim()),

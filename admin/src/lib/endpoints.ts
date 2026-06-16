@@ -125,11 +125,24 @@ export interface MyStore {
     pendingTariff: string | null;
     botUsername: string | null;
     hasBotToken: boolean;
+    phone: string | null;
+    address: string | null;
+    workingHours: string | null;
+    about: string | null;
   };
   limits?: TariffLimits;
   usage?: { products: number; categories: number; banners: number };
 }
 export const apiMyStore = () => api<MyStore>('/admin/store');
+export interface StoreInfoInput {
+  name?: string;
+  phone?: string;
+  address?: string;
+  workingHours?: string;
+  about?: string;
+}
+export const apiUpdateStoreInfo = (data: StoreInfoInput) =>
+  api<{ ok: boolean }>('/admin/store/info', { method: 'PUT', body: data });
 export const apiUpgradeTariff = (tariffPlan: string) =>
   api<{ ok: boolean; payment: PaymentInfo }>('/admin/store/upgrade', {
     method: 'POST',
