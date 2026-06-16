@@ -2,16 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Info, ShoppingCart, Truck, Gift } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
-import { Field, Input, Textarea } from '@/components/ui/input';
+import { Field, Input, Select, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  apiListSettings,
   apiMyStore,
   apiRemoveStoreBot,
   apiSetStoreBot,
   apiUpdateStoreInfo,
+  apiUpsertSetting,
 } from '@/lib/endpoints';
 import { toast } from '@/stores/toast-store';
 import { TariffUpgrade } from '@/components/tariff-upgrade';
@@ -24,12 +27,42 @@ interface StoreSettings {
   about?: string;
 }
 
+interface BusinessSettings {
+  minOrderAmount: number;
+  deliveryFee: number;
+  freeDeliveryThreshold: number;
+  currency: string;
+}
+
+const BUSINESS_DEFAULTS: BusinessSettings = {
+  minOrderAmount: 30000,
+  deliveryFee: 25000,
+  freeDeliveryThreshold: 500000,
+  currency: 'UZS',
+};
+
+const CURRENCY_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'UZS', label: "UZS — so'm" },
+  { value: 'USD', label: 'USD — dollar' },
+  { value: 'RUB', label: 'RUB — rubl' },
+];
+
 const TARIFF_LABELS: Record<string, string> = {
   FREE: 'Free',
   STANDARD: 'Standart',
   PRO: 'Pro',
   PREMIUM: 'Premium',
 };
+
+function formatMoneyInput(value: number): string {
+  if (!Number.isFinite(value) || value === 0) return '';
+  return new Intl.NumberFormat('ru-RU').format(value).replace(/,/g, ' ');
+}
+
+function parseMoneyInput(text: string): number {
+  const digits = text.replace(/[^0-9]/g, '');
+  return digits ? Number(digits) : 0;
+}
 
 export default function SettingsPage() {
   const qc = useQueryClient();
@@ -79,6 +112,47 @@ export default function SettingsPage() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  // Biznes qoidalari (key="business" Settings'da saqlanadi)
+  const { data: settingsList } = useQuery({ queryKey: ['admin-settings'], queryFn: apiListSettings });
+  const savedBusiness = (settingsList?.find((s) => s.key === 'business')?.value ?? null) as
+    | Partial<BusinessSettings>
+    | null;
+
+  const [business, setBusiness] = useState<BusinessSettings>(BUSINESS_DEFAULTS);
+
+  useEffect(() => {
+    setBusiness({
+      minOrderAmount: Number(savedBusiness?.minOrderAmount ?? BUSINESS_DEFAULTS.minOrderAmount),
+      deliveryFee: Number(savedBusiness?.deliveryFee ?? BUSINESS_DEFAULTS.deliveryFee),
+      freeDeliveryThreshold: Number(
+        savedBusiness?.freeDeliveryThreshold ?? BUSINESS_DEFAULTS.freeDeliveryThreshold,
+      ),
+      currency: String(savedBusiness?.currency ?? BUSINESS_DEFAULTS.currency),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsList]);
+
+  const saveBusiness = useMutation({
+    mutationFn: () => apiUpsertSetting('business', business as unknown as Record<string, unknown>),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-settings'] });
+      toast.success('Biznes qoidalari saqlandi');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const businessChanged =
+    savedBusiness === null
+      ? business.minOrderAmount !== BUSINESS_DEFAULTS.minOrderAmount ||
+        business.deliveryFee !== BUSINESS_DEFAULTS.deliveryFee ||
+        business.freeDeliveryThreshold !== BUSINESS_DEFAULTS.freeDeliveryThreshold ||
+        business.currency !== BUSINESS_DEFAULTS.currency
+      : Number(savedBusiness.minOrderAmount ?? BUSINESS_DEFAULTS.minOrderAmount) !== business.minOrderAmount ||
+        Number(savedBusiness.deliveryFee ?? BUSINESS_DEFAULTS.deliveryFee) !== business.deliveryFee ||
+        Number(savedBusiness.freeDeliveryThreshold ?? BUSINESS_DEFAULTS.freeDeliveryThreshold) !==
+          business.freeDeliveryThreshold ||
+        String(savedBusiness.currency ?? BUSINESS_DEFAULTS.currency) !== business.currency;
 
   if (isLoading) return <Skeleton className="h-80" />;
 
@@ -170,15 +244,113 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader title="Biznes qoidalari" />
-          <CardBody className="space-y-2 text-sm text-[var(--color-text-muted)]">
-            <p>Quyidagi qiymatlar backend `.env` fayli orqali sozlanadi (sirlar bilan birga):</p>
-            <ul className="list-disc list-inside mt-2 space-y-1">
-              <li>MIN_ORDER_AMOUNT — minimal buyurtma summasi</li>
-              <li>DELIVERY_FEE — yetkazib berish narxi</li>
-              <li>FREE_DELIVERY_THRESHOLD — bepul yetkazib berish chegarasi</li>
-              <li>TELEGRAM_BOT_TOKEN, TELEGRAM_ORDERS_CHANNEL_ID — bot sirlari</li>
-            </ul>
-            <p className="mt-2">O&apos;zgartirgandan keyin serverni restart qiling.</p>
+          <CardBody className="space-y-4">
+            <div className="flex gap-3 rounded-xl bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20 px-3 py-2.5 text-xs">
+              <Info size={16} className="text-[var(--color-primary)] shrink-0 mt-0.5" />
+              <p className="text-[var(--color-text-muted)]">
+                Bu sozlamalar buyurtma yaratishda ishlatiladi.{' '}
+                <span className="text-[var(--color-text)] font-medium">
+                  O&apos;zgarishlar darhol kuchga kiradi
+                </span>{' '}
+                — serverni qayta yoqish shart emas.
+              </p>
+            </div>
+
+            <Field
+              label={
+                <span className="flex items-center gap-1.5">
+                  <ShoppingCart size={14} /> Minimal buyurtma summasi
+                </span>
+              }
+              hint="Bundan kichik summaga buyurtma berib bo'lmaydi"
+            >
+              <div className="relative">
+                <Input
+                  value={formatMoneyInput(business.minOrderAmount)}
+                  onChange={(e) =>
+                    setBusiness({ ...business, minOrderAmount: parseMoneyInput(e.target.value) })
+                  }
+                  placeholder="30 000"
+                  inputMode="numeric"
+                  className="pr-14"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-[var(--color-text-muted)] pointer-events-none">
+                  {business.currency}
+                </span>
+              </div>
+            </Field>
+
+            <Field
+              label={
+                <span className="flex items-center gap-1.5">
+                  <Truck size={14} /> Yetkazib berish narxi
+                </span>
+              }
+              hint="Har buyurtmaga qo'shiladigan standart yetkazib berish narxi"
+            >
+              <div className="relative">
+                <Input
+                  value={formatMoneyInput(business.deliveryFee)}
+                  onChange={(e) =>
+                    setBusiness({ ...business, deliveryFee: parseMoneyInput(e.target.value) })
+                  }
+                  placeholder="25 000"
+                  inputMode="numeric"
+                  className="pr-14"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-[var(--color-text-muted)] pointer-events-none">
+                  {business.currency}
+                </span>
+              </div>
+            </Field>
+
+            <Field
+              label={
+                <span className="flex items-center gap-1.5">
+                  <Gift size={14} /> Bepul yetkazib berish chegarasi
+                </span>
+              }
+              hint="Buyurtma shundan oshsa, yetkazib berish bepul bo'ladi"
+            >
+              <div className="relative">
+                <Input
+                  value={formatMoneyInput(business.freeDeliveryThreshold)}
+                  onChange={(e) =>
+                    setBusiness({
+                      ...business,
+                      freeDeliveryThreshold: parseMoneyInput(e.target.value),
+                    })
+                  }
+                  placeholder="500 000"
+                  inputMode="numeric"
+                  className="pr-14"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-[var(--color-text-muted)] pointer-events-none">
+                  {business.currency}
+                </span>
+              </div>
+            </Field>
+
+            <Field label="Valyuta" hint="Asosiy valyuta — narxlarda ko'rsatiladi">
+              <Select
+                value={business.currency}
+                onChange={(e) => setBusiness({ ...business, currency: e.target.value })}
+              >
+                {CURRENCY_OPTIONS.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Button
+              loading={saveBusiness.isPending}
+              disabled={!businessChanged}
+              onClick={() => saveBusiness.mutate()}
+            >
+              {businessChanged ? 'Saqlash' : 'Saqlangan'}
+            </Button>
           </CardBody>
         </Card>
       </div>

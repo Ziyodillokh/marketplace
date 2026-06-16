@@ -1,11 +1,11 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OrderStatus, PaymentMethod, Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { localizeTitle, type Locale } from '@/common/helpers/localize';
 import { buildCursorPage, type CursorPage } from '@/common/helpers/pagination';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
+import { SettingsService } from '../settings/settings.service';
 import { customAlphabet } from 'nanoid';
 
 const orderNumberId = customAlphabet('0123456789', 6);
@@ -62,20 +62,12 @@ export interface OrderDetailDto {
 
 @Injectable()
 export class OrdersService {
-  private readonly minOrderAmount: number;
-  private readonly deliveryFee: number;
-  private readonly freeDeliveryThreshold: number;
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly promos: PromoCodesService,
     private readonly events: EventEmitter2,
-    config: ConfigService,
-  ) {
-    this.minOrderAmount = Number(config.get('MIN_ORDER_AMOUNT') ?? 30000);
-    this.deliveryFee = Number(config.get('DELIVERY_FEE') ?? 25000);
-    this.freeDeliveryThreshold = Number(config.get('FREE_DELIVERY_THRESHOLD') ?? 500000);
-  }
+    private readonly settings: SettingsService,
+  ) {}
 
   private buildVariantLabel(v: { color: string | null; size: string | null }): string | null {
     const parts: string[] = [];
@@ -122,8 +114,9 @@ export class OrdersService {
       }
     }
 
-    if (subtotal < this.minOrderAmount) {
-      throw new BadRequestException(`Minimum order amount is ${this.minOrderAmount}`);
+    const business = await this.settings.getBusiness();
+    if (subtotal < business.minOrderAmount) {
+      throw new BadRequestException(`Minimum order amount is ${business.minOrderAmount}`);
     }
 
     let discountAmount = 0;
@@ -136,7 +129,8 @@ export class OrdersService {
       promoSnapshot = evaluation.promo.code;
     }
 
-    const deliveryFee = subtotal - discountAmount >= this.freeDeliveryThreshold ? 0 : this.deliveryFee;
+    const deliveryFee =
+      subtotal - discountAmount >= business.freeDeliveryThreshold ? 0 : business.deliveryFee;
     const total = subtotal - discountAmount + deliveryFee;
 
     const orderNumber = await this.generateOrderNumber();

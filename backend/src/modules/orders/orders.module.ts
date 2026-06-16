@@ -4,9 +4,10 @@ import { OrdersService } from './orders.service';
 import { AuthModule } from '../auth/auth.module';
 import { CartModule } from '../cart/cart.module';
 import { PromoCodesModule } from '../promo-codes/promo-codes.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [AuthModule, CartModule, PromoCodesModule],
+  imports: [AuthModule, CartModule, PromoCodesModule, SettingsModule],
   controllers: [OrdersController],
   providers: [OrdersService],
   exports: [OrdersService],
