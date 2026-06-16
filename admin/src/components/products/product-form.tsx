@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea } from '@/components/ui/input';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import { SpecsEditor } from './specs-editor';
 import { RelatedProductsPicker, type RelatedProductMini } from './related-products-picker';
 import {
   apiAdminCategoriesTree,
+  apiAiAutofill,
   apiCreateAdminProduct,
   apiDeleteAdminProduct,
   apiUpdateAdminProduct,
@@ -90,6 +92,23 @@ export function ProductForm({ existing }: { existing?: AdminProductDetail }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.titleUz]);
 
+  // AI bilan nom va tavsifni avto-to'ldirish (rasm yoki nomdan)
+  const autofill = useMutation({
+    mutationFn: () =>
+      apiAiAutofill({ imageUrl: form.images[0]?.url, hint: form.titleUz || undefined }),
+    onSuccess: (r) => {
+      setForm((f) => ({
+        ...f,
+        titleUz: r.titleUz || f.titleUz,
+        titleRu: r.titleRu || f.titleRu,
+        descriptionUz: r.descriptionUz || f.descriptionUz,
+        descriptionRu: r.descriptionRu || f.descriptionRu,
+      }));
+      toast.success('AI to\'ldirdi');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const buildBody = () => ({
     titleUz: form.titleUz,
     titleRu: form.titleRu || form.titleUz,
@@ -157,6 +176,15 @@ export function ProductForm({ existing }: { existing?: AdminProductDetail }) {
         <Card>
           <CardHeader title="Asosiy ma'lumotlar" />
           <CardBody className="space-y-3">
+            <button
+              type="button"
+              onClick={() => autofill.mutate()}
+              disabled={autofill.isPending || (!form.images[0]?.url && !form.titleUz)}
+              className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-medium text-[var(--color-primary)] bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/20 disabled:opacity-50"
+            >
+              <Sparkles size={16} />
+              {autofill.isPending ? 'AI to\'ldirmoqda…' : 'AI bilan to\'ldirish (rasm yoki nomdan)'}
+            </button>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Nomi (uz) *">
                 <Input value={form.titleUz} onChange={(e) => setForm({ ...form, titleUz: e.target.value })} required />

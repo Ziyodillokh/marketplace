@@ -38,6 +38,8 @@ class EnvSchema {
 
   @IsString() EVENTS_RETENTION_DAYS!: string;
   @IsString() WEEKLY_AGGREGATION_CRON!: string;
+
+  @IsOptional() @IsString() OPENAI_API_KEY?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvSchema {

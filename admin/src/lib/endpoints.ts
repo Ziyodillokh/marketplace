@@ -169,6 +169,21 @@ export const apiSellerSubmitPayment = (initData: string, file: File) => {
   });
 };
 
+// AI (GPT)
+export const apiAiAutofill = (body: { imageUrl?: string; hint?: string }) =>
+  api<{ titleUz: string; titleRu: string; descriptionUz: string; descriptionRu: string }>(
+    '/admin/ai/autofill',
+    { method: 'POST', body },
+  );
+export const apiAiEnhanceImage = (file: File) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  return api<{ url: string; thumbUrl: string }>('/admin/ai/enhance-image', {
+    method: 'POST',
+    formData: fd,
+  });
+};
+
 // Products
 export const apiListAdminProducts = (params: { q?: string; categoryId?: string; status?: string; cursor?: string; limit?: number }) =>
   api<CursorPage<AdminProductListItem>>('/admin/products', { query: params });
