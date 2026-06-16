@@ -97,7 +97,7 @@ export interface CartSummary {
 }
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'ON_THE_WAY' | 'DELIVERED' | 'CANCELLED';
-export type PaymentMethod = 'CASH_ON_DELIVERY' | 'CARD_ON_DELIVERY';
+export type PaymentMethod = 'CASH_ON_DELIVERY' | 'CARD_ON_DELIVERY' | 'PAYME' | 'CLICK';
 
 export interface OrderListItem {
   id: string;
@@ -162,6 +162,7 @@ export interface AppliedPromo {
 export interface PublicSettings {
   store: { name?: string; phone?: string; address?: string; workingHours?: string; about?: string };
   business: { minOrderAmount: number; deliveryFee: number; freeDeliveryThreshold: number; currency: string };
+  payments: { payme: boolean; click: boolean };
 }
 
 export type EventType =

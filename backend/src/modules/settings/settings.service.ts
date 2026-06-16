@@ -19,6 +19,7 @@ export interface BusinessSettings {
 export interface PublicSettings {
   store: StoreSettings;
   business: BusinessSettings;
+  payments: { payme: boolean; click: boolean };
 }
 
 const BUSINESS_DEFAULTS = (): BusinessSettings => ({
@@ -94,6 +95,20 @@ export class SettingsService {
     return {
       store: await this.getStore(tenantId),
       business: await this.getBusiness(),
+      payments: await this.getPaymentsAvail(tenantId),
+    };
+  }
+
+  /** Shu do'kon uchun qaysi onlayn to'lov sozlangan. */
+  private async getPaymentsAvail(tenantId?: string | null): Promise<{ payme: boolean; click: boolean }> {
+    if (!tenantId) return { payme: false, click: false };
+    const t = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { paymeMerchantId: true, clickServiceId: true, clickMerchantId: true },
+    });
+    return {
+      payme: !!t?.paymeMerchantId,
+      click: !!(t?.clickServiceId && t?.clickMerchantId),
     };
   }
 }

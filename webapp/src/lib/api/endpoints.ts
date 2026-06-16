@@ -111,3 +111,7 @@ export const apiListMyTickets = () => api('/support/tickets/my');
 
 // ───── Settings ─────
 export const apiPublicSettings = () => api<PublicSettings>('/settings/public', { skipAuth: true });
+
+// ───── Payments (Payme / Click) ─────
+export const apiPaymentCheckout = (orderId: string, provider: 'payme' | 'click') =>
+  api<{ url: string }>('/payments/checkout', { query: { orderId, provider } });

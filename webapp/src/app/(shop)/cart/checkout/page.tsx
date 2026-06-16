@@ -2,13 +2,18 @@
 
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { PageHeader } from '@/components/shop/page-header';
 import { Input, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { apiCreateOrder, type CreateOrderBody } from '@/lib/api/endpoints';
+import {
+  apiCreateOrder,
+  apiPaymentCheckout,
+  apiPublicSettings,
+  type CreateOrderBody,
+} from '@/lib/api/endpoints';
 import type { PaymentMethod } from '@/lib/api/types';
 import { useLocaleStore } from '@/stores/locale-store';
 import { getMessages, tr } from '@/i18n';
@@ -38,6 +43,20 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH_ON_DELIVERY');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [detectingLocation, setDetectingLocation] = useState(false);
+
+  const { data: pub } = useQuery({ queryKey: ['public-settings'], queryFn: apiPublicSettings });
+  const paymentMethods: PaymentMethod[] = [
+    'CASH_ON_DELIVERY',
+    'CARD_ON_DELIVERY',
+    ...(pub?.payments?.payme ? (['PAYME'] as const) : []),
+    ...(pub?.payments?.click ? (['CLICK'] as const) : []),
+  ];
+  const paymentLabel = (m: PaymentMethod): string => {
+    if (m === 'CASH_ON_DELIVERY') return tr(messages, 'checkout.payCash');
+    if (m === 'CARD_ON_DELIVERY') return tr(messages, 'checkout.payCard');
+    if (m === 'PAYME') return 'Payme (onlayn)';
+    return 'Click (onlayn)';
+  };
 
   const {
     register,
@@ -74,18 +93,35 @@ export default function CheckoutPage() {
 
   const createOrder = useMutation({
     mutationFn: (body: CreateOrderBody) => apiCreateOrder(body),
-    onSuccess: (order) => {
+    onSuccess: async (order) => {
       haptic('success');
-      toast.success(tr(messages, 'checkout.success'));
       clearPromo();
       track({ type: 'ORDER_PLACED', payload: { orderId: order.id, total: order.total } });
-      // Buyurtma yaratildi → savat bo'sh. Cache'ni darhol bo'shatamiz (UI darhol yangilanadi).
       qc.setQueryData(['cart'], { items: [], summary: { count: 0, subtotal: 0 } });
       qc.setQueryData(['cart-summary'], { count: 0, subtotal: 0 });
-      // Backend tomonidan ham sync uchun invalidate
       qc.invalidateQueries({ queryKey: ['cart'] });
       qc.invalidateQueries({ queryKey: ['cart-summary'] });
       qc.invalidateQueries({ queryKey: ['orders'] });
+
+      // Onlayn to'lov — Payme/Click sahifasiga yo'naltiramiz
+      if (paymentMethod === 'PAYME' || paymentMethod === 'CLICK') {
+        try {
+          const { url } = await apiPaymentCheckout(
+            order.id,
+            paymentMethod === 'PAYME' ? 'payme' : 'click',
+          );
+          const wa = (window as unknown as { Telegram?: { WebApp?: { openLink?: (u: string) => void } } })
+            .Telegram?.WebApp;
+          if (wa?.openLink) wa.openLink(url);
+          else window.location.href = url;
+        } catch (e) {
+          toast.error((e as Error).message);
+        }
+        router.replace(`/orders/${order.id}?just-created=1`);
+        return;
+      }
+
+      toast.success(tr(messages, 'checkout.success'));
       router.replace(`/orders/${order.id}?just-created=1`);
     },
     onError: (err: Error) => {
@@ -188,7 +224,7 @@ export default function CheckoutPage() {
         <div>
           <p className="text-sm font-semibold mb-2">{tr(messages, 'checkout.paymentMethod')}</p>
           <div className="grid grid-cols-2 gap-2">
-            {(['CASH_ON_DELIVERY', 'CARD_ON_DELIVERY'] as const).map((m) => (
+            {paymentMethods.map((m) => (
               <button
                 key={m}
                 type="button"
@@ -200,7 +236,7 @@ export default function CheckoutPage() {
                     : 'bg-white border-[var(--color-border)]',
                 )}
               >
-                {m === 'CASH_ON_DELIVERY' ? tr(messages, 'checkout.payCash') : tr(messages, 'checkout.payCard')}
+                {paymentLabel(m)}
               </button>
             ))}
           </div>
