@@ -10,6 +10,7 @@ import { Sheet } from '@/components/ui/sheet';
 import { Field, Input, Select, Textarea } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Flag } from '@/components/flag';
 import {
   apiBroadcastPreviewCount,
   apiCreateBroadcast,
@@ -130,7 +131,11 @@ export default function BroadcastsPage() {
       <Sheet open={open} onClose={() => setOpen(false)} title="Yangi xabar">
         <div className="space-y-4">
           <Field
-            label="🇺🇿 Xabar matni (O'zbek) *"
+            label={
+              <span className="flex items-center gap-1.5">
+                <Flag code="uz" /> Xabar matni (O&apos;zbek) *
+              </span>
+            }
             hint="HTML formatlash: <b>qalin</b>, <i>kursiv</i>, <a href='...'>havola</a>"
           >
             <Textarea
@@ -141,7 +146,11 @@ export default function BroadcastsPage() {
             />
           </Field>
           <Field
-            label="🇷🇺 Xabar matni (Русский)"
+            label={
+              <span className="flex items-center gap-1.5">
+                <Flag code="ru" /> Xabar matni (Русский)
+              </span>
+            }
             hint="Bo'sh qoldirilsa, ruschalovchi userlar ham uzbek matnini ko'radi"
           >
             <Textarea

@@ -70,7 +70,7 @@ export function Field({
   hint,
   children,
 }: {
-  label?: string;
+  label?: React.ReactNode;
   error?: string;
   hint?: string;
   children: React.ReactNode;
