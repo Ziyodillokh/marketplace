@@ -117,7 +117,7 @@ export function MobileTopBar() {
   const router = useRouter();
   const isRoot = pathname === '/';
   return (
-    <header className="md:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-[var(--color-border)]">
+    <header className="md:hidden sticky top-0 z-30 bg-white border-b border-[var(--color-border)]">
       <div className="px-3 h-14 flex items-center gap-1">
         {!isRoot && (
           <button
@@ -145,7 +145,7 @@ const BOTTOM_NAV: NavItem[] = [
 export function MobileBottomNav() {
   const pathname = usePathname();
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/85 backdrop-blur-md border-t border-[var(--color-border)] pb-[env(safe-area-inset-bottom)]">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-[var(--color-border)] pb-[env(safe-area-inset-bottom)]">
       <ul className="grid grid-cols-5 px-1 pt-1">
         {BOTTOM_NAV.map((it) => {
           const active = it.href === '/' ? pathname === '/' : pathname.startsWith(it.href);
