@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Bot } from 'grammy';
 import { PrismaService } from '@/prisma/prisma.service';
@@ -8,7 +8,7 @@ import { PrismaService } from '@/prisma/prisma.service';
  * do'konini ochadi. Webhook'lar /telegram/t/:tenantId/webhook ga keladi.
  */
 @Injectable()
-export class TenantBotService {
+export class TenantBotService implements OnModuleInit {
   private readonly logger = new Logger(TenantBotService.name);
   private readonly bots = new Map<string, Bot>();
   private readonly webappUrl: string;
@@ -22,6 +22,41 @@ export class TenantBotService {
     this.webappUrl = (config.get<string>('WEBAPP_URL') ?? '').replace(/\/$/, '');
     this.appUrl = (config.get<string>('APP_URL') ?? '').replace(/\/$/, '');
     this.secret = config.get<string>('TELEGRAM_WEBHOOK_SECRET') ?? '';
+  }
+
+  async onModuleInit(): Promise<void> {
+    // Fonда — startupни bloklamaymiz
+    void this.selfHeal().catch((err) =>
+      this.logger.warn(`Tenant bot self-heal: ${(err as Error).message}`),
+    );
+  }
+
+  /** Startupda: egasiz katalogni yagona do'konga biriktirish + barcha botlarni qayta sozlash. */
+  private async selfHeal(): Promise<void> {
+    const tenants = await this.prisma.tenant.findMany({ select: { id: true } });
+
+    // Yagona do'kon bo'lsa — egasiz (null) mahsulot/bannerlarni unga biriktiramiz.
+    // (Kategoriyalar global/null qoladi — asosiy taglik.)
+    if (tenants.length === 1) {
+      const tid = tenants[0].id;
+      const [pr, bn] = await Promise.all([
+        this.prisma.product.updateMany({ where: { tenantId: null }, data: { tenantId: tid } }),
+        this.prisma.banner.updateMany({ where: { tenantId: null }, data: { tenantId: tid } }),
+      ]);
+      if (pr.count || bn.count) {
+        this.logger.log(`Backfill → tenant ${tid}: ${pr.count} mahsulot, ${bn.count} banner`);
+      }
+    }
+
+    // Barcha ulangan botlarni qayta sozlaymiz (webhook + menu → ?shop=slug)
+    const withBot = await this.prisma.tenant.findMany({
+      where: { botToken: { not: null } },
+      select: { id: true },
+    });
+    for (const t of withBot) {
+      void this.configure(t.id).catch(() => undefined);
+    }
+    if (withBot.length) this.logger.log(`${withBot.length} ta tenant boti qayta sozlandi`);
   }
 
   private storeUrl(slug: string): string {
