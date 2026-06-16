@@ -103,10 +103,15 @@ export class OpenAiService {
     form.append('model', model);
     form.append(
       'prompt',
-      'Improve this product photo for an online store: clean, professional lighting, ' +
-        'sharp focus, neutral/white background, keep the product exactly the same.',
+      'Professional e-commerce product photo for a sales card. ' +
+        'Keep the product EXACTLY the same — same shape, colors, logo, text and details, do not redesign it. ' +
+        'Place it centered on a clean, soft, evenly-lit neutral/white studio background. ' +
+        'Studio softbox lighting, crisp sharp focus, true-to-life colors, subtle natural shadow and gentle floor reflection, ' +
+        'high resolution, marketplace catalog style. ' +
+        'No text, no watermark, no logos added, no extra props or people.',
     );
     form.append('size', '1024x1024');
+    form.append('quality', 'high');
     form.append('image', new Blob([new Uint8Array(image)], { type: 'image/png' }), 'image.png');
 
     const res = await fetch('https://api.openai.com/v1/images/edits', {
