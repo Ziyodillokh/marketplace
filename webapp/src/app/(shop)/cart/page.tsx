@@ -81,12 +81,19 @@ export default function CartPage() {
         subtotal,
       )
     : 0;
+  // Settings endpoint xato bo'lsa, xavfsiz default'lardan foydalanamiz —
+  // aks holda 0 deb minOrder/deliveryFee qaytarib, har qanday summaga
+  // bepul yetkazib berish bilan buyurtmaga ruxsat bersak biznes uchun zarar.
+  const business = settings?.business ?? {
+    minOrderAmount: 30000,
+    deliveryFee: 25000,
+    freeDeliveryThreshold: 500000,
+    currency: 'UZS',
+  };
   const deliveryFee =
-    !settings || subtotal - discountAmount >= settings.business.freeDeliveryThreshold
-      ? 0
-      : settings.business.deliveryFee;
+    subtotal - discountAmount >= business.freeDeliveryThreshold ? 0 : business.deliveryFee;
   const total = Math.max(0, subtotal - discountAmount + deliveryFee);
-  const minOrder = settings?.business.minOrderAmount ?? 0;
+  const minOrder = business.minOrderAmount;
   const belowMin = subtotal < minOrder;
 
   if (isLoading) {

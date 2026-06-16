@@ -11,8 +11,15 @@ type AdminEvent =
   | 'support-new-ticket'
   | 'connected';
 
-export function useAdminSocket(handlers: Partial<Record<AdminEvent, (payload: unknown) => void>>) {
+type Handlers = Partial<Record<AdminEvent, (payload: unknown) => void>>;
+
+export function useAdminSocket(handlers: Handlers) {
   const socketRef = useRef<Socket | null>(null);
+  // handlersRef — har render'da yangilanadi. Socket listenerlari shu ref orqali
+  // chaqirilgani uchun, ular har doim eng yangi handler'ni ko'radi va `[]` deps
+  // bilan ham stale closure muammosi bo'lmaydi.
+  const handlersRef = useRef<Handlers>(handlers);
+  handlersRef.current = handlers;
 
   useEffect(() => {
     const token = loadAccessToken();
@@ -27,18 +34,25 @@ export function useAdminSocket(handlers: Partial<Record<AdminEvent, (payload: un
     });
     socketRef.current = socket;
 
-    for (const [event, handler] of Object.entries(handlers) as Array<[AdminEvent, (p: unknown) => void]>) {
-      socket.on(event, handler);
-    }
+    const events: AdminEvent[] = [
+      'user-event',
+      'order-created',
+      'order-status-changed',
+      'support-new-ticket',
+      'connected',
+    ];
+
+    const dispatch = (event: AdminEvent) => (payload: unknown) => {
+      handlersRef.current[event]?.(payload);
+    };
+    const dispatchers = events.map((e) => ({ event: e, fn: dispatch(e) }));
+    for (const { event, fn } of dispatchers) socket.on(event, fn);
 
     return () => {
-      for (const event of Object.keys(handlers)) {
-        socket.off(event);
-      }
+      for (const { event, fn } of dispatchers) socket.off(event, fn);
       socket.disconnect();
       socketRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return socketRef;

@@ -100,6 +100,23 @@ export class TenantBotService implements OnModuleInit {
     this.bots.delete(tenantId);
   }
 
+  /**
+   * Berilgan token uchun Telegram webhook'ini o'chiradi.
+   * Token o'zgarganda eski bot bizga update yubormasligi uchun ishlatiladi.
+   * Xato bo'lsa (eski token allaqachon o'chirilgan/yaroqsiz) — log qilamiz,
+   * exception qaytarmaymiz.
+   */
+  async deleteWebhookForToken(token: string): Promise<void> {
+    if (!token) return;
+    try {
+      const bot = new Bot(token);
+      await bot.api.deleteWebhook({ drop_pending_updates: true });
+      this.logger.log(`Old webhook deleted for token ${token.slice(0, 10)}…`);
+    } catch (err) {
+      this.logger.warn(`Old webhook delete failed: ${(err as Error).message}`);
+    }
+  }
+
   /** Webhook'dan kelgan update'ni shu tenant boti bilan ishlaydi. */
   async handleUpdate(tenantId: string, update: unknown): Promise<void> {
     const bot = await this.loadBot(tenantId);

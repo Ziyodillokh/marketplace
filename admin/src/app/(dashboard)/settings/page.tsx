@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Info, ShoppingCart, Truck, Gift, Bot, Users as UsersIcon } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
@@ -120,8 +120,14 @@ export default function SettingsPage() {
     | null;
 
   const [business, setBusiness] = useState<BusinessSettings>(BUSINESS_DEFAULTS);
+  // Faqat birinchi yuklash paytida server qiymatlarini state'ga ko'chiramiz.
+  // Refetch (masalan, focus'da React Query qayta yuklashida) form'ni
+  // o'zgartirmasin — foydalanuvchi yozayotgan qiymatlar yo'qolib qoladi.
+  const businessInitializedRef = useRef(false);
 
   useEffect(() => {
+    if (businessInitializedRef.current) return;
+    if (!settingsList) return;
     setBusiness({
       minOrderAmount: Number(savedBusiness?.minOrderAmount ?? BUSINESS_DEFAULTS.minOrderAmount),
       deliveryFee: Number(savedBusiness?.deliveryFee ?? BUSINESS_DEFAULTS.deliveryFee),
@@ -130,6 +136,7 @@ export default function SettingsPage() {
       ),
       currency: String(savedBusiness?.currency ?? BUSINESS_DEFAULTS.currency),
     });
+    businessInitializedRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsList]);
 

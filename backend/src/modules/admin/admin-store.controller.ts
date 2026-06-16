@@ -129,6 +129,17 @@ export class AdminStoreController {
       where: { botToken: token, NOT: { id: admin.tenantId } },
     });
     if (taken) throw new ConflictException("Bu token boshqa do'konda ishlatilgan");
+
+    // Eski tokenni saqlab qo'yamiz — yangisi muvaffaqiyatli ulanguncha
+    // eski botning webhook'ini buzmaymiz. Yangi token o'rnatilgach,
+    // eski bot webhook'ini o'chiramiz: aks holda eski bot yana
+    // bizga update yuborishi mumkin (orphan webhook).
+    const prev = await this.prisma.tenant.findUnique({
+      where: { id: admin.tenantId },
+      select: { botToken: true },
+    });
+    const oldToken = prev?.botToken;
+
     const updated = await this.prisma.tenant.update({
       where: { id: admin.tenantId },
       data: { botToken: token, botUsername: check.username ?? null },
@@ -136,6 +147,10 @@ export class AdminStoreController {
     });
     this.tenantScope.invalidate(updated.slug);
     await this.tenantBot.configure(admin.tenantId).catch(() => undefined);
+
+    if (oldToken && oldToken !== token) {
+      await this.tenantBot.deleteWebhookForToken(oldToken).catch(() => undefined);
+    }
     return { ok: true, username: check.username };
   }
 
@@ -143,6 +158,10 @@ export class AdminStoreController {
   @HttpCode(200)
   async removeBot(@CurrentAdmin() admin: Admin) {
     if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    const prev = await this.prisma.tenant.findUnique({
+      where: { id: admin.tenantId },
+      select: { botToken: true },
+    });
     const updated = await this.prisma.tenant.update({
       where: { id: admin.tenantId },
       data: { botToken: null, botUsername: null },
@@ -150,6 +169,9 @@ export class AdminStoreController {
     });
     this.tenantScope.invalidate(updated.slug);
     this.tenantBot.forget(admin.tenantId);
+    if (prev?.botToken) {
+      await this.tenantBot.deleteWebhookForToken(prev.botToken).catch(() => undefined);
+    }
     return { ok: true };
   }
 
