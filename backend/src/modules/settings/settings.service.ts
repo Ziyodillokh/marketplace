@@ -7,6 +7,8 @@ export interface StoreSettings {
   address?: string;
   workingHours?: string;
   about?: string;
+  primaryColor?: string | null;
+  logoUrl?: string | null;
 }
 
 export interface BusinessSettings {
@@ -49,6 +51,8 @@ export class SettingsService {
           address: true,
           workingHours: true,
           about: true,
+          primaryColor: true,
+          logoUrl: true,
         },
       });
       if (t) {
@@ -58,6 +62,8 @@ export class SettingsService {
           address: t.address ?? undefined,
           workingHours: t.workingHours ?? undefined,
           about: t.about ?? undefined,
+          primaryColor: t.primaryColor,
+          logoUrl: t.logoUrl,
         };
       }
     }

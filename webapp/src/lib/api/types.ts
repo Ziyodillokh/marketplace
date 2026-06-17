@@ -160,7 +160,15 @@ export interface AppliedPromo {
 }
 
 export interface PublicSettings {
-  store: { name?: string; phone?: string; address?: string; workingHours?: string; about?: string };
+  store: {
+    name?: string;
+    phone?: string;
+    address?: string;
+    workingHours?: string;
+    about?: string;
+    primaryColor?: string | null;
+    logoUrl?: string | null;
+  };
   business: { minOrderAmount: number; deliveryFee: number; freeDeliveryThreshold: number; currency: string };
   payments: { payme: boolean; click: boolean };
 }

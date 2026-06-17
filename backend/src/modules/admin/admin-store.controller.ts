@@ -48,6 +48,11 @@ class StoreInfoDto {
   @IsOptional() @IsString() @MaxLength(2000) about?: string;
 }
 
+class BrandingDto {
+  @IsOptional() @IsString() @MaxLength(20) primaryColor?: string;
+  @IsOptional() @IsString() @MaxLength(500) logoUrl?: string;
+}
+
 class PaymentsDto {
   @IsOptional() @IsString() @MaxLength(100) paymeMerchantId?: string;
   @IsOptional() @IsString() @MaxLength(200) paymeKey?: string;
@@ -92,6 +97,7 @@ export class AdminStoreController {
         slug: t.slug,
         businessType: t.businessType,
         logoUrl: t.logoUrl,
+        primaryColor: t.primaryColor,
         tariffPlan: t.tariffPlan,
         pendingTariff: t.pendingTariff,
         botUsername: t.botUsername,
@@ -135,6 +141,32 @@ export class AdminStoreController {
       select: { slug: true },
     });
     this.tenantScope.invalidate(updated.slug);
+    return { ok: true };
+  }
+
+  /** Brending — maxsus rang va logo (Standart+ tariflarda). */
+  @Put('branding')
+  @HttpCode(200)
+  async updateBranding(@CurrentAdmin() admin: Admin, @Body() dto: BrandingDto) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    const t = await this.prisma.tenant.findUnique({
+      where: { id: admin.tenantId },
+      select: { tariffPlan: true },
+    });
+    if (!hasFeature(t?.tariffPlan ?? 'FREE', 'branding')) {
+      throw new ForbiddenException({
+        message: 'Maxsus brending Standart+ tariflarda mavjud. Tarifni yangilang.',
+        upgradeRequired: true,
+      });
+    }
+    const data: Record<string, string | null> = {};
+    if (dto.primaryColor !== undefined) {
+      const c = dto.primaryColor.trim();
+      if (c && !/^#[0-9a-fA-F]{6}$/.test(c)) throw new BadRequestException("Rang #RRGGBB formatida bo'lsin");
+      data.primaryColor = c || null;
+    }
+    if (dto.logoUrl !== undefined) data.logoUrl = dto.logoUrl.trim() || null;
+    await this.prisma.tenant.update({ where: { id: admin.tenantId }, data });
     return { ok: true };
   }
 

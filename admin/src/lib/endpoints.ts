@@ -121,6 +121,7 @@ export interface MyStore {
     slug: string;
     businessType: string | null;
     logoUrl: string | null;
+    primaryColor: string | null;
     tariffPlan: string;
     pendingTariff: string | null;
     botUsername: string | null;
@@ -147,6 +148,8 @@ export interface PaymentsInput {
 }
 export const apiUpdateStorePayments = (data: PaymentsInput) =>
   api<{ ok: boolean }>('/admin/store/payments', { method: 'PUT', body: data });
+export const apiUpdateStoreBranding = (data: { primaryColor?: string; logoUrl?: string }) =>
+  api<{ ok: boolean }>('/admin/store/branding', { method: 'PUT', body: data });
 export interface StoreInfoInput {
   name?: string;
   phone?: string;

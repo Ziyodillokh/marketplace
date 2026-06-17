@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Info, ShoppingCart, Truck, Gift, Bot, Users as UsersIcon, CreditCard, Lock } from 'lucide-react';
+import { Info, ShoppingCart, Truck, Gift, Bot, Users as UsersIcon, CreditCard, Lock, Palette, Upload } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input, Select, Textarea } from '@/components/ui/input';
@@ -15,6 +15,8 @@ import {
   apiSetStoreBot,
   apiUpdateStoreInfo,
   apiUpdateStorePayments,
+  apiUpdateStoreBranding,
+  apiUploadImage,
   apiUpsertSetting,
 } from '@/lib/endpoints';
 import { toast } from '@/stores/toast-store';
@@ -141,6 +143,37 @@ export default function SettingsPage() {
       qc.invalidateQueries({ queryKey: ['my-store'] });
       setPay((s) => ({ ...s, paymeKey: '', clickSecretKey: '' }));
       toast.success("To'lov sozlamalari saqlandi");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Brending — maxsus rang + logo
+  const brandingAllowed = storeInfo?.limits?.branding ?? false;
+  const [brand, setBrand] = useState({ primaryColor: '#2F6BFF', logoUrl: '' });
+  const [logoUploading, setLogoUploading] = useState(false);
+  useEffect(() => {
+    if (tenant) {
+      setBrand({ primaryColor: tenant.primaryColor || '#2F6BFF', logoUrl: tenant.logoUrl || '' });
+    }
+  }, [tenant]);
+  async function uploadLogo(file: File | undefined) {
+    if (!file) return;
+    setLogoUploading(true);
+    try {
+      const r = await apiUploadImage(file);
+      setBrand((b) => ({ ...b, logoUrl: r.url }));
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setLogoUploading(false);
+    }
+  }
+  const saveBrand = useMutation({
+    mutationFn: () =>
+      apiUpdateStoreBranding({ primaryColor: brand.primaryColor, logoUrl: brand.logoUrl || undefined }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-store'] });
+      toast.success('Brending saqlandi');
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -384,6 +417,70 @@ export default function SettingsPage() {
                     Click Prepare: https://selliostore.uz/api/payments/click/prepare
                     <br />
                     Click Complete: https://selliostore.uz/api/payments/click/complete
+                  </div>
+                </>
+              )}
+            </CardBody>
+          </Card>
+        )}
+
+        {tenant && (
+          <Card>
+            <CardHeader title="Brending" />
+            <CardBody className="space-y-3">
+              {!brandingAllowed ? (
+                <div className="flex gap-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] px-3 py-3 text-sm">
+                  <Lock size={16} className="text-[var(--color-text-muted)] shrink-0 mt-0.5" />
+                  <p className="text-[var(--color-text-muted)]">
+                    Maxsus rang va logo <b>Standart</b> va undan yuqori tariflarda. Tarifni yangilang.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <Field label="Asosiy rang" hint="Do'koningiz tugma va urg'u ranglari">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={/^#[0-9a-fA-F]{6}$/.test(brand.primaryColor) ? brand.primaryColor : '#2F6BFF'}
+                        onChange={(e) => setBrand({ ...brand, primaryColor: e.target.value })}
+                        className="h-11 w-14 rounded-lg border border-[var(--color-border)] cursor-pointer bg-white p-1"
+                      />
+                      <Input
+                        value={brand.primaryColor}
+                        onChange={(e) => setBrand({ ...brand, primaryColor: e.target.value })}
+                        placeholder="#2F6BFF"
+                        className="font-mono"
+                      />
+                    </div>
+                  </Field>
+
+                  <Field label="Logo" hint="Do'kon sahifasida ko'rinadi">
+                    <label className="flex items-center gap-3 h-16 px-3 rounded-xl border border-dashed border-[var(--color-border)] bg-white cursor-pointer">
+                      {brand.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={brand.logoUrl} alt="logo" className="h-12 w-12 rounded-lg object-cover" />
+                      ) : (
+                        <span className="inline-flex h-12 w-12 rounded-lg bg-[var(--color-bg)] items-center justify-center text-[var(--color-text-muted)]">
+                          <Upload size={20} />
+                        </span>
+                      )}
+                      <span className="text-sm text-[var(--color-text-muted)]">
+                        {logoUploading ? 'Yuklanmoqda…' : brand.logoUrl ? 'Logoni almashtirish' : 'Logo yuklash'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={(e) => uploadLogo(e.target.files?.[0])}
+                      />
+                    </label>
+                  </Field>
+
+                  <Button loading={saveBrand.isPending} onClick={() => saveBrand.mutate()}>
+                    Saqlash
+                  </Button>
+                  <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                    <Palette size={14} /> Rang va logo mijozlar do&apos;koningizga qo&apos;llanadi.
                   </div>
                 </>
               )}
