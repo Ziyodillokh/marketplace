@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Bot } from 'grammy';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { OrderStatus } from '@prisma/client';
+import { Bot, type Context, InlineKeyboard, InputFile } from 'grammy';
 import { PrismaService } from '@/prisma/prisma.service';
 
 /**
@@ -17,6 +19,7 @@ export class TenantBotService implements OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly events: EventEmitter2,
     config: ConfigService,
   ) {
     this.webappUrl = (config.get<string>('WEBAPP_URL') ?? '').replace(/\/$/, '');
@@ -66,7 +69,7 @@ export class TenantBotService implements OnModuleInit {
     return `${this.webappUrl}?shop=${encodeURIComponent(slug)}`;
   }
 
-  private buildBot(token: string, slug: string, shopName: string): Bot {
+  private buildBot(token: string, slug: string, shopName: string, tenantId: string): Bot {
     const bot = new Bot(token);
     bot.catch((err) => this.logger.error(`Tenant bot error: ${err.error}`));
     bot.command('start', async (ctx) => {
@@ -81,6 +84,20 @@ export class TenantBotService implements OnModuleInit {
         await ctx.reply(text, { parse_mode: 'HTML' });
       }
     });
+
+    // To'lov chekini tasdiqlash / rad etish (kanaldagi tugmalar)
+    bot.callbackQuery(/^paycfm:(approve|reject):(.+)$/, async (ctx) => {
+      const action = ctx.match![1] as 'approve' | 'reject';
+      const orderId = ctx.match![2];
+      try {
+        await this.handlePaymentCallback(tenantId, action, orderId, ctx);
+        await ctx.answerCallbackQuery({ text: action === 'approve' ? '✅ Tasdiqlandi' : '❌ Rad etildi' });
+      } catch (err) {
+        this.logger.error(`Payment callback failed: ${(err as Error).message}`);
+        await ctx.answerCallbackQuery({ text: 'Xatolik yuz berdi' }).catch(() => undefined);
+      }
+    });
+
     return bot;
   }
 
@@ -92,10 +109,124 @@ export class TenantBotService implements OnModuleInit {
       select: { botToken: true, slug: true, shopName: true },
     });
     if (!t?.botToken) return null;
-    const bot = this.buildBot(t.botToken, t.slug, t.shopName);
+    const bot = this.buildBot(t.botToken, t.slug, t.shopName, tenantId);
     await bot.init();
     this.bots.set(tenantId, bot);
     return bot;
+  }
+
+  private formatMoney(n: number | string): string {
+    return Number(n).toLocaleString('ru-RU').replace(/,/g, ' ') + ' so\'m';
+  }
+
+  /**
+   * Mijoz yuklagan to'lov chekini sotuvchining tasdiqlash kanaliga yuboradi.
+   * Tugmalar: ✅ Tasdiqlash / ❌ Rad etish.
+   * Sotuvchi boti shu kanalga admin bo'lishi shart.
+   */
+  async sendReceiptToChannel(
+    tenantId: string,
+    photo: Buffer,
+    caption: string,
+    orderId: string,
+  ): Promise<number | null> {
+    const t = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { manualPaymentChannelId: true },
+    });
+    if (!t?.manualPaymentChannelId) {
+      this.logger.warn(`Tenant ${tenantId} uchun to'lov kanali sozlanmagan`);
+      return null;
+    }
+    const bot = await this.loadBot(tenantId);
+    if (!bot) return null;
+    const keyboard = new InlineKeyboard()
+      .text('✅ Tasdiqlash', `paycfm:approve:${orderId}`)
+      .text('❌ Rad etish', `paycfm:reject:${orderId}`);
+    const msg = await bot.api.sendPhoto(
+      t.manualPaymentChannelId,
+      new InputFile(photo, 'chek.jpg'),
+      { caption, parse_mode: 'HTML', reply_markup: keyboard },
+    );
+    return msg.message_id;
+  }
+
+  /** Kanaldagi tasdiqlash/rad tugmasi bosilganda buyurtma to'lovini hal qiladi. */
+  private async handlePaymentCallback(
+    tenantId: string,
+    action: 'approve' | 'reject',
+    orderId: string,
+    ctx: Context,
+  ): Promise<void> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { user: true },
+    });
+    if (!order || order.tenantId !== tenantId) return;
+    if (order.paidAt) return; // allaqachon tasdiqlangan — qayta ishlamaymiz
+
+    const bot = await this.loadBot(tenantId);
+
+    if (action === 'approve') {
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          paidAt: new Date(),
+          status: OrderStatus.CONFIRMED,
+          events: { create: { status: OrderStatus.CONFIRMED, comment: "To'lov cheki tasdiqlandi" } },
+        },
+      });
+      // Admin paneli + foydalanuvchi WebApp real-time
+      this.events.emit('order.status_changed', { orderId, status: OrderStatus.CONFIRMED });
+      this.events.emit('user.order.status_changed', {
+        userId: order.userId,
+        orderId,
+        status: OrderStatus.CONFIRMED,
+        orderNumber: order.orderNumber,
+      });
+      // Mijozga xabar (sotuvchining boti orqali)
+      if (bot && order.user.telegramId) {
+        await bot.api
+          .sendMessage(
+            Number(order.user.telegramId),
+            `✅ <b>To'lovingiz tasdiqlandi!</b>\n\nBuyurtma <b>#${order.orderNumber}</b> (${this.formatMoney(Number(order.total))}) qabul qilindi va tayyorlanmoqda.`,
+            { parse_mode: 'HTML' },
+          )
+          .catch(() => undefined);
+      }
+    } else {
+      // Rad etildi — chekni o'chiramiz, mijoz qayta yuklashi mumkin
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          paymentReceiptUrl: null,
+          payReceiptMessageId: null,
+          events: { create: { status: order.status, comment: "To'lov cheki rad etildi" } },
+        },
+      });
+      if (bot && order.user.telegramId) {
+        await bot.api
+          .sendMessage(
+            Number(order.user.telegramId),
+            `❌ <b>To'lov tasdiqlanmadi.</b>\n\nBuyurtma <b>#${order.orderNumber}</b> uchun to'lov chekini qayta yuklang yoki sotuvchi bilan bog'laning.`,
+            { parse_mode: 'HTML' },
+          )
+          .catch(() => undefined);
+      }
+    }
+
+    // Kanaldagi xabarni belgilash
+    try {
+      const label = action === 'approve' ? "✅ TO'LOV TASDIQLANDI" : '❌ RAD ETILDI';
+      const by = ctx.from?.username ? `@${ctx.from.username}` : ctx.from?.first_name ?? '';
+      const cap = ctx.callbackQuery?.message?.caption ?? '';
+      await ctx.editMessageCaption({
+        caption: `${cap}\n\n<b>${label}</b>${by ? ` — ${by}` : ''}`,
+        parse_mode: 'HTML',
+      });
+    } catch {
+      // tahrirlash muhim emas
+    }
   }
 
   /** Keshdagi bot instansiyasini unutadi (token o'zgargan/o'chirilganda). */

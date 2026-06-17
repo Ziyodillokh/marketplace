@@ -48,12 +48,14 @@ export default function CheckoutPage() {
   const paymentMethods: PaymentMethod[] = [
     'CASH_ON_DELIVERY',
     'CARD_ON_DELIVERY',
+    ...(pub?.payments?.card ? (['CARD_TRANSFER'] as const) : []),
     ...(pub?.payments?.payme ? (['PAYME'] as const) : []),
     ...(pub?.payments?.click ? (['CLICK'] as const) : []),
   ];
   const paymentLabel = (m: PaymentMethod): string => {
     if (m === 'CASH_ON_DELIVERY') return tr(messages, 'checkout.payCash');
     if (m === 'CARD_ON_DELIVERY') return tr(messages, 'checkout.payCard');
+    if (m === 'CARD_TRANSFER') return locale === 'ru' ? 'Картой (чек)' : 'Karta orqali (chek)';
     if (m === 'PAYME') return 'Payme (onlayn)';
     return 'Click (onlayn)';
   };
@@ -240,6 +242,20 @@ export default function CheckoutPage() {
               </button>
             ))}
           </div>
+
+          {paymentMethod === 'CARD_TRANSFER' && pub?.cardPayment && (
+            <div className="mt-3 rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5 p-3 space-y-1.5">
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {locale === 'ru'
+                  ? 'Переведите сумму на карту, затем загрузите чек на странице заказа.'
+                  : 'Quyidagi kartaga pul o\'tkazing, so\'ng buyurtma sahifasida chekni yuklang.'}
+              </p>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-base font-semibold tracking-wide">{pub.cardPayment.number}</span>
+              </div>
+              <p className="text-sm">{pub.cardPayment.holder}</p>
+            </div>
+          )}
         </div>
 
         <div className="fixed bottom-[72px] inset-x-0 max-w-md mx-auto bg-white border-t border-[var(--color-border)] px-4 py-3">

@@ -21,7 +21,9 @@ export interface BusinessSettings {
 export interface PublicSettings {
   store: StoreSettings;
   business: BusinessSettings;
-  payments: { payme: boolean; click: boolean };
+  payments: { payme: boolean; click: boolean; card: boolean };
+  /** Karta o'tkazma uchun rekvizitlar (sozlangan bo'lsa) */
+  cardPayment: { number: string; holder: string } | null;
 }
 
 const BUSINESS_DEFAULTS = (): BusinessSettings => ({
@@ -98,23 +100,47 @@ export class SettingsService {
   }
 
   async getPublic(tenantId?: string | null): Promise<PublicSettings> {
+    const [store, business, pay] = await Promise.all([
+      this.getStore(tenantId),
+      this.getBusiness(),
+      this.getPaymentsAvail(tenantId),
+    ]);
     return {
-      store: await this.getStore(tenantId),
-      business: await this.getBusiness(),
-      payments: await this.getPaymentsAvail(tenantId),
+      store,
+      business,
+      payments: { payme: pay.payme, click: pay.click, card: pay.card },
+      cardPayment: pay.card ? { number: pay.cardNumber!, holder: pay.cardHolder! } : null,
     };
   }
 
-  /** Shu do'kon uchun qaysi onlayn to'lov sozlangan. */
-  private async getPaymentsAvail(tenantId?: string | null): Promise<{ payme: boolean; click: boolean }> {
-    if (!tenantId) return { payme: false, click: false };
+  /** Shu do'kon uchun qaysi to'lov turlari sozlangan. */
+  private async getPaymentsAvail(tenantId?: string | null): Promise<{
+    payme: boolean;
+    click: boolean;
+    card: boolean;
+    cardNumber?: string;
+    cardHolder?: string;
+  }> {
+    if (!tenantId) return { payme: false, click: false, card: false };
     const t = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { paymeMerchantId: true, clickServiceId: true, clickMerchantId: true },
+      select: {
+        paymeMerchantId: true,
+        clickServiceId: true,
+        clickMerchantId: true,
+        manualCardNumber: true,
+        manualCardHolder: true,
+        manualPaymentChannelId: true,
+      },
     });
+    // Karta o'tkazma faqat karta raqami + tasdiqlash kanali bo'lsa ko'rinadi
+    const cardReady = !!(t?.manualCardNumber && t?.manualPaymentChannelId);
     return {
       payme: !!t?.paymeMerchantId,
       click: !!(t?.clickServiceId && t?.clickMerchantId),
+      card: cardReady,
+      cardNumber: t?.manualCardNumber ?? undefined,
+      cardHolder: t?.manualCardHolder ?? undefined,
     };
   }
 }

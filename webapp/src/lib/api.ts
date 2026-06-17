@@ -116,6 +116,40 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   return payload as T;
 }
 
+/** Fayl (multipart/form-data) yuklash — chek rasmlari va h.k. uchun. */
+export async function apiUploadForm<T>(path: string, file: File, field = 'file'): Promise<T> {
+  const headers: Record<string, string> = {
+    'Accept-Language': currentLocale,
+    'bypass-tunnel-reminder': '1',
+  };
+  const initData = getInitData();
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  const shop = getShopSlug();
+  if (shop) headers['X-Tenant-Slug'] = shop;
+
+  const form = new FormData();
+  form.append(field, file);
+
+  const res = await fetch(buildUrl(path), {
+    method: 'POST',
+    headers, // Content-Type'ni brauzer o'zi (boundary bilan) qo'yadi
+    body: form,
+    credentials: 'omit',
+  });
+
+  let payload: unknown;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = undefined;
+  }
+  if (!res.ok) {
+    const errObj = (payload as { message?: string; details?: unknown }) ?? {};
+    throw new ApiError(errObj.message ?? `HTTP ${res.status}`, res.status, errObj.details);
+  }
+  return payload as T;
+}
+
 export async function sendBeaconBatch(path: string, events: unknown[]): Promise<void> {
   const initData = getInitData();
   const url = buildUrl(path);

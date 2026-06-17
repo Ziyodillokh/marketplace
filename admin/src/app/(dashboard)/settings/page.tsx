@@ -16,6 +16,7 @@ import {
   apiUpdateStoreInfo,
   apiUpdateStorePayments,
   apiUpdateStoreBranding,
+  apiUpdateStoreCardPayment,
   apiSendSupport,
   apiUploadImage,
   apiUpsertSetting,
@@ -144,6 +145,26 @@ export default function SettingsPage() {
       qc.invalidateQueries({ queryKey: ['my-store'] });
       setPay((s) => ({ ...s, paymeKey: '', clickSecretKey: '' }));
       toast.success("To'lov sozlamalari saqlandi");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Karta o'tkazma to'lovi (chek + kanal orqali tasdiqlash)
+  const [card, setCard] = useState({ cardNumber: '', cardHolder: '', channelId: '' });
+  useEffect(() => {
+    if (tenant) {
+      setCard({
+        cardNumber: tenant.cardPayment.cardNumber,
+        cardHolder: tenant.cardPayment.cardHolder,
+        channelId: tenant.cardPayment.channelId,
+      });
+    }
+  }, [tenant]);
+  const saveCard = useMutation({
+    mutationFn: () => apiUpdateStoreCardPayment(card),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-store'] });
+      toast.success("Karta to'lovi saqlandi");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -433,6 +454,60 @@ export default function SettingsPage() {
                   </div>
                 </>
               )}
+            </CardBody>
+          </Card>
+        )}
+
+        {tenant && (
+          <Card>
+            <CardHeader title="Karta orqali to'lov (chek + kanal)" />
+            <CardBody className="space-y-3">
+              <div className="flex gap-3 rounded-xl bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20 px-3 py-2.5 text-xs">
+                <Info size={16} className="text-[var(--color-primary)] shrink-0 mt-0.5" />
+                <p className="text-[var(--color-text-muted)]">
+                  Mijoz kartangizga pul o&apos;tkazib, chek rasmini yuklaydi. Chek{' '}
+                  <b className="text-[var(--color-text)]">tasdiqlash kanaliga</b> tugmalar bilan tushadi —
+                  siz tasdiqlaganingizda mijozning buyurtmasi tasdiqlanadi.
+                </p>
+              </div>
+
+              <Field label="Karta raqami">
+                <Input
+                  value={card.cardNumber}
+                  onChange={(e) => setCard({ ...card, cardNumber: e.target.value })}
+                  placeholder="8600 1234 5678 9012"
+                  inputMode="numeric"
+                  className="font-mono"
+                />
+              </Field>
+              <Field label="Karta egasi (ism familiya)">
+                <Input
+                  value={card.cardHolder}
+                  onChange={(e) => setCard({ ...card, cardHolder: e.target.value })}
+                  placeholder="DIYORBEK TURSUNOV"
+                />
+              </Field>
+              <Field
+                label="Tasdiqlash kanali ID"
+                hint="Botingiz shu kanalga admin bo'lishi shart. Masalan: -1001234567890 yoki @kanal"
+              >
+                <Input
+                  value={card.channelId}
+                  onChange={(e) => setCard({ ...card, channelId: e.target.value })}
+                  placeholder="-1001234567890"
+                  className="font-mono"
+                />
+              </Field>
+
+              <Button loading={saveCard.isPending} onClick={() => saveCard.mutate()}>
+                Saqlash
+              </Button>
+
+              <div className="flex items-start gap-2 text-[11px] text-[var(--color-text-muted)] leading-relaxed">
+                <CreditCard size={14} className="shrink-0 mt-0.5" />
+                Karta raqami va kanal to&apos;ldirilsa — do&apos;koningiz to&apos;lov sahifasida
+                &quot;Karta orqali&quot; varianti paydo bo&apos;ladi.
+              </div>
             </CardBody>
           </Card>
         )}

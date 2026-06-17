@@ -25,6 +25,7 @@ enum PaymentMethod {
   CARD_ON_DELIVERY
   PAYME
   CLICK
+  CARD_TRANSFER
 }
 
 enum PaymentProvider {
@@ -301,6 +302,10 @@ model Order {
 
   paidAt        DateTime?
   transactions  PaymentTransaction[]
+
+  // Karta o'tkazma (CARD_TRANSFER) — yuklangan chek va sotuvchi kanalidagi xabar id
+  paymentReceiptUrl   String?
+  payReceiptMessageId Int?
 
   channelMessageId Int?
 
@@ -627,6 +632,11 @@ model Tenant {
   clickMerchantId     String?
   clickMerchantUserId String?
   clickSecretKey      String?
+
+  // Karta o'tkazma to'lovi — chek sotuvchi kanaliga boradi, qo'lda tasdiqlanadi
+  manualCardNumber       String?
+  manualCardHolder       String?
+  manualPaymentChannelId String?
 
   // Brendlash
   logoUrl         String?

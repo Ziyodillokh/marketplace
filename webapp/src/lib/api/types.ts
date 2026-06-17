@@ -97,7 +97,7 @@ export interface CartSummary {
 }
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'ON_THE_WAY' | 'DELIVERED' | 'CANCELLED';
-export type PaymentMethod = 'CASH_ON_DELIVERY' | 'CARD_ON_DELIVERY' | 'PAYME' | 'CLICK';
+export type PaymentMethod = 'CASH_ON_DELIVERY' | 'CARD_ON_DELIVERY' | 'PAYME' | 'CLICK' | 'CARD_TRANSFER';
 
 export interface OrderListItem {
   id: string;
@@ -134,6 +134,8 @@ export interface OrderDetail {
     lineTotal: number;
   }>;
   events: Array<{ status: OrderStatus; comment: string | null; createdAt: string }>;
+  paidAt: string | null;
+  paymentReceiptUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -170,7 +172,8 @@ export interface PublicSettings {
     logoUrl?: string | null;
   };
   business: { minOrderAmount: number; deliveryFee: number; freeDeliveryThreshold: number; currency: string };
-  payments: { payme: boolean; click: boolean };
+  payments: { payme: boolean; click: boolean; card: boolean };
+  cardPayment: { number: string; holder: string } | null;
 }
 
 export type EventType =

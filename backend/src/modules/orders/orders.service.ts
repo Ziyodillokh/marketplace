@@ -6,6 +6,8 @@ import { localizeTitle, type Locale } from '@/common/helpers/localize';
 import { buildCursorPage, type CursorPage } from '@/common/helpers/pagination';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { SettingsService } from '../settings/settings.service';
+import { UploadsService } from '../uploads/uploads.service';
+import { TenantBotService } from '../telegram-bot/tenant-bot.service';
 import { customAlphabet } from 'nanoid';
 
 const orderNumberId = customAlphabet('0123456789', 6);
@@ -56,6 +58,8 @@ export interface OrderDetailDto {
     lineTotal: number;
   }>;
   events: Array<{ status: OrderStatus; comment: string | null; createdAt: Date }>;
+  paidAt: Date | null;
+  paymentReceiptUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,6 +71,8 @@ export class OrdersService {
     private readonly promos: PromoCodesService,
     private readonly events: EventEmitter2,
     private readonly settings: SettingsService,
+    private readonly uploads: UploadsService,
+    private readonly tenantBot: TenantBotService,
   ) {}
 
   private buildVariantLabel(v: { color: string | null; size: string | null }): string | null {
@@ -293,9 +299,66 @@ export class OrdersService {
         lineTotal: Number(i.lineTotal),
       })),
       events: o.events.map((e) => ({ status: e.status, comment: e.comment, createdAt: e.createdAt })),
+      paidAt: o.paidAt,
+      paymentReceiptUrl: o.paymentReceiptUrl,
       createdAt: o.createdAt,
       updatedAt: o.updatedAt,
     };
+  }
+
+  /**
+   * Karta o'tkazma to'lovi cheki — mijoz chek rasmini yuklaydi,
+   * chek sotuvchining tasdiqlash kanaliga tugmalar bilan boradi.
+   */
+  async uploadReceipt(
+    orderId: string,
+    userId: string,
+    fileBuffer: Buffer,
+  ): Promise<{ ok: boolean }> {
+    const o = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: true, user: true },
+    });
+    if (!o) throw new NotFoundException('Order not found');
+    if (o.userId !== userId) throw new ForbiddenException('Forbidden');
+    if (o.paymentMethod !== PaymentMethod.CARD_TRANSFER) {
+      throw new BadRequestException('Bu buyurtma karta o\'tkazma orqali emas');
+    }
+    if (o.paidAt) throw new BadRequestException('To\'lov allaqachon tasdiqlangan');
+    if (!o.tenantId) throw new BadRequestException('Do\'kon topilmadi');
+
+    // Rasmni saqlaymiz (do'kon sahifasida ko'rsatish uchun)
+    const saved = await this.uploads.saveImage(fileBuffer);
+
+    const itemLines = o.items
+      .map((i) => `• ${i.titleUz}${i.variantLabel ? ` (${i.variantLabel})` : ''} × ${i.quantity}`)
+      .join('\n');
+    const userLine = o.user.username ? `@${o.user.username}` : o.user.firstName ?? `ID ${o.user.telegramId}`;
+    const caption =
+      `🧾 <b>To'lov cheki — tasdiqlash kerak</b>\n\n` +
+      `<b>Buyurtma:</b> #${o.orderNumber}\n` +
+      `<b>Mijoz:</b> ${o.receiverName} (${userLine})\n` +
+      `<b>Telefon:</b> ${o.receiverPhone}\n` +
+      `<b>Manzil:</b> ${o.address}\n\n` +
+      `${itemLines}\n\n` +
+      `<b>Jami: ${Number(o.total).toLocaleString('ru-RU').replace(/,/g, ' ')} so'm</b>`;
+
+    let messageId: number | null = null;
+    try {
+      messageId = await this.tenantBot.sendReceiptToChannel(o.tenantId, fileBuffer, caption, o.id);
+    } catch {
+      throw new BadRequestException('Chekni yuborishda xatolik. Keyinroq urinib ko\'ring.');
+    }
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        paymentReceiptUrl: saved.url,
+        payReceiptMessageId: messageId,
+        events: { create: { status: o.status, comment: "To'lov cheki yuklandi" } },
+      },
+    });
+    return { ok: true };
   }
 
   async cancel(id: string, userId: string): Promise<OrderDetailDto> {

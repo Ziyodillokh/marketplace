@@ -134,6 +134,7 @@ export interface MyStore {
     customersCount: number;
     payme: { merchantId: string; hasKey: boolean };
     click: { serviceId: string; merchantId: string; merchantUserId: string; hasSecret: boolean };
+    cardPayment: { cardNumber: string; cardHolder: string; channelId: string };
   };
   limits?: TariffLimits;
   usage?: { products: number; categories: number; banners: number };
@@ -153,6 +154,13 @@ export const apiUpdateStoreBranding = (data: { primaryColor?: string; logoUrl?: 
   api<{ ok: boolean }>('/admin/store/branding', { method: 'PUT', body: data });
 export const apiSendSupport = (message: string) =>
   api<{ ok: boolean; priority: boolean }>('/admin/store/support', { method: 'POST', body: { message } });
+export interface CardPaymentInput {
+  cardNumber?: string;
+  cardHolder?: string;
+  channelId?: string;
+}
+export const apiUpdateStoreCardPayment = (data: CardPaymentInput) =>
+  api<{ ok: boolean }>('/admin/store/card-payment', { method: 'PUT', body: data });
 export interface StoreInfoInput {
   name?: string;
   phone?: string;

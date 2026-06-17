@@ -58,6 +58,12 @@ class SupportDto {
   @IsString() @MaxLength(2000) message!: string;
 }
 
+class CardPaymentDto {
+  @IsOptional() @IsString() @MaxLength(40)  cardNumber?: string;
+  @IsOptional() @IsString() @MaxLength(120) cardHolder?: string;
+  @IsOptional() @IsString() @MaxLength(60)  channelId?: string;
+}
+
 class PaymentsDto {
   @IsOptional() @IsString() @MaxLength(100) paymeMerchantId?: string;
   @IsOptional() @IsString() @MaxLength(200) paymeKey?: string;
@@ -121,6 +127,11 @@ export class AdminStoreController {
           merchantId: t.clickMerchantId ?? '',
           merchantUserId: t.clickMerchantUserId ?? '',
           hasSecret: !!t.clickSecretKey,
+        },
+        cardPayment: {
+          cardNumber: t.manualCardNumber ?? '',
+          cardHolder: t.manualCardHolder ?? '',
+          channelId: t.manualPaymentChannelId ?? '',
         },
       },
       limits,
@@ -237,6 +248,37 @@ export class AdminStoreController {
     if (dto.clickMerchantUserId !== undefined)
       data.clickMerchantUserId = dto.clickMerchantUserId.trim() || null;
     if (dto.clickSecretKey) data.clickSecretKey = dto.clickSecretKey.trim();
+    await this.prisma.tenant.update({ where: { id: admin.tenantId }, data });
+    return { ok: true };
+  }
+
+  /**
+   * Karta o'tkazma to'lovi — karta raqami, egasi (ism familiya) va tasdiqlash kanali.
+   * Mijoz chek yuklaganda chek shu kanalga boradi, sotuvchi tugma bilan tasdiqlaydi.
+   * Barcha tariflarda mavjud (qo'lda o'tkazma).
+   */
+  @Put('card-payment')
+  @HttpCode(200)
+  async updateCardPayment(@CurrentAdmin() admin: Admin, @Body() dto: CardPaymentDto) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    const data: Record<string, string | null> = {};
+    if (dto.cardNumber !== undefined) {
+      const digits = dto.cardNumber.replace(/\s/g, '');
+      if (digits && !/^\d{12,19}$/.test(digits)) {
+        throw new BadRequestException('Karta raqami noto\'g\'ri (12–19 raqam)');
+      }
+      // Chiroyli ko'rinish uchun 4 xonalik guruhlarga ajratamiz
+      data.manualCardNumber = digits ? digits.replace(/(.{4})/g, '$1 ').trim() : null;
+    }
+    if (dto.cardHolder !== undefined) data.manualCardHolder = dto.cardHolder.trim() || null;
+    if (dto.channelId !== undefined) {
+      const ch = dto.channelId.trim();
+      // -100… (kanal id) yoki @username formatlari qabul qilinadi
+      if (ch && !/^(-100\d{6,}|@[A-Za-z]\w{3,})$/.test(ch)) {
+        throw new BadRequestException("Kanal ID '-100...' yoki '@kanal' ko'rinishida bo'lsin");
+      }
+      data.manualPaymentChannelId = ch || null;
+    }
     await this.prisma.tenant.update({ where: { id: admin.tenantId }, data });
     return { ok: true };
   }

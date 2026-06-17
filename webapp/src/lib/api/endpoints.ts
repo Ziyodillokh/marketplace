@@ -1,4 +1,4 @@
-import { api } from '../api';
+import { api, apiUploadForm } from '../api';
 import type {
   AppliedPromo,
   BannerView,
@@ -98,6 +98,8 @@ export const apiOrdersSummary = () => api<{ count: number; activeCount: number }
 export const apiGetOrder = (id: string) => api<OrderDetail>(`/orders/${id}`);
 export const apiCancelOrder = (id: string) =>
   api<OrderDetail>(`/orders/${id}/cancel`, { method: 'POST' });
+export const apiUploadOrderReceipt = (id: string, file: File) =>
+  apiUploadForm<{ ok: boolean }>(`/orders/${id}/receipt`, file);
 
 // ───── Promo ─────
 export const apiPublicPromos = () => api<PromoView[]>('/promo-codes/public');

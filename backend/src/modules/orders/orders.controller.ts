@@ -1,4 +1,17 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseFilePipeBuilder,
+  Post,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { Type } from 'class-transformer';
 import {
   IsEnum,
@@ -72,5 +85,24 @@ export class OrdersController {
   @Post(':id/cancel')
   cancel(@CurrentUser() user: User, @Param('id') id: string) {
     return this.orders.cancel(id, user.id);
+  }
+
+  /** Karta o'tkazma to'lovi cheki — mijoz chek rasmini yuklaydi. */
+  @Post(':id/receipt')
+  @UseInterceptors(
+    FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } }),
+  )
+  uploadReceipt(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({ fileType: /image\/(png|jpe?g|webp)/ })
+        .addMaxSizeValidator({ maxSize: 8 * 1024 * 1024 })
+        .build({ fileIsRequired: true }),
+    )
+    file: Express.Multer.File,
+  ) {
+    return this.orders.uploadReceipt(id, user.id, file.buffer);
   }
 }
