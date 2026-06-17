@@ -12,10 +12,11 @@ export interface TariffLimits {
   analytics: boolean;
   onlinePayment: boolean;
   branding: boolean;
+  prioritySupport: boolean;
   maxStores: number;
 }
 
-export type TariffFeature = 'analytics' | 'onlinePayment' | 'branding';
+export type TariffFeature = 'analytics' | 'onlinePayment' | 'branding' | 'prioritySupport';
 
 export const TARIFF_LIMITS: Record<TariffPlan, TariffLimits> = {
   FREE: {
@@ -29,6 +30,7 @@ export const TARIFF_LIMITS: Record<TariffPlan, TariffLimits> = {
     analytics: false,
     onlinePayment: false,
     branding: false,
+    prioritySupport: false,
     maxStores: 1,
   },
   STANDARD: {
@@ -42,6 +44,7 @@ export const TARIFF_LIMITS: Record<TariffPlan, TariffLimits> = {
     analytics: true,
     onlinePayment: true,
     branding: true,
+    prioritySupport: true,
     maxStores: 1,
   },
   PRO: {
@@ -55,6 +58,7 @@ export const TARIFF_LIMITS: Record<TariffPlan, TariffLimits> = {
     analytics: true,
     onlinePayment: true,
     branding: true,
+    prioritySupport: true,
     maxStores: 1,
   },
   PREMIUM: {
@@ -68,6 +72,7 @@ export const TARIFF_LIMITS: Record<TariffPlan, TariffLimits> = {
     analytics: true,
     onlinePayment: true,
     branding: true,
+    prioritySupport: true,
     maxStores: 2,
   },
 };

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Info, ShoppingCart, Truck, Gift, Bot, Users as UsersIcon, CreditCard, Lock, Palette, Upload } from 'lucide-react';
+import { Info, ShoppingCart, Truck, Gift, Bot, Users as UsersIcon, CreditCard, Lock, Palette, Upload, LifeBuoy, Send } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input, Select, Textarea } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import {
   apiUpdateStoreInfo,
   apiUpdateStorePayments,
   apiUpdateStoreBranding,
+  apiSendSupport,
   apiUploadImage,
   apiUpsertSetting,
 } from '@/lib/endpoints';
@@ -174,6 +175,18 @@ export default function SettingsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-store'] });
       toast.success('Brending saqlandi');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Qo'llab-quvvatlash — platformaga yordam so'rovi
+  const prioritySupport = storeInfo?.limits?.prioritySupport ?? false;
+  const [supportMsg, setSupportMsg] = useState('');
+  const sendSupport = useMutation({
+    mutationFn: () => apiSendSupport(supportMsg.trim()),
+    onSuccess: (r) => {
+      setSupportMsg('');
+      toast.success(r.priority ? 'Ustuvor so\'rovingiz yuborildi — tez orada javob beramiz' : 'So\'rovingiz yuborildi');
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -484,6 +497,51 @@ export default function SettingsPage() {
                   </div>
                 </>
               )}
+            </CardBody>
+          </Card>
+        )}
+
+        {tenant && (
+          <Card>
+            <CardHeader title="Qo'llab-quvvatlash" />
+            <CardBody className="space-y-3">
+              <div
+                className={`flex gap-3 rounded-xl px-3 py-2.5 text-xs border ${
+                  prioritySupport
+                    ? 'bg-amber-50 border-amber-200'
+                    : 'bg-[var(--color-bg)] border-[var(--color-border)]'
+                }`}
+              >
+                <LifeBuoy size={16} className={`shrink-0 mt-0.5 ${prioritySupport ? 'text-amber-600' : 'text-[var(--color-text-muted)]'}`} />
+                <p className="text-[var(--color-text-muted)]">
+                  {prioritySupport ? (
+                    <>
+                      ⭐ <b className="text-amber-700">Ustuvor qo&apos;llab-quvvatlash</b> — so&apos;rovlaringiz
+                      birinchi navbatda ko&apos;rib chiqiladi.
+                    </>
+                  ) : (
+                    <>
+                      Savol yoki muammo bo&apos;lsa bizga yozing. <b>Standart+</b> tariflarda so&apos;rovlar
+                      ustuvor (tezroq) ko&apos;riladi.
+                    </>
+                  )}
+                </p>
+              </div>
+              <Field label="Xabaringiz">
+                <Textarea
+                  rows={4}
+                  value={supportMsg}
+                  onChange={(e) => setSupportMsg(e.target.value)}
+                  placeholder="Muammo yoki savolingizni yozing…"
+                />
+              </Field>
+              <Button
+                loading={sendSupport.isPending}
+                disabled={supportMsg.trim().length < 5}
+                onClick={() => sendSupport.mutate()}
+              >
+                <Send size={16} /> Yuborish
+              </Button>
             </CardBody>
           </Card>
         )}

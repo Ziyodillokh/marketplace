@@ -112,6 +112,7 @@ export interface TariffLimits {
   analytics: boolean;
   onlinePayment: boolean;
   branding: boolean;
+  prioritySupport: boolean;
   maxStores: number;
 }
 export interface MyStore {
@@ -150,6 +151,8 @@ export const apiUpdateStorePayments = (data: PaymentsInput) =>
   api<{ ok: boolean }>('/admin/store/payments', { method: 'PUT', body: data });
 export const apiUpdateStoreBranding = (data: { primaryColor?: string; logoUrl?: string }) =>
   api<{ ok: boolean }>('/admin/store/branding', { method: 'PUT', body: data });
+export const apiSendSupport = (message: string) =>
+  api<{ ok: boolean; priority: boolean }>('/admin/store/support', { method: 'POST', body: { message } });
 export interface StoreInfoInput {
   name?: string;
   phone?: string;

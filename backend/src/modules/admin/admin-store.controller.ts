@@ -18,6 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { TariffPlan, type Admin } from '@prisma/client';
+import { InlineKeyboard } from 'grammy';
 import { PrismaService } from '@/prisma/prisma.service';
 import { checkBotToken } from '@/common/helpers/telegram-bot-token';
 import { limitsFor, hasFeature } from '@/common/tariff';
@@ -51,6 +52,10 @@ class StoreInfoDto {
 class BrandingDto {
   @IsOptional() @IsString() @MaxLength(20) primaryColor?: string;
   @IsOptional() @IsString() @MaxLength(500) logoUrl?: string;
+}
+
+class SupportDto {
+  @IsString() @MaxLength(2000) message!: string;
 }
 
 class PaymentsDto {
@@ -168,6 +173,45 @@ export class AdminStoreController {
     if (dto.logoUrl !== undefined) data.logoUrl = dto.logoUrl.trim() || null;
     await this.prisma.tenant.update({ where: { id: admin.tenantId }, data });
     return { ok: true };
+  }
+
+  /**
+   * Qo'llab-quvvatlash — sotuvchi platformaga yordam so'rovi yuboradi.
+   * Standart+ tariflarda so'rov "ustuvor" (priority) belgisi bilan boradi,
+   * shunda qo'llab-quvvatlash jamoasi birinchi navbatda javob beradi.
+   */
+  @Post('support')
+  @HttpCode(200)
+  async sendSupport(@CurrentAdmin() admin: Admin, @Body() dto: SupportDto) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    const msg = (dto.message ?? '').trim();
+    if (msg.length < 5) throw new BadRequestException("Xabar juda qisqa (kamida 5 ta belgi)");
+
+    const t = await this.prisma.tenant.findUnique({ where: { id: admin.tenantId } });
+    if (!t) throw new BadRequestException("Do'kon topilmadi");
+
+    const priority = hasFeature(t.tariffPlan, 'prioritySupport');
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const ownerName = t.ownerName || '—';
+    const header = priority ? '🔴 <b>USTUVOR QO\'LLAB-QUVVATLASH</b>' : '🆘 <b>Qo\'llab-quvvatlash so\'rovi</b>';
+
+    const caption =
+      `${header}\n\n` +
+      `🏪 Do'kon: <b>${esc(t.shopName)}</b> (${esc(t.slug)})\n` +
+      `📦 Tarif: <b>${t.tariffPlan}</b>${priority ? ' ⭐' : ''}\n` +
+      `👤 Egasi: ${esc(ownerName)}\n` +
+      `📞 Telefon: ${esc(t.ownerPhone ?? '—')}\n` +
+      `🆔 TG ID: <code>${t.ownerTelegramId ?? '—'}</code>\n` +
+      (t.ownerUsername ? `🔗 @${esc(t.ownerUsername)}\n` : '') +
+      (t.botUsername ? `🤖 Bot: @${esc(t.botUsername)}\n` : '') +
+      `\n💬 <b>Xabar:</b>\n${esc(msg)}`;
+
+    // Egasiga to'g'ridan-to'g'ri yozish uchun tugma (TG ID bo'lsa)
+    const kb = t.ownerTelegramId
+      ? new InlineKeyboard().url('✍️ Javob berish', `tg://user?id=${t.ownerTelegramId}`)
+      : undefined;
+    await this.tgbot.sendToSupportChat(caption, kb);
+    return { ok: true, priority };
   }
 
   /** Onlayn to'lov (Payme/Click) merchant ma'lumotlari — Standart+ tariflarda. */

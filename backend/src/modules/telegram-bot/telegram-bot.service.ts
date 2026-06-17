@@ -250,7 +250,8 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   }
 
   async sendToSupportChat(text: string, replyMarkup?: InlineKeyboard): Promise<void> {
-    const chatId = this.config.get<string>('TELEGRAM_SUPPORT_CHAT_ID');
+    // Support chat berilmasa — to'lov/admin kanaliga yuboramiz (har doim sozlangan)
+    const chatId = this.config.get<string>('TELEGRAM_SUPPORT_CHAT_ID') || this.paymentsChatId;
     if (!chatId) return;
     try {
       await this.bot.api.sendMessage(chatId, text, { parse_mode: 'HTML', reply_markup: replyMarkup });
