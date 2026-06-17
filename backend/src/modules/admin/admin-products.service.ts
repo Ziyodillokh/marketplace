@@ -8,7 +8,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { buildCursorPage, type CursorPage } from '@/common/helpers/pagination';
-import { limitsFor } from '@/common/tariff';
+import { limitsFor, type TariffLimits } from '@/common/tariff';
 
 /** tenantId — joriy do'kon (null = platforma egasi, cheklovsiz/global). */
 export type TenantId = string | null | undefined;
@@ -84,6 +84,36 @@ function slugify(s: string): string {
 @Injectable()
 export class AdminProductsService {
   constructor(private readonly prisma: PrismaService, private readonly events: EventEmitter2) {}
+
+  private async tariffLimits(tenantId: TenantId): Promise<TariffLimits | null> {
+    if (!tenantId) return null;
+    const t = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { tariffPlan: true },
+    });
+    return limitsFor(t?.tariffPlan ?? 'FREE');
+  }
+
+  /** Rasm/opsiya soni tarif limitidan oshmasligini tekshiradi (kamiga ruxsat). */
+  private assertImageOptionLimits(
+    limits: TariffLimits | null,
+    images?: unknown[],
+    variants?: unknown[],
+  ): void {
+    if (!limits) return;
+    if (limits.maxImagesPerProduct >= 0 && (images?.length ?? 0) > limits.maxImagesPerProduct) {
+      throw new ForbiddenException({
+        message: `Bu tarifда mahsulotga ko'pi bilan ${limits.maxImagesPerProduct} ta rasm yuklash mumkin. Tarifni yangilang.`,
+        upgradeRequired: true,
+      });
+    }
+    if (limits.maxOptionsPerProduct >= 0 && (variants?.length ?? 0) > limits.maxOptionsPerProduct) {
+      throw new ForbiddenException({
+        message: `Bu tarifда mahsulotga ko'pi bilan ${limits.maxOptionsPerProduct} ta opsiya (variant) mumkin. Tarifni yangilang.`,
+        upgradeRequired: true,
+      });
+    }
+  }
 
   /** Kategoriya global yoki shu tenant'niki ekanini tekshiradi. */
   private async assertCategoryAllowed(
@@ -233,20 +263,17 @@ export class AdminProductsService {
     if (!input.titleUz || !input.titleRu) throw new BadRequestException('titles required');
     // Tarif limiti (faqat tenant'li sotuvchilar uchun)
     if (tenantId) {
-      const tenant = await this.prisma.tenant.findUnique({
-        where: { id: tenantId },
-        select: { tariffPlan: true },
-      });
-      const max = limitsFor(tenant?.tariffPlan ?? 'FREE').maxProducts;
-      if (max >= 0) {
+      const limits = await this.tariffLimits(tenantId);
+      if (limits && limits.maxProducts >= 0) {
         const count = await this.prisma.product.count({ where: { tenantId } });
-        if (count >= max) {
+        if (count >= limits.maxProducts) {
           throw new ForbiddenException({
-            message: `Mahsulot limiti (${max}) tugadi. Tarifni yangilang.`,
+            message: `Mahsulot limiti (${limits.maxProducts}) tugadi. Tarifni yangilang.`,
             upgradeRequired: true,
           });
         }
       }
+      this.assertImageOptionLimits(limits, input.images, input.variants);
     }
     await this.assertCategoryAllowed(input.categoryId, tenantId);
     // Aniq slug ham unique tekshiruvidan o'tadi (dublikat → 500 emas, suffiks qo'shiladi)
@@ -314,6 +341,9 @@ export class AdminProductsService {
     if (!existing) throw new NotFoundException('Product not found');
     if (tenantId && existing.tenantId !== tenantId) throw new NotFoundException('Product not found');
     await this.assertCategoryAllowed(input.categoryId, tenantId);
+    if (tenantId) {
+      this.assertImageOptionLimits(await this.tariffLimits(tenantId), input.images, input.variants);
+    }
 
     const discountPct =
       input.oldPrice !== undefined || input.basePrice !== undefined
