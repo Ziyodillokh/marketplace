@@ -5,7 +5,7 @@
 export const PAYMENT_INFO = {
   cards: [
     { type: 'Humo', number: '5614 6818 1094 8343' },
-    { type: 'Visa', number: '5614 6818 1094 8343' },
+    { type: 'Visa', number: '4854 7002 2934 5131' },
   ],
   holder: 'Diyorbek Tursunov',
   channelUrl: 'https://t.me/+6E3lhLv8thw2MjEy',
