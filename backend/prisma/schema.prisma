@@ -344,7 +344,8 @@ model OrderEvent {
 
 model PromoCode {
   id             String    @id @default(cuid())
-  code           String    @unique
+  tenantId       String?
+  code           String
   type           PromoType
   value          Decimal   @db.Decimal(12, 2)
   minOrderAmount Decimal?  @db.Decimal(12, 2)
@@ -363,6 +364,9 @@ model PromoCode {
 
   usages PromoCodeUsage[]
   orders Order[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
 }
 
 model PromoCodeUsage {

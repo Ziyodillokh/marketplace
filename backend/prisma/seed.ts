@@ -256,11 +256,10 @@ async function main(): Promise<void> {
     },
   ];
   for (const promo of promos) {
-    await prisma.promoCode.upsert({
-      where: { code: promo.code },
-      update: {},
-      create: promo,
+    const exists = await prisma.promoCode.findFirst({
+      where: { code: promo.code, tenantId: null },
     });
+    if (!exists) await prisma.promoCode.create({ data: promo });
   }
   console.log(`✓ ${promos.length} promo codes created`);
 

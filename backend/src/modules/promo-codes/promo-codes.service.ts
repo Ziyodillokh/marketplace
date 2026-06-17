@@ -24,9 +24,10 @@ export interface PromoEvaluation {
 export class PromoCodesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listPublic(): Promise<PromoCodeView[]> {
+  async listPublic(tenantId?: string | null): Promise<PromoCodeView[]> {
     const rows = await this.prisma.promoCode.findMany({
       where: {
+        tenantId: tenantId ?? null,
         isPublic: true,
         isActive: true,
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
@@ -47,10 +48,15 @@ export class PromoCodesService {
     }));
   }
 
-  async evaluate(userId: string, code: string, subtotal: number): Promise<PromoEvaluation> {
+  async evaluate(
+    userId: string,
+    code: string,
+    subtotal: number,
+    tenantId?: string | null,
+  ): Promise<PromoEvaluation> {
     if (!code) throw new BadRequestException('Code required');
-    const promo = await this.prisma.promoCode.findUnique({
-      where: { code: code.trim().toUpperCase() },
+    const promo = await this.prisma.promoCode.findFirst({
+      where: { code: code.trim().toUpperCase(), tenantId: tenantId ?? null },
     });
     if (!promo || !promo.isActive) throw new NotFoundException('Promo code not found');
 

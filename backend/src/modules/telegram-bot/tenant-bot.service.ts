@@ -39,12 +39,15 @@ export class TenantBotService implements OnModuleInit {
     // (Kategoriyalar global/null qoladi — asosiy taglik.)
     if (tenants.length === 1) {
       const tid = tenants[0].id;
-      const [pr, bn] = await Promise.all([
+      const [pr, bn, pc] = await Promise.all([
         this.prisma.product.updateMany({ where: { tenantId: null }, data: { tenantId: tid } }),
         this.prisma.banner.updateMany({ where: { tenantId: null }, data: { tenantId: tid } }),
+        this.prisma.promoCode.updateMany({ where: { tenantId: null }, data: { tenantId: tid } }),
       ]);
-      if (pr.count || bn.count) {
-        this.logger.log(`Backfill → tenant ${tid}: ${pr.count} mahsulot, ${bn.count} banner`);
+      if (pr.count || bn.count || pc.count) {
+        this.logger.log(
+          `Backfill → tenant ${tid}: ${pr.count} mahsulot, ${bn.count} banner, ${pc.count} promokod`,
+        );
       }
     }
 

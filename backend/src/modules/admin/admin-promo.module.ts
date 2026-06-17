@@ -1,11 +1,24 @@
-import { Body, Controller, Delete, Get, Module, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  ConflictException,
+  Controller,
+  Delete,
+  Get,
+  Module,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
-import { AdminRole, PromoType } from '@prisma/client';
+import { AdminRole, PromoType, type Admin } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { buildCursorPage } from '@/common/helpers/pagination';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
-import { Roles, RolesGuard } from '../admin-auth/roles.guard';
+import { CurrentAdmin, Roles, RolesGuard } from '../admin-auth/roles.guard';
 import { AdminAuthModule } from '../admin-auth/admin-auth.module';
 
 class UpsertPromoDto {
@@ -37,11 +50,14 @@ class AdminPromoController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
-  async list(@Query() q: ListPromoDto) {
+  async list(@Query() q: ListPromoDto, @CurrentAdmin() admin: Admin) {
     const limit = Math.min(Math.max(q.limit ?? 30, 1), 100);
     const take = limit + 1;
     const rows = await this.prisma.promoCode.findMany({
-      where: q.q ? { code: { contains: q.q.toUpperCase() } } : undefined,
+      where: {
+        ...(admin.tenantId ? { tenantId: admin.tenantId } : {}),
+        ...(q.q ? { code: { contains: q.q.toUpperCase() } } : {}),
+      },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take,
       ...(q.cursor ? { cursor: { id: q.cursor }, skip: 1 } : {}),
@@ -57,13 +73,22 @@ class AdminPromoController {
     );
   }
 
+  /** Promokod shu sotuvchiniki ekanini tekshiradi (owner uchun o'tkazib yuboriladi). */
+  private async assertOwn(id: string, admin: Admin) {
+    const p = await this.prisma.promoCode.findUnique({ where: { id }, select: { tenantId: true } });
+    if (!p) throw new NotFoundException('Promo not found');
+    if (admin.tenantId && p.tenantId !== admin.tenantId) throw new NotFoundException('Promo not found');
+  }
+
   @Get(':id')
-  async getById(@Param('id') id: string) {
+  async getById(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
+    await this.assertOwn(id, admin);
     return this.prisma.promoCode.findUnique({ where: { id } });
   }
 
   @Get(':id/usages')
-  async usages(@Param('id') id: string) {
+  async usages(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
+    await this.assertOwn(id, admin);
     return this.prisma.promoCodeUsage.findMany({
       where: { promoCodeId: id },
       include: { user: true, promoCode: false },
@@ -73,10 +98,16 @@ class AdminPromoController {
   }
 
   @Post()
-  create(@Body() dto: UpsertPromoDto) {
+  async create(@Body() dto: UpsertPromoDto, @CurrentAdmin() admin: Admin) {
+    const code = dto.code.toUpperCase();
+    const dup = await this.prisma.promoCode.findFirst({
+      where: { code, tenantId: admin.tenantId ?? null },
+    });
+    if (dup) throw new ConflictException('Bu promokod allaqachon mavjud');
     return this.prisma.promoCode.create({
       data: {
-        code: dto.code.toUpperCase(),
+        tenantId: admin.tenantId ?? null,
+        code,
         type: dto.type,
         value: dto.value,
         minOrderAmount: dto.minOrderAmount,
@@ -94,7 +125,8 @@ class AdminPromoController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: Partial<UpsertPromoDto>) {
+  async update(@Param('id') id: string, @Body() dto: Partial<UpsertPromoDto>, @CurrentAdmin() admin: Admin) {
+    await this.assertOwn(id, admin);
     return this.prisma.promoCode.update({
       where: { id },
       data: {
@@ -116,7 +148,8 @@ class AdminPromoController {
   }
 
   @Delete(':id')
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
+    await this.assertOwn(id, admin);
     await this.prisma.promoCode.delete({ where: { id } });
     return { ok: true };
   }

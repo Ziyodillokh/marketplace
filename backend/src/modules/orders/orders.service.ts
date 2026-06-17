@@ -123,7 +123,7 @@ export class OrdersService {
     let promoId: string | null = null;
     let promoSnapshot: string | null = null;
     if (input.promoCode) {
-      const evaluation = await this.promos.evaluate(userId, input.promoCode, subtotal);
+      const evaluation = await this.promos.evaluate(userId, input.promoCode, subtotal, tenantId);
       discountAmount = evaluation.discountAmount;
       promoId = evaluation.promo.id;
       promoSnapshot = evaluation.promo.code;
