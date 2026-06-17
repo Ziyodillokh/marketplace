@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card } from '@/components/ui/card';
+import { StoreSwitcher } from '@/components/store-switcher';
 import { apiLogout } from '@/lib/endpoints';
 import { setAccessToken } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
@@ -54,8 +55,10 @@ export default function MorePage() {
   const visible = ITEMS.filter((i) => !i.superadminOnly || admin?.role === 'SUPERADMIN');
 
   return (
-    <div>
+    <div className="space-y-3">
       <PageHeader title="Boshqa" />
+
+      <StoreSwitcher />
 
       <Card>
         <ul className="divide-y divide-[var(--color-border)]">

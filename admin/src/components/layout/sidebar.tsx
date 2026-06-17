@@ -26,6 +26,7 @@ import { apiLogout } from '@/lib/endpoints';
 import { setAccessToken } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { Brand } from '@/components/brand';
+import { StoreSwitcher } from '@/components/store-switcher';
 
 interface NavItem {
   href: string;
@@ -69,6 +70,9 @@ export function Sidebar() {
     <aside className="hidden md:flex flex-col w-64 border-r border-[var(--color-border)] bg-white shrink-0 h-dvh sticky top-0">
       <div className="px-5 h-14 flex items-center border-b border-[var(--color-border)]">
         <Brand />
+      </div>
+      <div className="px-3 pt-3">
+        <StoreSwitcher />
       </div>
       <nav className="flex-1 overflow-y-auto py-3 px-2">
         <ul className="space-y-0.5">

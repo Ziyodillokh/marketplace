@@ -70,9 +70,16 @@ export class SellerOnboardingService {
   /** To'lov chekini yuklab, admin chatiga tasdiqlash xabarini yuboradi. */
   async submitPaymentReceipt(initData: string, receipt: Buffer): Promise<{ ok: true }> {
     const parsed = this.verify(initData);
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { ownerTelegramId: BigInt(parsed.user.id) },
-    });
+    // Bir nechta do'kon bo'lsa — to'lov kutilayotganini olamiz
+    const tenant =
+      (await this.prisma.tenant.findFirst({
+        where: { ownerTelegramId: BigInt(parsed.user.id), pendingTariff: { not: null } },
+        orderBy: { createdAt: 'asc' },
+      })) ??
+      (await this.prisma.tenant.findFirst({
+        where: { ownerTelegramId: BigInt(parsed.user.id) },
+        orderBy: { createdAt: 'asc' },
+      }));
     if (!tenant) throw new BadRequestException("Do'kon topilmadi");
     if (!tenant.pendingTariff) {
       throw new BadRequestException("To'lov kutilayotgan tarif yo'q");
@@ -138,8 +145,10 @@ export class SellerOnboardingService {
   /** Foydalanuvchi ro'yxatdan o'tganmi — bot formani yoki panelni ochishni hal qiladi. */
   async me(initData: string): Promise<SellerProfile> {
     const parsed = this.verify(initData);
-    const tenant = await this.prisma.tenant.findUnique({
+    // Bir nechta do'kon bo'lsa — birinchisi (eng eski). Panel ichida almashtiriladi.
+    const tenant = await this.prisma.tenant.findFirst({
       where: { ownerTelegramId: BigInt(parsed.user.id) },
+      orderBy: { createdAt: 'asc' },
     });
     return tenant ? { registered: true, tenant: this.serialize(tenant) } : { registered: false };
   }
@@ -149,8 +158,11 @@ export class SellerOnboardingService {
     const parsed = this.verify(initData);
     const telegramId = BigInt(parsed.user.id);
 
-    const existing = await this.prisma.tenant.findUnique({
+    // Birinchi ro'yxatdan o'tish — agar do'kon bor bo'lsa idempotent qaytaramiz.
+    // Qo'shimcha do'konlar panel ichidagi "Yangi do'kon" orqali ochiladi.
+    const existing = await this.prisma.tenant.findFirst({
       where: { ownerTelegramId: telegramId },
+      orderBy: { createdAt: 'asc' },
     });
     if (existing) {
       // Idempotent — allaqachon ro'yxatdan o'tgan

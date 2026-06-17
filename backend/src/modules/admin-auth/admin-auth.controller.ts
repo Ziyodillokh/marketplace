@@ -30,6 +30,10 @@ class TelegramLoginDto {
   @IsString() @MaxLength(4096) initData!: string;
 }
 
+class SwitchStoreDto {
+  @IsString() @MaxLength(40) tenantId!: string;
+}
+
 interface CookieRequest extends Request {
   cookies: Record<string, string | undefined>;
 }
@@ -119,6 +123,20 @@ export class AdminAuthController {
     await this.auth.logout(refreshToken);
     this.clearCookies(res);
     return { ok: true };
+  }
+
+  /** Boshqa do'koniga o'tish (bir egada bir nechta do'kon bo'lsa) — yangi token beradi. */
+  @Post('switch-store')
+  @HttpCode(200)
+  @UseGuards(AdminJwtGuard)
+  async switchStore(
+    @CurrentAdmin() current: Admin,
+    @Body() dto: SwitchStoreDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { admin, tokens } = await this.auth.switchStore(current, dto.tenantId);
+    this.setCookies(res, tokens.accessToken, tokens.refreshToken, tokens.expiresAt);
+    return { admin: serialize(admin), accessToken: tokens.accessToken };
   }
 
   @Get('me')

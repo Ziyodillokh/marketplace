@@ -30,14 +30,39 @@ export class AdminAuthService {
     return { admin, tokens };
   }
 
-  /** Telegram ID bo'yicha login (parolsiz) — onboarding qilingan sotuvchilar uchun. */
+  /**
+   * Telegram ID bo'yicha login (parolsiz) — onboarding qilingan sotuvchilar uchun.
+   * Bir nechta do'kon bo'lsa — birinchisiga (eng eski) kiritamiz; panel ichida almashtiriladi.
+   */
   async loginWithTelegram(telegramId: bigint): Promise<{ admin: Admin; tokens: AuthTokens }> {
-    const admin = await this.prisma.admin.findUnique({ where: { telegramId } });
-    if (!admin || !admin.isActive) {
+    const admin = await this.prisma.admin.findFirst({
+      where: { telegramId, isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!admin) {
       throw new UnauthorizedException("Ro'yxatdan o'tilmagan");
     }
     const tokens = await this.issueTokens(admin);
     return { admin, tokens };
+  }
+
+  /**
+   * Do'konni almashtirish — joriy egaga (telegramId) tegishli boshqa do'kon adminiga
+   * yangi token beradi. Faqat o'z do'koniga o'tishi mumkin.
+   */
+  async switchStore(
+    currentAdmin: Admin,
+    tenantId: string,
+  ): Promise<{ admin: Admin; tokens: AuthTokens }> {
+    if (!currentAdmin.telegramId) {
+      throw new UnauthorizedException("Do'kon almashtirish faqat Telegram sotuvchilar uchun");
+    }
+    const target = await this.prisma.admin.findFirst({
+      where: { telegramId: currentAdmin.telegramId, tenantId, isActive: true },
+    });
+    if (!target) throw new UnauthorizedException("Do'kon topilmadi");
+    const tokens = await this.issueTokens(target);
+    return { admin: target, tokens };
   }
 
   async issueTokens(admin: Admin): Promise<AuthTokens> {

@@ -152,12 +152,14 @@ model Admin {
   fullName      String
   role          AdminRole      @default(ADMIN)
   isActive      Boolean        @default(true)
-  telegramId    BigInt?        @unique
+  telegramId    BigInt?
   tenantId      String?        @unique
   tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]
+
+  @@index([telegramId])
 }
 
 model RefreshToken {
@@ -633,7 +635,7 @@ model Tenant {
   ownerName       String
   ownerEmail      String?      @unique
   ownerPhone      String?
-  ownerTelegramId BigInt?       @unique
+  ownerTelegramId BigInt?
   ownerUsername   String?
   businessType    BusinessType?
 
@@ -699,6 +701,7 @@ model Tenant {
 
   @@index([status, tariffPlan])
   @@index([ownerEmail])
+  @@index([ownerTelegramId])
   @@index([lastActivityAt])
 }
 

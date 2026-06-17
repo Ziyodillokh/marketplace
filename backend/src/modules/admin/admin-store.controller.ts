@@ -17,7 +17,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
-import { TariffPlan, type Admin } from '@prisma/client';
+import { randomBytes } from 'crypto';
+import { BusinessType, TariffPlan, type Admin } from '@prisma/client';
 import { InlineKeyboard } from 'grammy';
 import { PrismaService } from '@/prisma/prisma.service';
 import { checkBotToken } from '@/common/helpers/telegram-bot-token';
@@ -62,6 +63,13 @@ class CardPaymentDto {
   @IsOptional() @IsString() @MaxLength(40)  cardNumber?: string;
   @IsOptional() @IsString() @MaxLength(120) cardHolder?: string;
   @IsOptional() @IsString() @MaxLength(60)  channelId?: string;
+}
+
+class NewStoreDto {
+  @IsString() @MaxLength(120) shopName!: string;
+  @IsOptional() @IsEnum(BusinessType) businessType?: BusinessType;
+  @IsOptional() @IsString() @MaxLength(500) logoUrl?: string;
+  @IsOptional() @IsString() @MaxLength(100) botToken?: string;
 }
 
 class PaymentsDto {
@@ -137,6 +145,129 @@ export class AdminStoreController {
       limits,
       usage: { products, categories, banners },
     };
+  }
+
+  /** Egaga (Telegram ID) tegishli barcha do'konlar + yangi do'kon ochish mumkinmi. */
+  @Get('my-stores')
+  async myStores(@CurrentAdmin() admin: Admin) {
+    if (!admin.telegramId) {
+      return { stores: [], current: admin.tenantId, canAdd: false, allowed: 1 };
+    }
+    const stores = await this.prisma.tenant.findMany({
+      where: { ownerTelegramId: admin.telegramId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, shopName: true, slug: true, tariffPlan: true, logoUrl: true },
+    });
+    // Ruxsat etilgan do'konlar soni = egadagi eng yuqori tarif maxStores
+    const allowed = Math.max(1, ...stores.map((s) => limitsFor(s.tariffPlan).maxStores));
+    return {
+      stores: stores.map((s) => ({
+        id: s.id,
+        shopName: s.shopName,
+        slug: s.slug,
+        tariffPlan: s.tariffPlan,
+        logoUrl: s.logoUrl,
+        isCurrent: s.id === admin.tenantId,
+      })),
+      current: admin.tenantId,
+      canAdd: stores.length < allowed,
+      allowed,
+    };
+  }
+
+  /**
+   * Yangi (qo'shimcha) do'kon ochish — bir egada bir nechta do'kon.
+   * Eng yuqori tarif maxStores soniga qadar ruxsat (Premium = 2).
+   * Yangi do'kon FREE tarifda ochiladi (keyin alohida yangilash mumkin).
+   */
+  @Post('new')
+  @HttpCode(200)
+  async createStore(@CurrentAdmin() admin: Admin, @Body() dto: NewStoreDto) {
+    if (!admin.tenantId || !admin.telegramId) {
+      throw new BadRequestException("Faqat Telegram orqali ro'yxatdan o'tgan sotuvchilar uchun");
+    }
+    const mine = await this.prisma.tenant.findMany({
+      where: { ownerTelegramId: admin.telegramId },
+    });
+    const allowed = Math.max(1, ...mine.map((t) => limitsFor(t.tariffPlan).maxStores));
+    if (mine.length >= allowed) {
+      throw new ForbiddenException({
+        message: `Joriy tarifda ${allowed} ta do'kon mumkin. Ko'proq do'kon uchun Premium tarifga o'ting.`,
+        upgradeRequired: true,
+      });
+    }
+
+    const shopName = dto.shopName.trim();
+    if (shopName.length < 2) throw new BadRequestException("Do'kon nomi juda qisqa");
+    const owner = mine.find((t) => t.id === admin.tenantId) ?? mine[0];
+
+    let botToken: string | null = null;
+    let botUsername: string | null = null;
+    if (dto.botToken?.trim()) {
+      const check = await checkBotToken(dto.botToken);
+      if (!check.ok) throw new BadRequestException(check.error ?? 'Bot token yaroqsiz');
+      botToken = dto.botToken.trim();
+      botUsername = check.username ?? null;
+      const taken = await this.prisma.tenant.findFirst({ where: { botToken } });
+      if (taken) throw new ConflictException("Bu bot token boshqa do'konda ishlatilgan");
+    }
+
+    const slug = await this.uniqueSlug(shopName);
+    const created = await this.prisma.$transaction(async (tx) => {
+      const t = await tx.tenant.create({
+        data: {
+          slug,
+          shopName,
+          ownerName: owner.ownerName,
+          ownerPhone: owner.ownerPhone,
+          ownerTelegramId: admin.telegramId,
+          ownerUsername: owner.ownerUsername,
+          businessType: dto.businessType ?? owner.businessType,
+          logoUrl: dto.logoUrl?.trim() || null,
+          tariffPlan: 'FREE',
+          botToken,
+          botUsername,
+          status: 'ACTIVE',
+        },
+      });
+      await tx.admin.create({
+        data: {
+          email: `tg${admin.telegramId}.${slug}@sellio.bot`,
+          fullName: owner.ownerName,
+          role: 'ADMIN',
+          isActive: true,
+          telegramId: admin.telegramId,
+          tenantId: t.id,
+        },
+      });
+      return t;
+    });
+
+    if (botToken) await this.tenantBot.configure(created.id).catch(() => undefined);
+    return { ok: true, tenantId: created.id };
+  }
+
+  /** Noyob slug yaratadi (do'kon nomidan). */
+  private async uniqueSlug(name: string): Promise<string> {
+    const base =
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/gi, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .slice(0, 40)
+        .replace(/^-|-$/g, '') || 'shop';
+    let slug = base;
+    let attempt = 1;
+    while (await this.prisma.tenant.findUnique({ where: { slug } })) {
+      attempt += 1;
+      slug = `${base}-${attempt}`;
+      if (attempt > 50) {
+        slug = `${base}-${randomBytes(3).toString('hex')}`;
+        break;
+      }
+    }
+    return slug;
   }
 
   /** Do'kon ma'lumotlari (nomi, telefon, manzil, ish vaqti, biz haqimizda). */

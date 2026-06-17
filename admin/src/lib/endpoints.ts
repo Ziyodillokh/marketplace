@@ -36,6 +36,36 @@ export const apiTelegramLogin = (initData: string) =>
     body: { initData },
   });
 
+// ───── Multi-store (bir egada bir nechta do'kon) ─────
+export interface StoreBrief {
+  id: string;
+  shopName: string;
+  slug: string;
+  tariffPlan: string;
+  logoUrl: string | null;
+  isCurrent: boolean;
+}
+export interface MyStores {
+  stores: StoreBrief[];
+  current: string | null;
+  canAdd: boolean;
+  allowed: number;
+}
+export interface NewStoreInput {
+  shopName: string;
+  businessType?: string;
+  logoUrl?: string;
+  botToken?: string;
+}
+export const apiMyStores = () => api<MyStores>('/admin/store/my-stores');
+export const apiCreateStore = (data: NewStoreInput) =>
+  api<{ ok: boolean; tenantId: string }>('/admin/store/new', { method: 'POST', body: data });
+export const apiSwitchStore = (tenantId: string) =>
+  api<{ admin: AdminDto; accessToken: string }>('/admin/auth/switch-store', {
+    method: 'POST',
+    body: { tenantId },
+  });
+
 // Seller onboarding (Telegram Mini App)
 export interface BusinessTypeOption {
   value: string;
