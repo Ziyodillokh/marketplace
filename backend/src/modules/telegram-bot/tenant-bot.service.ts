@@ -151,6 +151,62 @@ export class TenantBotService implements OnModuleInit {
     return msg.message_id;
   }
 
+  /**
+   * Sotuvchining Telegram kanaliga e'lon joylaydi (matn + ixtiyoriy rasm +
+   * ixtiyoriy "Sotib olish" tugmasi → do'kon boti). Bot kanalga admin bo'lishi shart.
+   * Joylangan xabarning message_id qaytadi.
+   */
+  async publishToChannel(
+    tenantId: string,
+    post: { text: string; imageUrl?: string | null; buyButton: boolean; buttonText?: string | null },
+  ): Promise<number> {
+    const t = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { channelId: true, botUsername: true },
+    });
+    if (!t?.channelId) throw new Error('Kanal sozlanmagan');
+    const bot = await this.loadBot(tenantId);
+    if (!bot) throw new Error('Bot ulanmagan');
+
+    let keyboard: InlineKeyboard | undefined;
+    if (post.buyButton && t.botUsername) {
+      // Kanal postida faqat URL tugma ishlaydi — bot ochiladi, u do'konni ochadi
+      keyboard = new InlineKeyboard().url(
+        post.buttonText?.trim() || '🛍 Sotib olish',
+        `https://t.me/${t.botUsername}`,
+      );
+    }
+
+    if (post.imageUrl) {
+      const abs = post.imageUrl.startsWith('http')
+        ? post.imageUrl
+        : `${this.appUrl}${post.imageUrl}`;
+      const msg = await bot.api.sendPhoto(t.channelId, abs, {
+        caption: post.text,
+        parse_mode: 'HTML',
+        reply_markup: keyboard,
+      });
+      return msg.message_id;
+    }
+    const msg = await bot.api.sendMessage(t.channelId, post.text, {
+      parse_mode: 'HTML',
+      reply_markup: keyboard,
+    });
+    return msg.message_id;
+  }
+
+  /** Kanaldagi e'lonni o'chiradi (post o'chirilganda). Xato bo'lsa — e'tiborsiz. */
+  async deleteChannelMessage(tenantId: string, messageId: number): Promise<void> {
+    const t = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { channelId: true },
+    });
+    if (!t?.channelId) return;
+    const bot = await this.loadBot(tenantId);
+    if (!bot) return;
+    await bot.api.deleteMessage(t.channelId, messageId).catch(() => undefined);
+  }
+
   /** Kanaldagi tasdiqlash/rad tugmasi bosilganda buyurtma to'lovini hal qiladi. */
   private async handlePaymentCallback(
     tenantId: string,

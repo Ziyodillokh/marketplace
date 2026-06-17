@@ -36,6 +36,7 @@ import { AdminBannersModule } from './modules/admin/admin-banners.module';
 import { AdminRelatedModule } from './modules/admin/admin-related.module';
 import { AdminSettingsModule } from './modules/admin/admin-settings.module';
 import { AdminStoreModule } from './modules/admin/admin-store.module';
+import { ChannelPostsModule } from './modules/channel-posts/channel-posts.module';
 import { AdminAdminsModule } from './modules/admin/admin-admins.module';
 import { AdminStatsModule } from './modules/admin/admin-stats.module';
 import { AdminBroadcastModule } from './modules/admin/admin-broadcast.module';
@@ -102,6 +103,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
     AdminRelatedModule,
     AdminSettingsModule,
     AdminStoreModule,
+    ChannelPostsModule,
     AdminAdminsModule,
     AdminStatsModule,
     AdminBroadcastModule,

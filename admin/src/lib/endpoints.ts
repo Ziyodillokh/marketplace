@@ -161,6 +161,42 @@ export interface CardPaymentInput {
 }
 export const apiUpdateStoreCardPayment = (data: CardPaymentInput) =>
   api<{ ok: boolean }>('/admin/store/card-payment', { method: 'PUT', body: data });
+
+// ───── Kanal e'lonlari (channel posts) ─────
+export interface ChannelConfig {
+  channelId: string;
+  botUsername: string | null;
+  hasBot: boolean;
+  maxScheduled: number;
+}
+export type ChannelPostStatus = 'SCHEDULED' | 'PUBLISHED' | 'FAILED' | 'CANCELLED';
+export interface ChannelPost {
+  id: string;
+  text: string;
+  imageUrl: string | null;
+  buyButton: boolean;
+  buttonText: string | null;
+  scheduledAt: string;
+  status: ChannelPostStatus;
+  publishedAt: string | null;
+  error: string | null;
+  createdAt: string;
+}
+export interface CreateChannelPostInput {
+  text: string;
+  imageUrl?: string;
+  buyButton?: boolean;
+  buttonText?: string;
+  scheduledAt: string;
+}
+export const apiChannelConfig = () => api<ChannelConfig>('/admin/channel-posts/config');
+export const apiSetChannel = (channelId: string) =>
+  api<{ ok: boolean }>('/admin/channel-posts/config', { method: 'PUT', body: { channelId } });
+export const apiListChannelPosts = () => api<ChannelPost[]>('/admin/channel-posts');
+export const apiCreateChannelPost = (data: CreateChannelPostInput) =>
+  api<ChannelPost>('/admin/channel-posts', { method: 'POST', body: data });
+export const apiDeleteChannelPost = (id: string) =>
+  api<{ ok: boolean }>(`/admin/channel-posts/${id}`, { method: 'DELETE' });
 export interface StoreInfoInput {
   name?: string;
   phone?: string;
