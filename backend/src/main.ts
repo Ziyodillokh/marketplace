@@ -10,6 +10,19 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TraceIdInterceptor } from './common/interceptors/trace-id.interceptor';
 
+// JSON.stringify BigInt'larni qanday serialize qilishni bilmaydi —
+// Prisma'dagi BigInt maydonlar (masalan, Tenant.ownerTelegramId,
+// User.telegramId) javob yuborilishda "Do not know how to serialize a
+// BigInt" xatosi beradi. Global toJSON o'rnatib, ularni avtomatik
+// string'ga aylantiramiz. Telegram ID lar 64-bit bo'lishi mumkin —
+// JavaScript Number 2^53 dan oshganda aniqlikni yo'qotadi, shuning
+// uchun string eng xavfsiz ko'rinish.
+(BigInt.prototype as unknown as { toJSON: () => string }).toJSON = function (
+  this: bigint,
+): string {
+  return this.toString();
+};
+
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
