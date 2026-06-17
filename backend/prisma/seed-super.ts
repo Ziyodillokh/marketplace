@@ -122,15 +122,19 @@ const DEFAULT_TARIFFS = [
 ];
 
 async function main(): Promise<void> {
-  const ownerEmail = process.env.SUPER_SEED_EMAIL ?? 'owner@platform.uz';
+  // Login service'i emailni .toLowerCase() qilib qidiradi, shuning uchun
+  // DB'da ham faqat lowercase shaklda saqlaymiz. Aks holda mixed-case email
+  // bilan yaratilgan akkountga login bo'lmaydi.
+  const ownerEmail = (process.env.SUPER_SEED_EMAIL ?? 'owner@platform.uz').toLowerCase().trim();
   const ownerPassword = process.env.SUPER_SEED_PASSWORD ?? 'SuperOwner123!';
   const ownerName = process.env.SUPER_SEED_FULLNAME ?? 'Platform Owner';
 
-  // 1. Platform Owner
+  // 1. Platform Owner — mavjud bo'lsa parolini ham yangilaymiz
+  // (shu skript qayta ishlatilganda parolni reset qilish uchun ishlatiladi)
   const passwordHash = await bcrypt.hash(ownerPassword, 12);
   const owner = await prisma.platformAdmin.upsert({
     where: { email: ownerEmail },
-    update: {},
+    update: { passwordHash, fullName: ownerName },
     create: {
       email: ownerEmail,
       passwordHash,
@@ -139,7 +143,7 @@ async function main(): Promise<void> {
       isActive: true,
     },
   });
-  console.log(`✓ Platform OWNER created: ${ownerEmail} / ${ownerPassword}`);
+  console.log(`✓ Platform OWNER upserted: ${ownerEmail} / ${ownerPassword}`);
 
   // 2. Tarif konfiguratsiyasi
   for (const t of DEFAULT_TARIFFS) {
