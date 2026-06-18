@@ -27,6 +27,7 @@ import {
 import { AdminRole, type Admin } from '@prisma/client';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
 import { CurrentAdmin, Roles, RolesGuard } from '../admin-auth/roles.guard';
+import { CATALOG_ROLES } from '@/common/role-groups';
 import { AdminProductsService } from './admin-products.service';
 
 class VariantDto {
@@ -120,19 +121,19 @@ export class AdminProductsController {
   }
 
   @Post()
-  @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
+  @Roles(...CATALOG_ROLES)
   create(@Body() dto: CreateProductDto, @CurrentAdmin() admin: Admin) {
     return this.products.create(dto, admin.tenantId);
   }
 
   @Patch(':id')
-  @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN, AdminRole.MANAGER)
+  @Roles(...CATALOG_ROLES)
   update(@Param('id') id: string, @Body() dto: UpdateProductDto, @CurrentAdmin() admin: Admin) {
     return this.products.update(id, dto, admin.tenantId);
   }
 
   @Delete(':id')
-  @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
+  @Roles(...CATALOG_ROLES)
   delete(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
     return this.products.delete(id, admin.tenantId);
   }

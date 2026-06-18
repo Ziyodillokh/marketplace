@@ -1,9 +1,10 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
-import { AdminRole, OrderStatus, type Admin } from '@prisma/client';
+import { OrderStatus, type Admin } from '@prisma/client';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
 import { CurrentAdmin, Roles, RolesGuard } from '../admin-auth/roles.guard';
+import { ORDERS_ROLES } from '@/common/role-groups';
 import { AdminOrdersService } from './admin-orders.service';
 
 class ListOrdersDto {
@@ -40,13 +41,13 @@ export class AdminOrdersController {
   }
 
   @Patch(':id/status')
-  @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN, AdminRole.MANAGER)
+  @Roles(...ORDERS_ROLES)
   updateStatus(@Param('id') id: string, @Body() dto: UpdateStatusDto, @CurrentAdmin() admin: Admin) {
     return this.orders.updateStatus(id, dto.status, dto.comment, admin.id, admin.tenantId);
   }
 
   @Post(':id/message')
-  @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN, AdminRole.MANAGER)
+  @Roles(...ORDERS_ROLES)
   message(@Param('id') id: string, @Body() dto: MessageDto, @CurrentAdmin() admin: Admin) {
     return this.orders.sendMessageToUser(id, dto.text, admin.tenantId);
   }

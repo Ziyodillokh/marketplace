@@ -1,9 +1,10 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsArray, IsBoolean, IsInt, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator';
-import { AdminRole, type Admin } from '@prisma/client';
+import { type Admin } from '@prisma/client';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
 import { CurrentAdmin, Roles, RolesGuard } from '../admin-auth/roles.guard';
+import { CATALOG_ROLES } from '@/common/role-groups';
 import { AdminCategoriesService } from './admin-categories.service';
 
 class CreateCategoryDto {
@@ -54,25 +55,25 @@ export class AdminCategoriesController {
   }
 
   @Post()
-  @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
+  @Roles(...CATALOG_ROLES)
   create(@Body() dto: CreateCategoryDto, @CurrentAdmin() admin: Admin) {
     return this.categories.create(dto, admin.tenantId);
   }
 
   @Patch('reorder')
-  @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
+  @Roles(...CATALOG_ROLES)
   reorder(@Body() dto: ReorderDto, @CurrentAdmin() admin: Admin) {
     return this.categories.reorder(dto.items, admin.tenantId);
   }
 
   @Patch(':id')
-  @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
+  @Roles(...CATALOG_ROLES)
   update(@Param('id') id: string, @Body() dto: UpdateCategoryDto, @CurrentAdmin() admin: Admin) {
     return this.categories.update(id, dto, admin.tenantId);
   }
 
   @Delete(':id')
-  @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
+  @Roles(...CATALOG_ROLES)
   delete(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
     return this.categories.delete(id, admin.tenantId);
   }

@@ -2,7 +2,8 @@ import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Po
 import { IsBoolean, IsISO8601, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { type Admin } from '@prisma/client';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
-import { CurrentAdmin } from '../admin-auth/roles.guard';
+import { CurrentAdmin, Roles, RolesGuard } from '../admin-auth/roles.guard';
+import { CATALOG_ROLES } from '@/common/role-groups';
 import { ChannelPostsService } from './channel-posts.service';
 
 class ChannelDto {
@@ -19,7 +20,8 @@ class CreatePostDto {
 
 /** Sotuvchi o'z Telegram kanaliga e'lonlar joylaydi (rejalashtirilgan). */
 @Controller('admin/channel-posts')
-@UseGuards(AdminJwtGuard)
+@UseGuards(AdminJwtGuard, RolesGuard)
+@Roles(...CATALOG_ROLES)
 export class ChannelPostsController {
   constructor(private readonly service: ChannelPostsService) {}
 

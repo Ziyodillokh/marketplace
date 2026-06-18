@@ -14,7 +14,8 @@ import {
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
-import { AdminRole, PromoType, type Admin } from '@prisma/client';
+import { PromoType, type Admin } from '@prisma/client';
+import { CATALOG_ROLES } from '@/common/role-groups';
 import { PrismaService } from '@/prisma/prisma.service';
 import { buildCursorPage } from '@/common/helpers/pagination';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
@@ -45,7 +46,7 @@ class ListPromoDto {
 
 @Controller('admin/promo-codes')
 @UseGuards(AdminJwtGuard, RolesGuard)
-@Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
+@Roles(...CATALOG_ROLES)
 class AdminPromoController {
   constructor(private readonly prisma: PrismaService) {}
 

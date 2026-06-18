@@ -7,6 +7,7 @@ import {
   ForbiddenException,
   Get,
   HttpCode,
+  Param,
   ParseFilePipeBuilder,
   Post,
   Put,
@@ -18,13 +19,14 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { randomBytes } from 'crypto';
-import { BusinessType, TariffPlan, type Admin } from '@prisma/client';
+import { AdminRole, BusinessType, TariffPlan, type Admin } from '@prisma/client';
 import { InlineKeyboard } from 'grammy';
 import { PrismaService } from '@/prisma/prisma.service';
 import { checkBotToken } from '@/common/helpers/telegram-bot-token';
 import { limitsFor, hasFeature } from '@/common/tariff';
+import { BOSS_ROLES } from '@/common/role-groups';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
-import { CurrentAdmin } from '../admin-auth/roles.guard';
+import { CurrentAdmin, Roles, RolesGuard } from '../admin-auth/roles.guard';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { TenantBotService } from '../telegram-bot/tenant-bot.service';
 import { TenantScopeService } from '@/common/tenant-scope/tenant-scope.service';
@@ -72,6 +74,16 @@ class NewStoreDto {
   @IsOptional() @IsString() @MaxLength(100) botToken?: string;
 }
 
+class TeamMemberDto {
+  @IsString() @MaxLength(20) telegramId!: string;
+  @IsString() @MaxLength(80) fullName!: string;
+  @IsEnum(AdminRole) role!: AdminRole;
+}
+
+class TeamRoleDto {
+  @IsEnum(AdminRole) role!: AdminRole;
+}
+
 class PaymentsDto {
   @IsOptional() @IsString() @MaxLength(100) paymeMerchantId?: string;
   @IsOptional() @IsString() @MaxLength(200) paymeKey?: string;
@@ -83,7 +95,7 @@ class PaymentsDto {
 
 /** Joriy admin o'z do'koni (tenant): bot token, tarif, limit, yangilash. */
 @Controller('admin/store')
-@UseGuards(AdminJwtGuard)
+@UseGuards(AdminJwtGuard, RolesGuard)
 export class AdminStoreController {
   constructor(
     private readonly prisma: PrismaService,
@@ -147,32 +159,150 @@ export class AdminStoreController {
     };
   }
 
-  /** Egaga (Telegram ID) tegishli barcha do'konlar + yangi do'kon ochish mumkinmi. */
+  /**
+   * Foydalanuvchi kira oladigan barcha do'konlar (egasi yoki xodimi bo'lgan) +
+   * yangi do'kon ochish mumkinmi (faqat o'zi egasi bo'lgan do'konlar bo'yicha).
+   */
   @Get('my-stores')
   async myStores(@CurrentAdmin() admin: Admin) {
     if (!admin.telegramId) {
       return { stores: [], current: admin.tenantId, canAdd: false, allowed: 1 };
     }
-    const stores = await this.prisma.tenant.findMany({
-      where: { ownerTelegramId: admin.telegramId },
+    // Foydalanuvchining barcha admin yozuvlari → kira oladigan do'konlari
+    const rows = await this.prisma.admin.findMany({
+      where: { telegramId: admin.telegramId, isActive: true, tenantId: { not: null } },
       orderBy: { createdAt: 'asc' },
-      select: { id: true, shopName: true, slug: true, tariffPlan: true, logoUrl: true },
+      select: { role: true, tenant: { select: { id: true, shopName: true, slug: true, tariffPlan: true, logoUrl: true, ownerTelegramId: true } } },
     });
-    // Ruxsat etilgan do'konlar soni = egadagi eng yuqori tarif maxStores
-    const allowed = Math.max(1, ...stores.map((s) => limitsFor(s.tariffPlan).maxStores));
+    const stores = rows
+      .filter((r) => r.tenant)
+      .map((r) => ({
+        id: r.tenant!.id,
+        shopName: r.tenant!.shopName,
+        slug: r.tenant!.slug,
+        tariffPlan: r.tenant!.tariffPlan,
+        logoUrl: r.tenant!.logoUrl,
+        role: r.role,
+        isOwner: r.tenant!.ownerTelegramId === admin.telegramId,
+        isCurrent: r.tenant!.id === admin.tenantId,
+      }));
+    // Yangi do'kon ochish — faqat o'zi EGASI bo'lgan do'konlar bo'yicha hisoblanadi
+    const owned = stores.filter((s) => s.isOwner);
+    const allowed = Math.max(1, ...owned.map((s) => limitsFor(s.tariffPlan).maxStores));
     return {
-      stores: stores.map((s) => ({
-        id: s.id,
-        shopName: s.shopName,
-        slug: s.slug,
-        tariffPlan: s.tariffPlan,
-        logoUrl: s.logoUrl,
-        isCurrent: s.id === admin.tenantId,
-      })),
+      stores,
       current: admin.tenantId,
-      canAdd: stores.length < allowed,
+      canAdd: owned.length < allowed,
       allowed,
     };
+  }
+
+  // ───── Jamoa (do'kon xodimlari: Boss / Creator / Moderator) ─────
+
+  /** Joriy do'kon xodimlari ro'yxati. */
+  @Get('team')
+  @Roles(...BOSS_ROLES)
+  async team(@CurrentAdmin() admin: Admin) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: admin.tenantId },
+      select: { ownerTelegramId: true },
+    });
+    const members = await this.prisma.admin.findMany({
+      where: { tenantId: admin.tenantId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, fullName: true, role: true, telegramId: true, isActive: true },
+    });
+    return members.map((m) => ({
+      id: m.id,
+      fullName: m.fullName,
+      role: m.role,
+      telegramId: m.telegramId ? m.telegramId.toString() : null,
+      isActive: m.isActive,
+      isOwner: !!tenant?.ownerTelegramId && m.telegramId === tenant.ownerTelegramId,
+      isSelf: m.id === admin.id,
+    }));
+  }
+
+  /** Xodim qo'shish — Telegram ID + ism + rol (CREATOR yoki MODERATOR). */
+  @Post('team')
+  @Roles(...BOSS_ROLES)
+  @HttpCode(200)
+  async addMember(@CurrentAdmin() admin: Admin, @Body() dto: TeamMemberDto) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    const role = dto.role;
+    if (role !== AdminRole.CREATOR && role !== AdminRole.MODERATOR) {
+      throw new BadRequestException('Rol faqat CREATOR yoki MODERATOR bo\'lishi mumkin');
+    }
+    const tgId = (dto.telegramId ?? '').trim();
+    if (!/^\d{5,15}$/.test(tgId)) throw new BadRequestException("Telegram ID noto'g'ri (faqat raqam)");
+    const telegramId = BigInt(tgId);
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: admin.tenantId },
+      select: { slug: true },
+    });
+    if (!tenant) throw new BadRequestException("Do'kon topilmadi");
+
+    const exists = await this.prisma.admin.findFirst({
+      where: { tenantId: admin.tenantId, telegramId },
+    });
+    if (exists) throw new ConflictException('Bu foydalanuvchi allaqachon jamoada');
+
+    await this.prisma.admin.create({
+      data: {
+        email: `tg${tgId}.${tenant.slug}@sellio.bot`,
+        fullName: dto.fullName.trim() || `Xodim ${tgId.slice(-4)}`,
+        role,
+        isActive: true,
+        telegramId,
+        tenantId: admin.tenantId,
+      },
+    });
+    return { ok: true };
+  }
+
+  /** Xodim rolini o'zgartirish. */
+  @Put('team/:id')
+  @Roles(...BOSS_ROLES)
+  @HttpCode(200)
+  async updateMember(@CurrentAdmin() admin: Admin, @Param('id') id: string, @Body() dto: TeamRoleDto) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    if (dto.role !== AdminRole.CREATOR && dto.role !== AdminRole.MODERATOR) {
+      throw new BadRequestException('Rol faqat CREATOR yoki MODERATOR bo\'lishi mumkin');
+    }
+    const member = await this.prisma.admin.findFirst({ where: { id, tenantId: admin.tenantId } });
+    if (!member) throw new BadRequestException('Xodim topilmadi');
+    if (member.id === admin.id) throw new BadRequestException("O'z rolingizni o'zgartira olmaysiz");
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: admin.tenantId },
+      select: { ownerTelegramId: true },
+    });
+    if (tenant?.ownerTelegramId && member.telegramId === tenant.ownerTelegramId) {
+      throw new BadRequestException("Do'kon egasining rolini o'zgartirib bo'lmaydi");
+    }
+    await this.prisma.admin.update({ where: { id }, data: { role: dto.role } });
+    return { ok: true };
+  }
+
+  /** Xodimni jamoadan chiqarish. */
+  @Delete('team/:id')
+  @Roles(...BOSS_ROLES)
+  @HttpCode(200)
+  async removeMember(@CurrentAdmin() admin: Admin, @Param('id') id: string) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    const member = await this.prisma.admin.findFirst({ where: { id, tenantId: admin.tenantId } });
+    if (!member) throw new BadRequestException('Xodim topilmadi');
+    if (member.id === admin.id) throw new BadRequestException("O'zingizni chiqara olmaysiz");
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: admin.tenantId },
+      select: { ownerTelegramId: true },
+    });
+    if (tenant?.ownerTelegramId && member.telegramId === tenant.ownerTelegramId) {
+      throw new BadRequestException("Do'kon egasini chiqarib bo'lmaydi");
+    }
+    await this.prisma.admin.delete({ where: { id } });
+    return { ok: true };
   }
 
   /**
@@ -181,6 +311,7 @@ export class AdminStoreController {
    * Yangi do'kon FREE tarifda ochiladi (keyin alohida yangilash mumkin).
    */
   @Post('new')
+  @Roles(...BOSS_ROLES)
   @HttpCode(200)
   async createStore(@CurrentAdmin() admin: Admin, @Body() dto: NewStoreDto) {
     if (!admin.tenantId || !admin.telegramId) {
@@ -272,6 +403,7 @@ export class AdminStoreController {
 
   /** Do'kon ma'lumotlari (nomi, telefon, manzil, ish vaqti, biz haqimizda). */
   @Put('info')
+  @Roles(...BOSS_ROLES)
   @HttpCode(200)
   async updateInfo(@CurrentAdmin() admin: Admin, @Body() dto: StoreInfoDto) {
     if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
@@ -293,6 +425,7 @@ export class AdminStoreController {
 
   /** Brending — maxsus rang va logo (Standart+ tariflarda). */
   @Put('branding')
+  @Roles(...BOSS_ROLES)
   @HttpCode(200)
   async updateBranding(@CurrentAdmin() admin: Admin, @Body() dto: BrandingDto) {
     if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
@@ -358,6 +491,7 @@ export class AdminStoreController {
 
   /** Onlayn to'lov (Payme/Click) merchant ma'lumotlari — Standart+ tariflarda. */
   @Put('payments')
+  @Roles(...BOSS_ROLES)
   @HttpCode(200)
   async updatePayments(@CurrentAdmin() admin: Admin, @Body() dto: PaymentsDto) {
     if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
@@ -389,6 +523,7 @@ export class AdminStoreController {
    * Barcha tariflarda mavjud (qo'lda o'tkazma).
    */
   @Put('card-payment')
+  @Roles(...BOSS_ROLES)
   @HttpCode(200)
   async updateCardPayment(@CurrentAdmin() admin: Admin, @Body() dto: CardPaymentDto) {
     if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
@@ -415,6 +550,7 @@ export class AdminStoreController {
   }
 
   @Put('bot')
+  @Roles(...BOSS_ROLES)
   @HttpCode(200)
   async setBot(@CurrentAdmin() admin: Admin, @Body() dto: BotTokenDto) {
     if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
@@ -451,6 +587,7 @@ export class AdminStoreController {
   }
 
   @Delete('bot')
+  @Roles(...BOSS_ROLES)
   @HttpCode(200)
   async removeBot(@CurrentAdmin() admin: Admin) {
     if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
@@ -473,6 +610,7 @@ export class AdminStoreController {
 
   /** Tarifni yangilash so'rovi — pendingTariff o'rnatadi, to'lov ma'lumotini qaytaradi. */
   @Post('upgrade')
+  @Roles(...BOSS_ROLES)
   @HttpCode(200)
   async upgrade(@CurrentAdmin() admin: Admin, @Body() dto: UpgradeDto) {
     if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
@@ -486,6 +624,7 @@ export class AdminStoreController {
 
   /** To'lov chekini yuklab, admin chatiga tasdiqlash xabarini yuboradi. */
   @Post('upgrade/receipt')
+  @Roles(...BOSS_ROLES)
   @HttpCode(200)
   @UseInterceptors(
     FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } }),

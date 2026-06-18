@@ -60,6 +60,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       await this.bot.api.setMyCommands([
         { command: 'start', description: "Do'konni ochish / Открыть магазин" },
         { command: 'admin', description: 'Admin panel' },
+        { command: 'id', description: "Telegram ID (jamoaga qo'shilish uchun)" },
         { command: 'help', description: 'Yordam / Помощь' },
       ]);
       this.logger.log('Bot commands ro\'yxati o\'rnatildi');
@@ -142,6 +143,16 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
         this.logger.error(`/start reply failed for ${ctx.from?.id}: ${(err as Error).message}`);
         throw err;
       }
+    });
+
+    // Xodimni do'kon jamoasiga qo'shish uchun kerak bo'ladigan Telegram ID
+    this.bot.command('id', async (ctx) => {
+      const id = ctx.from?.id;
+      await ctx.reply(
+        `🆔 Sizning Telegram ID: <code>${id}</code>\n\n` +
+          'Do\'kon egasi sizni jamoaga qo\'shishi uchun shu raqamni unga yuboring.',
+        { parse_mode: 'HTML' },
+      );
     });
 
     this.bot.command('help', async (ctx) => {

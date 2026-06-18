@@ -15,6 +15,7 @@ import {
   Settings,
   ShieldCheck,
   Tag,
+  UsersRound,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card } from '@/components/ui/card';
@@ -28,18 +29,24 @@ interface Item {
   icon: typeof Settings;
   label: string;
   superadminOnly?: boolean;
+  roles?: string[];
 }
 
+const BOSS = ['SUPERADMIN', 'ADMIN'];
+const CATALOG = ['SUPERADMIN', 'ADMIN', 'CREATOR'];
+const VIEWER = ['SUPERADMIN', 'ADMIN', 'MODERATOR'];
+
 const ITEMS: Item[] = [
-  { href: '/analytics', icon: BarChart3, label: 'Analytics' },
-  { href: '/categories', icon: Layers, label: 'Kategoriyalar' },
-  { href: '/promo-codes', icon: Tag, label: 'Promo kodlar' },
-  { href: '/support', icon: MessageCircle, label: 'Support' },
-  { href: '/banners', icon: ImageIcon, label: 'Bannerlar' },
-  { href: '/channel-posts', icon: Radio, label: "Kanal e'lonlari" },
-  { href: '/broadcasts', icon: Megaphone, label: 'Xabarnomalar' },
-  { href: '/related-rules', icon: Link2, label: 'Related rules' },
-  { href: '/settings', icon: Settings, label: 'Sozlamalar' },
+  { href: '/analytics', icon: BarChart3, label: 'Analytics', roles: VIEWER },
+  { href: '/categories', icon: Layers, label: 'Kategoriyalar', roles: CATALOG },
+  { href: '/promo-codes', icon: Tag, label: 'Promo kodlar', roles: CATALOG },
+  { href: '/support', icon: MessageCircle, label: 'Support', roles: VIEWER },
+  { href: '/banners', icon: ImageIcon, label: 'Bannerlar', roles: CATALOG },
+  { href: '/channel-posts', icon: Radio, label: "Kanal e'lonlari", roles: CATALOG },
+  { href: '/broadcasts', icon: Megaphone, label: 'Xabarnomalar', roles: BOSS },
+  { href: '/related-rules', icon: Link2, label: 'Related rules', roles: CATALOG },
+  { href: '/team', icon: UsersRound, label: 'Jamoa', roles: BOSS },
+  { href: '/settings', icon: Settings, label: 'Sozlamalar', roles: BOSS },
   { href: '/admins', icon: ShieldCheck, label: 'Adminlar', superadminOnly: true },
 ];
 
@@ -52,7 +59,11 @@ export default function MorePage() {
       window.location.href = '/login';
     },
   });
-  const visible = ITEMS.filter((i) => !i.superadminOnly || admin?.role === 'SUPERADMIN');
+  const visible = ITEMS.filter((i) => {
+    if (i.superadminOnly && admin?.role !== 'SUPERADMIN') return false;
+    if (i.roles && !(admin && i.roles.includes(admin.role))) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-3">

@@ -66,6 +66,25 @@ export const apiSwitchStore = (tenantId: string) =>
     body: { tenantId },
   });
 
+// ───── Jamoa (do'kon xodimlari) ─────
+export type StoreRole = 'SUPERADMIN' | 'ADMIN' | 'CREATOR' | 'MODERATOR' | 'MANAGER';
+export interface TeamMember {
+  id: string;
+  fullName: string;
+  role: StoreRole;
+  telegramId: string | null;
+  isActive: boolean;
+  isOwner: boolean;
+  isSelf: boolean;
+}
+export const apiTeam = () => api<TeamMember[]>('/admin/store/team');
+export const apiAddMember = (data: { telegramId: string; fullName: string; role: 'CREATOR' | 'MODERATOR' }) =>
+  api<{ ok: boolean }>('/admin/store/team', { method: 'POST', body: data });
+export const apiUpdateMemberRole = (id: string, role: 'CREATOR' | 'MODERATOR') =>
+  api<{ ok: boolean }>(`/admin/store/team/${id}`, { method: 'PUT', body: { role } });
+export const apiRemoveMember = (id: string) =>
+  api<{ ok: boolean }>(`/admin/store/team/${id}`, { method: 'DELETE' });
+
 // Seller onboarding (Telegram Mini App)
 export interface BusinessTypeOption {
   value: string;

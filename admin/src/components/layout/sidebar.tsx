@@ -18,6 +18,7 @@ import {
   Radio,
   Settings,
   ShieldCheck,
+  UsersRound,
   LogOut,
   ChevronLeft,
 } from 'lucide-react';
@@ -33,22 +34,28 @@ interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   superadminOnly?: boolean;
+  roles?: string[]; // berilsa — faqat shu rollarga ko'rinadi
 }
+
+const BOSS = ['SUPERADMIN', 'ADMIN'];
+const CATALOG = ['SUPERADMIN', 'ADMIN', 'CREATOR'];
+const VIEWER = ['SUPERADMIN', 'ADMIN', 'MODERATOR'];
 
 const NAV: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/orders', label: 'Buyurtmalar', icon: ShoppingCart },
   { href: '/products', label: 'Mahsulotlar', icon: Package },
-  { href: '/categories', label: 'Kategoriyalar', icon: Layers },
-  { href: '/users', label: 'Foydalanuvchilar', icon: Users },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/promo-codes', label: 'Promo kodlar', icon: Tag },
-  { href: '/support', label: 'Support', icon: MessageCircle },
-  { href: '/banners', label: 'Bannerlar', icon: ImageIcon },
-  { href: '/channel-posts', label: "Kanal e'lonlari", icon: Radio },
-  { href: '/broadcasts', label: 'Xabarnomalar', icon: Megaphone },
-  { href: '/related-rules', label: 'Related rules', icon: Link2 },
-  { href: '/settings', label: 'Sozlamalar', icon: Settings },
+  { href: '/categories', label: 'Kategoriyalar', icon: Layers, roles: CATALOG },
+  { href: '/users', label: 'Foydalanuvchilar', icon: Users, roles: VIEWER },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3, roles: VIEWER },
+  { href: '/promo-codes', label: 'Promo kodlar', icon: Tag, roles: CATALOG },
+  { href: '/support', label: 'Support', icon: MessageCircle, roles: VIEWER },
+  { href: '/banners', label: 'Bannerlar', icon: ImageIcon, roles: CATALOG },
+  { href: '/channel-posts', label: "Kanal e'lonlari", icon: Radio, roles: CATALOG },
+  { href: '/broadcasts', label: 'Xabarnomalar', icon: Megaphone, roles: BOSS },
+  { href: '/related-rules', label: 'Related rules', icon: Link2, roles: CATALOG },
+  { href: '/team', label: 'Jamoa', icon: UsersRound, roles: BOSS },
+  { href: '/settings', label: 'Sozlamalar', icon: Settings, roles: BOSS },
   { href: '/admins', label: 'Adminlar', icon: ShieldCheck, superadminOnly: true },
 ];
 
@@ -64,7 +71,11 @@ export function Sidebar() {
     },
   });
 
-  const visibleNav = NAV.filter((it) => !it.superadminOnly || admin?.role === 'SUPERADMIN');
+  const visibleNav = NAV.filter((it) => {
+    if (it.superadminOnly && admin?.role !== 'SUPERADMIN') return false;
+    if (it.roles && !(admin && it.roles.includes(admin.role))) return false;
+    return true;
+  });
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r border-[var(--color-border)] bg-white shrink-0 h-dvh sticky top-0">
