@@ -187,12 +187,14 @@ export class AdminStoreController {
         isCurrent: r.tenant!.id === admin.tenantId,
       }));
     // Yangi do'kon ochish — faqat o'zi EGASI bo'lgan do'konlar bo'yicha hisoblanadi
+    // va faqat BOSS (egasi/super) roli yangi do'kon ocha oladi (POST /new gate'iga mos).
     const owned = stores.filter((s) => s.isOwner);
     const allowed = Math.max(1, ...owned.map((s) => limitsFor(s.tariffPlan).maxStores));
+    const isBoss = admin.role === AdminRole.ADMIN || admin.role === AdminRole.SUPERADMIN;
     return {
       stores,
       current: admin.tenantId,
-      canAdd: owned.length < allowed,
+      canAdd: isBoss && owned.length < allowed,
       allowed,
     };
   }
