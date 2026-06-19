@@ -108,6 +108,12 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/selliostore.uz/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
+    # Telegram webhook — server ko'chganda DNS keshini chetlab o'tish uchun
+    location /telegram/ {
+        proxy_pass http://marketplace_api;
+        proxy_read_timeout 30s;
+    }
+
     location /api/ {
         proxy_pass http://marketplace_api;
         proxy_read_timeout 60s;
@@ -199,6 +205,12 @@ server {
     # Faqat OWNER/DEVOPS uchun — IP allowlist (ixtiyoriy)
     # allow 1.2.3.4;   # ofis IP
     # deny all;
+
+    # Telegram webhook — server ko'chganda DNS keshini chetlab o'tish uchun
+    location /telegram/ {
+        proxy_pass http://marketplace_api;
+        proxy_read_timeout 30s;
+    }
 
     location /api/ {
         proxy_pass http://marketplace_api;
