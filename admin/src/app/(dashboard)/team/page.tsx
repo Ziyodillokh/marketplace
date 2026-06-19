@@ -12,12 +12,14 @@ import { apiTeam, apiAddMember, apiUpdateMemberRole, apiRemoveMember } from '@/l
 import { toast } from '@/stores/toast-store';
 
 const ROLE_INFO: Record<string, { label: string; desc: string; cls: string; Icon: typeof Crown }> = {
-  SUPERADMIN: { label: 'Super admin', desc: 'Platforma', cls: 'bg-purple-50 text-purple-600', Icon: ShieldCheck },
-  ADMIN: { label: 'Egasi (Boss)', desc: "To'liq nazorat", cls: 'bg-amber-50 text-amber-600', Icon: Crown },
-  CREATOR: { label: 'Creator', desc: "Tovar qo'shadi", cls: 'bg-blue-50 text-blue-600', Icon: Pencil },
-  MODERATOR: { label: 'Moderator', desc: "Do'konni kuzatadi", cls: 'bg-emerald-50 text-emerald-600', Icon: Eye },
-  MANAGER: { label: 'Manager', desc: 'Buyurtmalar', cls: 'bg-gray-100 text-gray-600', Icon: Eye },
+  SUPERADMIN: { label: 'Super admin', desc: 'Platforma boshqaruvi', cls: 'bg-purple-50 text-purple-600', Icon: ShieldCheck },
+  ADMIN: { label: 'Egasi', desc: "Hamma narsa — sozlama, to'lov, jamoa", cls: 'bg-amber-50 text-amber-600', Icon: Crown },
+  CREATOR: { label: 'Creator', desc: "Tovar, kategoriya, banner, e'lon qo'shadi", cls: 'bg-blue-50 text-blue-600', Icon: Pencil },
+  MODERATOR: { label: 'Moderator', desc: "Do'konni kuzatadi, buyurtmalarni boshqaradi", cls: 'bg-emerald-50 text-emerald-600', Icon: Eye },
+  MANAGER: { label: 'Manager', desc: 'Buyurtmalarni boshqaradi', cls: 'bg-gray-100 text-gray-600', Icon: Eye },
 };
+
+const LEGEND_ROLES = ['ADMIN', 'CREATOR', 'MODERATOR'] as const;
 
 export default function TeamPage() {
   const qc = useQueryClient();
@@ -60,28 +62,25 @@ export default function TeamPage() {
     <div className="pb-10">
       <PageHeader title="Jamoa" description="Do'koningizga xodimlar qo'shing va rollarni belgilang" />
 
-      <div className="max-w-2xl mx-auto space-y-4">
+      <div className="w-full md:max-w-2xl md:mx-auto space-y-3">
         {/* Rollar haqida */}
         <Card>
-          <CardBody className="space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-[12px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">
-                <Crown size={13} /> Egasi
-              </span>
-              <span className="text-[var(--color-text-muted)]">— hamma narsa: sozlama, to&apos;lov, jamoa</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-[12px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">
-                <Pencil size={13} /> Creator
-              </span>
-              <span className="text-[var(--color-text-muted)]">— tovar, kategoriya, banner, e&apos;lon qo&apos;shadi</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-[12px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">
-                <Eye size={13} /> Moderator
-              </span>
-              <span className="text-[var(--color-text-muted)]">— do&apos;konni kuzatadi, buyurtmalarni boshqaradi</span>
-            </div>
+          <CardHeader title="Rollar" />
+          <CardBody className="divide-y divide-[var(--color-border)] py-0">
+            {LEGEND_ROLES.map((k) => {
+              const r = ROLE_INFO[k];
+              return (
+                <div key={k} className="flex items-center gap-3 py-3 first:pt-3 last:pb-3">
+                  <span className={`inline-flex h-10 w-10 rounded-xl items-center justify-center shrink-0 ${r.cls}`}>
+                    <r.Icon size={18} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold leading-tight">{r.label}</p>
+                    <p className="text-[12px] text-[var(--color-text-muted)] leading-snug">{r.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
           </CardBody>
         </Card>
 
