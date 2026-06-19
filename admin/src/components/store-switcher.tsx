@@ -25,9 +25,9 @@ export function StoreSwitcher({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
   const { data } = useQuery({ queryKey: ['my-stores'], queryFn: apiMyStores });
 
   const lg = size === 'lg';
-  const logoBox = lg ? 'h-11 w-11' : 'h-8 w-8';
-  const logoIcon = lg ? 20 : 16;
-  const nameText = lg ? 'text-lg font-bold' : 'text-sm font-semibold';
+  const logoBox = lg ? 'h-9 w-9' : 'h-8 w-8';
+  const logoIcon = lg ? 18 : 16;
+  const nameText = lg ? 'text-base font-bold' : 'text-sm font-semibold';
 
   const switchTo = useMutation({
     mutationFn: (tenantId: string) => apiSwitchStore(tenantId),
@@ -45,7 +45,7 @@ export function StoreSwitcher({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
   if (data.stores.length <= 1 && !data.canAdd) {
     return (
       <div className="flex items-center gap-2.5 px-1 py-1 min-w-0">
-        <span className={`inline-flex ${logoBox} rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] items-center justify-center shrink-0 overflow-hidden`}>
+        <span className={`inline-flex ${logoBox} rounded-xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] items-center justify-center shrink-0 overflow-hidden ring-1 ring-[var(--color-border)]`}>
           {current?.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={current.logoUrl} alt="" className="h-full w-full object-cover" />
@@ -53,7 +53,14 @@ export function StoreSwitcher({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
             <Store size={logoIcon} />
           )}
         </span>
-        <span className={`${nameText} truncate`}>{current?.shopName ?? 'Do\'kon'}</span>
+        <span className="min-w-0">
+          <span className={`block ${nameText} truncate leading-tight`}>{current?.shopName ?? 'Do\'kon'}</span>
+          {lg && current && (
+            <span className="block text-[11px] text-[var(--color-text-muted)] leading-tight">
+              {PLAN_LABEL[current.tariffPlan] ?? current.tariffPlan} tarif
+            </span>
+          )}
+        </span>
       </div>
     );
   }
