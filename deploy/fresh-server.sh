@@ -131,8 +131,9 @@ WEBAPP_URL=https://${WEBAPP_DOMAIN}
 ADMIN_URL=https://${ADMIN_DOMAIN}
 SUPERADMIN_URL=https://${SUPERADMIN_DOMAIN}
 LANDING_URL=https://${ROOT_DOMAIN}
-# Bot /start shu URL ni ochadi (sotuvchi paneli/ro'yxatdan o'tish)
-ADMIN_PANEL_URL=https://${ADMIN_DOMAIN}
+# Bot /start shu URL ni ochadi — /register Telegram orqali avtomatik kiritadi
+# (ro'yxatdan o'tgan bo'lsa panel, bo'lmasa onboarding). Login/parol EMAS.
+ADMIN_PANEL_URL=https://${ADMIN_DOMAIN}/register
 
 # Uploads
 UPLOAD_DIR=/opt/marketplace/uploads
