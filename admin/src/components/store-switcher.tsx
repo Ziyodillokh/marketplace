@@ -19,10 +19,15 @@ const PLAN_LABEL: Record<string, string> = {
   FREE: 'Free', STANDARD: 'Standart', PRO: 'Pro', PREMIUM: 'Premium',
 };
 
-export function StoreSwitcher() {
+export function StoreSwitcher({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const { data } = useQuery({ queryKey: ['my-stores'], queryFn: apiMyStores });
+
+  const lg = size === 'lg';
+  const logoBox = lg ? 'h-11 w-11' : 'h-8 w-8';
+  const logoIcon = lg ? 20 : 16;
+  const nameText = lg ? 'text-lg font-bold' : 'text-sm font-semibold';
 
   const switchTo = useMutation({
     mutationFn: (tenantId: string) => apiSwitchStore(tenantId),
@@ -39,11 +44,16 @@ export function StoreSwitcher() {
   const current = data.stores.find((s) => s.isCurrent) ?? data.stores[0];
   if (data.stores.length <= 1 && !data.canAdd) {
     return (
-      <div className="flex items-center gap-2 px-1 py-1 min-w-0">
-        <span className="inline-flex h-8 w-8 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] items-center justify-center shrink-0">
-          <Store size={16} />
+      <div className="flex items-center gap-2.5 px-1 py-1 min-w-0">
+        <span className={`inline-flex ${logoBox} rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] items-center justify-center shrink-0 overflow-hidden`}>
+          {current?.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={current.logoUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <Store size={logoIcon} />
+          )}
         </span>
-        <span className="text-sm font-semibold truncate">{current?.shopName ?? 'Do\'kon'}</span>
+        <span className={`${nameText} truncate`}>{current?.shopName ?? 'Do\'kon'}</span>
       </div>
     );
   }
@@ -54,15 +64,15 @@ export function StoreSwitcher() {
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2 px-2 py-2 rounded-xl border border-[var(--color-border)] bg-white hover:bg-gray-50 min-w-0"
       >
-        <span className="inline-flex h-8 w-8 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] items-center justify-center shrink-0 overflow-hidden">
+        <span className={`inline-flex ${logoBox} rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] items-center justify-center shrink-0 overflow-hidden`}>
           {current?.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={current.logoUrl} alt="" className="h-full w-full object-cover" />
           ) : (
-            <Store size={16} />
+            <Store size={logoIcon} />
           )}
         </span>
-        <span className="text-sm font-semibold truncate flex-1 text-left">{current?.shopName}</span>
+        <span className={`${nameText} truncate flex-1 text-left`}>{current?.shopName}</span>
         <ChevronDown size={16} className="text-[var(--color-text-muted)] shrink-0" />
       </button>
 

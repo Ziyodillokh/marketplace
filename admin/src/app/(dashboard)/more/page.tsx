@@ -17,7 +17,6 @@ import {
   Tag,
   UsersRound,
 } from 'lucide-react';
-import { PageHeader } from '@/components/layout/page-header';
 import { Card } from '@/components/ui/card';
 import { StoreSwitcher } from '@/components/store-switcher';
 import { apiLogout } from '@/lib/endpoints';
@@ -67,9 +66,9 @@ export default function MorePage() {
 
   return (
     <div className="space-y-3">
-      <PageHeader title="Boshqa" />
-
-      <StoreSwitcher />
+      <div className="pt-1 pb-1">
+        <StoreSwitcher size="lg" />
+      </div>
 
       <Card>
         <ul className="divide-y divide-[var(--color-border)]">
