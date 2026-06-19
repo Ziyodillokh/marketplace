@@ -60,7 +60,7 @@ export default function TeamPage() {
     <div className="pb-10">
       <PageHeader title="Jamoa" description="Do'koningizga xodimlar qo'shing va rollarni belgilang" />
 
-      <div className="max-w-2xl mx-auto px-4 space-y-4">
+      <div className="max-w-2xl mx-auto space-y-4">
         {/* Rollar haqida */}
         <Card>
           <CardBody className="space-y-2 text-sm">

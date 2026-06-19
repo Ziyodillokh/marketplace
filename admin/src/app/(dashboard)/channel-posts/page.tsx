@@ -112,7 +112,7 @@ export default function ChannelPostsPage() {
     <div className="pb-10">
       <PageHeader title="Kanal e'lonlari" description="Telegram kanalingizga rejalashtirilgan postlar" />
 
-      <div className="max-w-2xl mx-auto px-4 space-y-4">
+      <div className="max-w-2xl mx-auto space-y-4">
         {/* Kanal sozlamasi */}
         <Card>
           <CardHeader title="Kanal" />
