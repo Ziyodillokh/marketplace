@@ -63,9 +63,10 @@ echo ""
 echo "═══════════════════════════════════════════════════════════"
 echo "  ✅ HAMMA BUILD TAYYOR"
 echo "═══════════════════════════════════════════════════════════"
+# Artefakt tekshiruvi — informatsion (set -e ni uzmasin)
 ls -la \
     "${APP_DIR}/backend/dist/src/main.js" \
     "${APP_DIR}/webapp/.next/BUILD_ID" \
     "${APP_DIR}/admin/.next/BUILD_ID" \
     "${APP_DIR}/superadmin/.next/BUILD_ID" \
-    "${APP_DIR}/landing/public/index.html" 2>&1
+    "${APP_DIR}/landing/server/index.js" 2>&1 || true

@@ -169,9 +169,9 @@ bash "${APP_DIR}/deploy/03-install-build-migrate.sh"
 
 # ─── 5. PM2 start + boot avtostart ───────────────────────────
 echo "▶ [5/7] PM2 start..."
+# backend/.env root-only (600) — shuning uchun PM2 ham root sifatida ishlaydi
 bash "${APP_DIR}/deploy/04-pm2-start.sh"
-RUN_USER="$(logname 2>/dev/null || echo "${SUDO_USER:-root}")"
-pm2 startup systemd -u "${RUN_USER}" --hp "$(getent passwd "${RUN_USER}" | cut -d: -f6)" 2>&1 | tail -3 || true
+pm2 startup systemd -u root --hp /root 2>&1 | tail -3 || true
 pm2 save 2>&1 | tail -2 || true
 
 # ─── 6. Nginx + SSL ──────────────────────────────────────────
