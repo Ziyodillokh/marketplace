@@ -213,13 +213,14 @@ export class AdminStoreController {
     const members = await this.prisma.admin.findMany({
       where: { tenantId: admin.tenantId },
       orderBy: { createdAt: 'asc' },
-      select: { id: true, fullName: true, role: true, telegramId: true, isActive: true },
+      select: { id: true, fullName: true, role: true, telegramId: true, isActive: true, photoUrl: true },
     });
     return members.map((m) => ({
       id: m.id,
       fullName: m.fullName,
       role: m.role,
       telegramId: m.telegramId ? m.telegramId.toString() : null,
+      photoUrl: m.photoUrl,
       isActive: m.isActive,
       isOwner: !!tenant?.ownerTelegramId && m.telegramId === tenant.ownerTelegramId,
       isSelf: m.id === admin.id,

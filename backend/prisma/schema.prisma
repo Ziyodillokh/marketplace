@@ -155,6 +155,7 @@ model Admin {
   role          AdminRole      @default(ADMIN)
   isActive      Boolean        @default(true)
   telegramId    BigInt?
+  photoUrl      String?
   tenantId      String?
   tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt     DateTime       @default(now())

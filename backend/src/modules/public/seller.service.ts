@@ -223,6 +223,7 @@ export class SellerOnboardingService {
           role: 'ADMIN',
           isActive: true,
           telegramId,
+          photoUrl: parsed.user.photo_url ?? null,
           tenantId: t.id,
         },
       });

@@ -98,7 +98,10 @@ export class AdminAuthController {
         err instanceof InvalidInitDataError ? err.message : 'Telegram tekshiruvi xato',
       );
     }
-    const { admin, tokens } = await this.auth.loginWithTelegram(BigInt(parsed.user.id));
+    const { admin, tokens } = await this.auth.loginWithTelegram(
+      BigInt(parsed.user.id),
+      parsed.user.photo_url ?? null,
+    );
     this.setCookies(res, tokens.accessToken, tokens.refreshToken, tokens.expiresAt);
     return { admin: serialize(admin), accessToken: tokens.accessToken };
   }

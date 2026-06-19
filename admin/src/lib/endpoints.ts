@@ -73,6 +73,7 @@ export interface TeamMember {
   fullName: string;
   role: StoreRole;
   telegramId: string | null;
+  photoUrl: string | null;
   isActive: boolean;
   isOwner: boolean;
   isSelf: boolean;

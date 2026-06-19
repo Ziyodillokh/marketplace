@@ -34,7 +34,16 @@ export class AdminAuthService {
    * Telegram ID bo'yicha login (parolsiz) — onboarding qilingan sotuvchilar uchun.
    * Bir nechta do'kon bo'lsa — birinchisiga (eng eski) kiritamiz; panel ichida almashtiriladi.
    */
-  async loginWithTelegram(telegramId: bigint): Promise<{ admin: Admin; tokens: AuthTokens }> {
+  async loginWithTelegram(
+    telegramId: bigint,
+    photoUrl?: string | null,
+  ): Promise<{ admin: Admin; tokens: AuthTokens }> {
+    // Profil rasmini yangilaymiz (shu telegramId ning barcha do'kon yozuvlarida)
+    if (photoUrl) {
+      await this.prisma.admin
+        .updateMany({ where: { telegramId }, data: { photoUrl } })
+        .catch(() => undefined);
+    }
     const admin = await this.prisma.admin.findFirst({
       where: { telegramId, isActive: true },
       orderBy: { createdAt: 'asc' },

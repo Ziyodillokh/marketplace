@@ -134,8 +134,22 @@ export default function TeamPage() {
                 const info = ROLE_INFO[m.role] ?? ROLE_INFO.MODERATOR;
                 return (
                   <div key={m.id} className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] p-3">
-                    <span className={`inline-flex h-10 w-10 rounded-full items-center justify-center shrink-0 ${info.cls}`}>
-                      <info.Icon size={18} />
+                    <span className="relative shrink-0">
+                      {m.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={m.photoUrl}
+                          alt={m.fullName}
+                          className="h-11 w-11 rounded-full object-cover ring-1 ring-[var(--color-border)]"
+                        />
+                      ) : (
+                        <span className={`inline-flex h-11 w-11 rounded-full items-center justify-center font-semibold ${info.cls}`}>
+                          {m.fullName.trim().slice(0, 1).toUpperCase() || '?'}
+                        </span>
+                      )}
+                      <span className={`absolute -bottom-0.5 -right-0.5 inline-flex h-5 w-5 rounded-full items-center justify-center ring-2 ring-white ${info.cls}`}>
+                        <info.Icon size={11} />
+                      </span>
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
