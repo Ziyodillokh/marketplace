@@ -100,47 +100,65 @@ export class SettingsService {
   }
 
   async getPublic(tenantId?: string | null): Promise<PublicSettings> {
-    const [store, business, pay] = await Promise.all([
-      this.getStore(tenantId),
-      this.getBusiness(),
-      this.getPaymentsAvail(tenantId),
-    ]);
+    // Tenant rejimida store+payments ma'lumotini bitta DB so'rovida olamiz —
+    // bu endpoint webapp'ning har bir sahifa yuklanishida chaqiriladi,
+    // shuning uchun 2 ta tenant.findUnique bir-biri ortidan latency tug'diradi.
+    if (tenantId) {
+      const [t, business] = await Promise.all([
+        this.prisma.tenant.findUnique({
+          where: { id: tenantId },
+          select: {
+            shopName: true,
+            ownerPhone: true,
+            address: true,
+            workingHours: true,
+            about: true,
+            primaryColor: true,
+            logoUrl: true,
+            paymeMerchantId: true,
+            clickServiceId: true,
+            clickMerchantId: true,
+            manualCardNumber: true,
+            manualCardHolder: true,
+            manualPaymentChannelId: true,
+          },
+        }),
+        this.getBusiness(),
+      ]);
+      const store: StoreSettings = t
+        ? {
+            name: t.shopName,
+            phone: t.ownerPhone ?? undefined,
+            address: t.address ?? undefined,
+            workingHours: t.workingHours ?? undefined,
+            about: t.about ?? undefined,
+            primaryColor: t.primaryColor,
+            logoUrl: t.logoUrl,
+          }
+        : await this.getStore(null);
+      const cardReady = !!(t?.manualCardNumber && t?.manualPaymentChannelId);
+      return {
+        store,
+        business,
+        payments: {
+          payme: !!t?.paymeMerchantId,
+          click: !!(t?.clickServiceId && t?.clickMerchantId),
+          card: cardReady,
+        },
+        cardPayment:
+          cardReady && t?.manualCardNumber && t?.manualCardHolder
+            ? { number: t.manualCardNumber, holder: t.manualCardHolder }
+            : null,
+      };
+    }
+
+    // Tenant'siz (global) chaqiruv — eski global Settings'dan
+    const [store, business] = await Promise.all([this.getStore(null), this.getBusiness()]);
     return {
       store,
       business,
-      payments: { payme: pay.payme, click: pay.click, card: pay.card },
-      cardPayment: pay.card ? { number: pay.cardNumber!, holder: pay.cardHolder! } : null,
-    };
-  }
-
-  /** Shu do'kon uchun qaysi to'lov turlari sozlangan. */
-  private async getPaymentsAvail(tenantId?: string | null): Promise<{
-    payme: boolean;
-    click: boolean;
-    card: boolean;
-    cardNumber?: string;
-    cardHolder?: string;
-  }> {
-    if (!tenantId) return { payme: false, click: false, card: false };
-    const t = await this.prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: {
-        paymeMerchantId: true,
-        clickServiceId: true,
-        clickMerchantId: true,
-        manualCardNumber: true,
-        manualCardHolder: true,
-        manualPaymentChannelId: true,
-      },
-    });
-    // Karta o'tkazma faqat karta raqami + tasdiqlash kanali bo'lsa ko'rinadi
-    const cardReady = !!(t?.manualCardNumber && t?.manualPaymentChannelId);
-    return {
-      payme: !!t?.paymeMerchantId,
-      click: !!(t?.clickServiceId && t?.clickMerchantId),
-      card: cardReady,
-      cardNumber: t?.manualCardNumber ?? undefined,
-      cardHolder: t?.manualCardHolder ?? undefined,
+      payments: { payme: false, click: false, card: false },
+      cardPayment: null,
     };
   }
 }
