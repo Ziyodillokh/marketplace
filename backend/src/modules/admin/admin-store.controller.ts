@@ -22,6 +22,7 @@ import { randomBytes } from 'crypto';
 import { AdminRole, BusinessType, TariffPlan, type Admin } from '@prisma/client';
 import { InlineKeyboard } from 'grammy';
 import { PrismaService } from '@/prisma/prisma.service';
+import { UploadsService } from '../uploads/uploads.service';
 import { checkBotToken } from '@/common/helpers/telegram-bot-token';
 import { limitsFor, hasFeature } from '@/common/tariff';
 import { BOSS_ROLES } from '@/common/role-groups';
@@ -102,13 +103,51 @@ export class AdminStoreController {
     private readonly tgbot: TelegramBotService,
     private readonly tenantBot: TenantBotService,
     private readonly tenantScope: TenantScopeService,
+    private readonly uploads: UploadsService,
   ) {}
+
+  /**
+   * Bot profil rasmini Telegram'dan olib, uploads'ga saqlaydi va tenant.botPhotoUrl
+   * ga yozadi. Eng yaxshi harakat — rasm bo'lmasa/xato bo'lsa null qoldiradi.
+   */
+  private async refreshBotPhoto(tenantId: string, token: string): Promise<void> {
+    try {
+      const api = `https://api.telegram.org/bot${token}`;
+      const me = (await fetch(`${api}/getMe`).then((r) => r.json())) as { result?: { id?: number } };
+      const botId = me?.result?.id;
+      if (!botId) return;
+      const ph = (await fetch(`${api}/getUserProfilePhotos?user_id=${botId}&limit=1`).then((r) =>
+        r.json(),
+      )) as { result?: { photos?: Array<Array<{ file_id: string }>> } };
+      const sizes = ph?.result?.photos?.[0];
+      if (!sizes?.length) {
+        await this.prisma.tenant.update({ where: { id: tenantId }, data: { botPhotoUrl: null } }).catch(() => undefined);
+        return;
+      }
+      const fileId = sizes[sizes.length - 1].file_id; // eng katta o'lcham
+      const f = (await fetch(`${api}/getFile?file_id=${fileId}`).then((r) => r.json())) as {
+        result?: { file_path?: string };
+      };
+      const path = f?.result?.file_path;
+      if (!path) return;
+      const ab = await fetch(`https://api.telegram.org/file/bot${token}/${path}`).then((r) => r.arrayBuffer());
+      const saved = await this.uploads.saveImage(Buffer.from(new Uint8Array(ab)));
+      await this.prisma.tenant.update({ where: { id: tenantId }, data: { botPhotoUrl: saved.url } });
+    } catch {
+      // jim — rasm ko'rsatilmaydi, ikon qoladi
+    }
+  }
 
   @Get()
   async myStore(@CurrentAdmin() admin: Admin) {
     if (!admin.tenantId) return { tenant: null };
     const t = await this.prisma.tenant.findUnique({ where: { id: admin.tenantId } });
     if (!t) return { tenant: null };
+
+    // Bot rasmi hali olinmagan bo'lsa — fon rejimida olib qo'yamiz (keyingi yuklashda ko'rinadi)
+    if (t.botToken && !t.botPhotoUrl) {
+      void this.refreshBotPhoto(t.id, t.botToken);
+    }
 
     const limits = limitsFor(t.tariffPlan);
     // Faqat shu sotuvchiga tegishli (o'z do'koni) sonlar
@@ -132,6 +171,7 @@ export class AdminStoreController {
         tariffPlan: t.tariffPlan,
         pendingTariff: t.pendingTariff,
         botUsername: t.botUsername,
+        botPhotoUrl: t.botPhotoUrl,
         hasBotToken: !!t.botToken,
         phone: t.ownerPhone,
         address: t.address,
@@ -582,6 +622,8 @@ export class AdminStoreController {
     });
     this.tenantScope.invalidate(updated.slug);
     await this.tenantBot.configure(admin.tenantId).catch(() => undefined);
+    // Bot profil rasmini olib qo'yamiz (best-effort)
+    await this.refreshBotPhoto(admin.tenantId, token).catch(() => undefined);
 
     if (oldToken && oldToken !== token) {
       await this.tenantBot.deleteWebhookForToken(oldToken).catch(() => undefined);
@@ -600,7 +642,7 @@ export class AdminStoreController {
     });
     const updated = await this.prisma.tenant.update({
       where: { id: admin.tenantId },
-      data: { botToken: null, botUsername: null },
+      data: { botToken: null, botUsername: null, botPhotoUrl: null },
       select: { slug: true },
     });
     this.tenantScope.invalidate(updated.slug);

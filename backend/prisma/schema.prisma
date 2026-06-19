@@ -684,6 +684,7 @@ model Tenant {
   // Telegram bot
   botToken        String?      @unique
   botUsername     String?
+  botPhotoUrl     String?
   channelId       String?
 
   // Custom limitlar (override defaults)

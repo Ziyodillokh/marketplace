@@ -176,6 +176,7 @@ export interface MyStore {
     tariffPlan: string;
     pendingTariff: string | null;
     botUsername: string | null;
+    botPhotoUrl: string | null;
     hasBotToken: boolean;
     phone: string | null;
     address: string | null;

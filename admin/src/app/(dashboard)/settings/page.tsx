@@ -296,9 +296,18 @@ export default function SettingsPage() {
               {tenant.botUsername ? (
                 <div className="rounded-2xl border border-[var(--color-border)] overflow-hidden">
                   <div className="flex items-center gap-3 p-4 bg-gradient-to-br from-[var(--color-primary)]/10 to-blue-50">
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[var(--color-primary)] to-blue-500 text-white grid place-items-center shrink-0 shadow-sm">
-                      <Bot size={26} />
-                    </div>
+                    {tenant.botPhotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={tenant.botPhotoUrl}
+                        alt={tenant.botUsername ?? 'bot'}
+                        className="h-14 w-14 rounded-2xl object-cover shrink-0 shadow-sm"
+                      />
+                    ) : (
+                      <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[var(--color-primary)] to-blue-500 text-white grid place-items-center shrink-0 shadow-sm">
+                        <Bot size={26} />
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="font-bold truncate">@{tenant.botUsername}</p>
