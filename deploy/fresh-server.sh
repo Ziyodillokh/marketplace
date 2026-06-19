@@ -169,6 +169,14 @@ echo "  ✓ ${ENV_FILE} yozildi (600)"
 echo "▶ [4/7] Install + build + migrate (backend, webapp, admin, superadmin, landing)..."
 bash "${APP_DIR}/deploy/03-install-build-migrate.sh"
 
+# Build root sifatida ishlagani uchun .next/node_modules root'ники bo'ladi —
+# egalikni chaqirgan foydalanuvchiga qaytaramiz (keyin sudo'siz build qilinadi).
+DEPLOY_USER="${SUDO_USER:-}"
+if [ -n "${DEPLOY_USER}" ] && [ "${DEPLOY_USER}" != "root" ]; then
+  chown -R "${DEPLOY_USER}:${DEPLOY_USER}" "${APP_DIR}" 2>/dev/null || true
+  chmod 600 "${ENV_FILE}" 2>/dev/null || true
+fi
+
 # ─── 5. PM2 start + boot avtostart ───────────────────────────
 echo "▶ [5/7] PM2 start..."
 # backend/.env root-only (600) — shuning uchun PM2 ham root sifatida ishlaydi
