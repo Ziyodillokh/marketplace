@@ -28,7 +28,10 @@ module.exports = {
         ADMIN_URL: 'https://admin.selliostore.uz',
         SUPERADMIN_URL: 'https://dev.selliostore.uz',
         LANDING_URL: 'https://selliostore.uz',
-        APP_URL: 'https://selliostore.uz',
+        // Telegram webhook bazasi. Apex (selliostore.uz) ni Telegram DNS keshi
+        // eski server IP bilan ushlab qolishi mumkin — subdomen (to'g'ridan-to'g'ri
+        // A-record) har doim yangi IP ga resolve bo'ladi.
+        APP_URL: 'https://clients.selliostore.uz',
       },
       out_file: '/opt/marketplace/logs/api.out.log',
       error_file: '/opt/marketplace/logs/api.err.log',

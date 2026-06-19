@@ -149,6 +149,13 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/selliostore.uz/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
+    # Telegram webhook (markaziy + sotuvchi botlari) — subdomen orqali ham
+    # ishlasin: yangi serverga ko'chganda Telegram apex DNS keshini chetlab o'tadi.
+    location /telegram/ {
+        proxy_pass http://marketplace_api;
+        proxy_read_timeout 30s;
+    }
+
     location /api/ {
         proxy_pass http://marketplace_api;
     }
