@@ -19,8 +19,9 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     // Sellio bot do'kon emas, sotuvchi onboarding/panelini ochadi (/register).
     // Sahifa o'zi hal qiladi: ro'yxatdan o'tgan bo'lsa panelga kiritadi, bo'lmasa forma ko'rsatadi.
     // ADMIN_PANEL_URL berilmasa ADMIN_URL (masalan https://admin.selliostore.uz) + /register ishlatiladi.
+    // ADMIN_PANEL_URL bo'sh satr bo'lsa ham (?? bo'shni ushlamaydi) ADMIN_URL ga tushamiz
     this.adminPanelUrl =
-      this.config.get<string>('ADMIN_PANEL_URL') ??
+      (this.config.get<string>('ADMIN_PANEL_URL') || '').trim() ||
       `${(this.config.get<string>('ADMIN_URL') ?? '').replace(/\/$/, '')}/register`;
     this.ordersChannelId = this.config.getOrThrow<string>('TELEGRAM_ORDERS_CHANNEL_ID');
     // To'lov tasdiqlash xabarlari shu chatga boradi (berilmasa orders kanaliga)

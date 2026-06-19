@@ -131,7 +131,8 @@ WEBAPP_URL=https://${WEBAPP_DOMAIN}
 ADMIN_URL=https://${ADMIN_DOMAIN}
 SUPERADMIN_URL=https://${SUPERADMIN_DOMAIN}
 LANDING_URL=https://${ROOT_DOMAIN}
-ADMIN_PANEL_URL=
+# Bot /start shu URL ni ochadi (sotuvchi paneli/ro'yxatdan o'tish)
+ADMIN_PANEL_URL=https://${ADMIN_DOMAIN}
 
 # Uploads
 UPLOAD_DIR=/opt/marketplace/uploads
