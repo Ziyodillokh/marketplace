@@ -122,9 +122,11 @@ export default function ChannelPostsPage() {
             ) : (
               <>
                 {!config?.hasBot && (
-                  <div className="flex gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-700">
+                  <div className="flex gap-2.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-700">
                     <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                    Avval <b>Sozlamalar → Telegram bot</b> bo&apos;limidan botingizni ulang.
+                    <p className="flex-1 leading-snug">
+                      Avval <b>Sozlamalar → Telegram bot</b> bo&apos;limidan botingizni ulang.
+                    </p>
                   </div>
                 )}
                 <Field
@@ -191,17 +193,20 @@ export default function ChannelPostsPage() {
               )}
             </Field>
 
-            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <label className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] px-3 py-2.5 cursor-pointer select-none hover:bg-[var(--color-bg)] transition-colors">
+              <span className="inline-flex h-9 w-9 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] items-center justify-center shrink-0">
+                <ShoppingBag size={17} />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-medium">&quot;Sotib olish&quot; tugmasi</span>
+                <span className="block text-[11px] text-[var(--color-text-muted)]">Bosilganda do&apos;kon ochiladi</span>
+              </span>
               <input
                 type="checkbox"
                 checked={buyButton}
                 onChange={(e) => setBuyButton(e.target.checked)}
-                className="h-4 w-4 accent-[var(--color-primary)]"
+                className="h-5 w-5 accent-[var(--color-primary)] shrink-0"
               />
-              <span className="text-sm flex items-center gap-1.5">
-                <ShoppingBag size={15} className="text-[var(--color-primary)]" />
-                &quot;Sotib olish&quot; tugmasi (do&apos;konni ochadi)
-              </span>
             </label>
             {buyButton && (
               <Field label="Tugma matni (ixtiyoriy)">
@@ -213,14 +218,20 @@ export default function ChannelPostsPage() {
               </Field>
             )}
 
-            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <label className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] px-3 py-2.5 cursor-pointer select-none hover:bg-[var(--color-bg)] transition-colors">
+              <span className="inline-flex h-9 w-9 rounded-lg bg-emerald-50 text-emerald-600 items-center justify-center shrink-0">
+                <Send size={17} />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-medium">Hozir joylash</span>
+                <span className="block text-[11px] text-[var(--color-text-muted)]">Darhol kanalga yuboriladi</span>
+              </span>
               <input
                 type="checkbox"
                 checked={now}
                 onChange={(e) => setNow(e.target.checked)}
-                className="h-4 w-4 accent-[var(--color-primary)]"
+                className="h-5 w-5 accent-[var(--color-primary)] shrink-0"
               />
-              <span className="text-sm">Hozir joylash</span>
             </label>
             {!now && (
               <Field label="Joylanadigan sana va vaqt">
