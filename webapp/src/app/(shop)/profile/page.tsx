@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/shop/page-header';
 import { Sheet } from '@/components/ui/sheet';
+import { Flag } from '@/components/flag';
 import {
   apiGetMe,
   apiPublicSettings,
@@ -182,7 +183,10 @@ export default function ProfilePage() {
                   : 'bg-white border-[var(--color-border)]',
               )}
             >
-              {lng === 'uz' ? "🇺🇿 O'zbekcha" : '🇷🇺 Русский'}
+              <span className="inline-flex items-center gap-2.5">
+                <Flag code={lng} className="h-4 w-6 rounded-[3px] shadow-[0_0_0_1px_rgba(0,0,0,0.08)]" />
+                {lng === 'uz' ? "O'zbekcha" : 'Русский'}
+              </span>
             </button>
           ))}
         </div>
