@@ -11,6 +11,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Flag } from '@/components/flag';
+import { PickerSelect } from '@/components/picker-select';
 import {
   apiBroadcastPreviewCount,
   apiCreateBroadcast,
@@ -175,14 +176,16 @@ export default function BroadcastsPage() {
           </Field>
 
           <Field label="Til filtri">
-            <Select
+            <PickerSelect
               value={form.language}
-              onChange={(e) => setForm({ ...form, language: e.target.value as FormState['language'] })}
-            >
-              <option value="">Hammasi (har kim o&apos;z tilida)</option>
-              <option value="uz">🇺🇿 Faqat o&apos;zbek tilidagilar</option>
-              <option value="ru">🇷🇺 Faqat rus tilidagilar</option>
-            </Select>
+              onChange={(v) => setForm({ ...form, language: v as FormState['language'] })}
+              title="Til filtri"
+              options={[
+                { value: '', label: "Hammasi (har kim o'z tilida)" },
+                { value: 'uz', label: "Faqat o'zbek tilidagilar", icon: <Flag code="uz" /> },
+                { value: 'ru', label: 'Faqat rus tilidagilar', icon: <Flag code="ru" /> },
+              ]}
+            />
           </Field>
 
           <div className="rounded-xl bg-[var(--color-primary)]/10 px-4 py-3 flex items-center gap-3">
