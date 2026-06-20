@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Tag, Trash2 } from 'lucide-react';
+import { Plus, Tag, Trash2, ShoppingCart, Clock, Repeat, Pencil } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card } from '@/components/ui/card';
 import { Sheet } from '@/components/ui/sheet';
@@ -132,36 +132,67 @@ export default function PromoCodesPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {data.items.map((p) => (
-            <Card key={p.id}>
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <button onClick={() => openEdit(p)} className="text-lg font-bold text-[var(--color-primary)] hover:underline">
-                    <Tag size={14} className="inline mr-1" />
-                    {p.code}
-                  </button>
-                  <div className="flex gap-1">
+          {data.items.map((p) => {
+            const pct =
+              p.usageLimit && p.usageLimit > 0
+                ? Math.min(100, Math.round((p.usageCount / p.usageLimit) * 100))
+                : null;
+            return (
+              <Card key={p.id} className="overflow-hidden">
+                {/* Sarlavha */}
+                <div className="flex items-center justify-between gap-2 px-4 pt-3.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="inline-flex h-9 w-9 rounded-xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] items-center justify-center shrink-0">
+                      <Tag size={17} />
+                    </span>
+                    <span className="font-bold tracking-wide truncate">{p.code}</span>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
                     {p.isPublic && <Badge tone="blue">Public</Badge>}
-                    {p.isActive ? <Badge tone="green">Faol</Badge> : <Badge tone="gray">Off</Badge>}
+                    {p.isActive ? <Badge tone="green">Faol</Badge> : <Badge tone="gray">O&apos;chiq</Badge>}
                   </div>
                 </div>
-                <p className="text-sm font-semibold">
-                  {p.type === 'PERCENT' ? `−${p.value}%` : `−${formatMoney(p.value)}`}
-                  {p.maxDiscount && p.type === 'PERCENT' && (
-                    <span className="text-xs text-[var(--color-text-muted)] ml-2">(max {formatMoney(p.maxDiscount)})</span>
+
+                {/* Chegirma — yirik */}
+                <div className="px-4 pt-3 pb-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-extrabold text-[var(--color-primary)]">
+                      −{p.type === 'PERCENT' ? `${p.value}%` : formatMoney(p.value)}
+                    </span>
+                    {p.maxDiscount && p.type === 'PERCENT' && (
+                      <span className="text-xs text-[var(--color-text-muted)]">max {formatMoney(p.maxDiscount)}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Ma'lumotlar */}
+                <div className="px-4 py-2 space-y-1.5 text-xs text-[var(--color-text-muted)]">
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart size={13} className="shrink-0" />
+                    Min buyurtma: <span className="text-[var(--color-text)] font-medium">{p.minOrderAmount ? formatMoney(p.minOrderAmount) : '—'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Repeat size={13} className="shrink-0" />
+                    Ishlatildi: <span className="text-[var(--color-text)] font-medium">{p.usageCount}{p.usageLimit ? ` / ${p.usageLimit}` : ''}</span>
+                  </div>
+                  {pct !== null && (
+                    <div className="h-1.5 rounded-full bg-[var(--color-bg)] overflow-hidden">
+                      <div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${pct}%` }} />
+                    </div>
                   )}
-                </p>
-                <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                  Min: {p.minOrderAmount ? formatMoney(p.minOrderAmount) : '—'}
-                </p>
-                <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                  Foydalanildi: {p.usageCount} {p.usageLimit ? `/ ${p.usageLimit}` : ''}
-                </p>
-                {p.expiresAt && (
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">⏳ {formatDate(p.expiresAt)}</p>
-                )}
-                <div className="mt-3 flex gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => openEdit(p)}>Tahrirlash</Button>
+                  {p.expiresAt && (
+                    <div className="flex items-center gap-2">
+                      <Clock size={13} className="shrink-0" />
+                      Amal qiladi: <span className="text-[var(--color-text)] font-medium">{formatDate(p.expiresAt)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tugmalar */}
+                <div className="flex gap-2 px-4 pb-3.5 pt-1">
+                  <Button size="sm" variant="secondary" className="flex-1" onClick={() => openEdit(p)}>
+                    <Pencil size={14} /> Tahrirlash
+                  </Button>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -172,9 +203,9 @@ export default function PromoCodesPage() {
                     <Trash2 size={14} />
                   </Button>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
 
