@@ -37,7 +37,7 @@ interface FormState {
   descriptionRu: string;
   categoryId: string;
   brand: string;
-  basePrice: number;
+  basePrice: number | '';
   oldPrice: number | '';
   isActive: boolean;
   isFeatured: boolean;
@@ -75,7 +75,7 @@ export function ProductForm({ existing }: { existing?: AdminProductDetail }) {
     descriptionRu: existing?.descriptionRu ?? '',
     categoryId: existing?.categoryId ?? '',
     brand: existing?.brand ?? '',
-    basePrice: existing?.basePrice ?? 0,
+    basePrice: existing?.basePrice ?? '',
     oldPrice: existing?.oldPrice ?? '',
     isActive: existing?.isActive ?? true,
     isFeatured: existing?.isFeatured ?? false,
@@ -162,7 +162,7 @@ export function ProductForm({ existing }: { existing?: AdminProductDetail }) {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const canSubmit = form.titleUz && form.categoryId && form.basePrice > 0;
+  const canSubmit = form.titleUz && form.categoryId && Number(form.basePrice) > 0;
 
   return (
     <form
@@ -212,17 +212,27 @@ export function ProductForm({ existing }: { existing?: AdminProductDetail }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Narx *">
                 <Input
-                  type="number"
-                  value={form.basePrice}
-                  onChange={(e) => setForm({ ...form, basePrice: Number(e.target.value) })}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={form.basePrice === '' ? '' : String(form.basePrice)}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '');
+                    setForm({ ...form, basePrice: digits === '' ? '' : Number(digits) });
+                  }}
                   required
                 />
               </Field>
               <Field label="Eski narx (chegirma uchun)">
                 <Input
-                  type="number"
-                  value={form.oldPrice}
-                  onChange={(e) => setForm({ ...form, oldPrice: e.target.value === '' ? '' : Number(e.target.value) })}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={form.oldPrice === '' ? '' : String(form.oldPrice)}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '');
+                    setForm({ ...form, oldPrice: digits === '' ? '' : Number(digits) });
+                  }}
                 />
               </Field>
             </div>
