@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
+import { limitsFor } from '@/common/tariff';
 
 export interface StoreSettings {
   name?: string;
@@ -9,6 +10,8 @@ export interface StoreSettings {
   about?: string;
   primaryColor?: string | null;
   logoUrl?: string | null;
+  /** Paid tarif (branding) — webapp sarlavhasida do'kon nomini ko'rsatish uchun */
+  branded?: boolean;
 }
 
 export interface BusinessSettings {
@@ -115,6 +118,7 @@ export class SettingsService {
             about: true,
             primaryColor: true,
             logoUrl: true,
+            tariffPlan: true,
             paymeMerchantId: true,
             clickServiceId: true,
             clickMerchantId: true,
@@ -134,6 +138,7 @@ export class SettingsService {
             about: t.about ?? undefined,
             primaryColor: t.primaryColor,
             logoUrl: t.logoUrl,
+            branded: limitsFor(t.tariffPlan).branding,
           }
         : await this.getStore(null);
       const cardReady = !!(t?.manualCardNumber && t?.manualPaymentChannelId);

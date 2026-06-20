@@ -170,6 +170,7 @@ export interface PublicSettings {
     about?: string;
     primaryColor?: string | null;
     logoUrl?: string | null;
+    branded?: boolean;
   };
   business: { minOrderAmount: number; deliveryFee: number; freeDeliveryThreshold: number; currency: string };
   payments: { payme: boolean; click: boolean; card: boolean };
