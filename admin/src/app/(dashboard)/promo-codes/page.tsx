@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Card } from '@/components/ui/card';
 import { Sheet } from '@/components/ui/sheet';
 import { Field, Input, Select } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -233,7 +234,12 @@ export default function PromoCodesPage() {
             </Field>
           </div>
           <Field label="Tugash sanasi">
-            <Input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
+            <DatePicker
+              value={form.expiresAt}
+              onChange={(v) => setForm({ ...form, expiresAt: v })}
+              disablePast
+              placeholder="Muddatsiz"
+            />
           </Field>
           <Field label="Tavsif (uz)">
             <Input value={form.descriptionUz} onChange={(e) => setForm({ ...form, descriptionUz: e.target.value })} />
