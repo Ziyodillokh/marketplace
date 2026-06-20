@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, ImageOff } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Input, Select } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -116,12 +116,8 @@ export default function ProductsPage() {
                 href={`/products/${p.id}`}
                 className="bg-white rounded-2xl border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors overflow-hidden flex"
               >
-                <div className="relative h-24 w-24 bg-gray-100 shrink-0">
-                  {p.imageUrl ? (
-                    <Image src={p.imageUrl} alt="" fill className="object-cover" sizes="96px" />
-                  ) : (
-                    <div className="h-full w-full grid place-items-center text-gray-300 text-xs">No img</div>
-                  )}
+                <div className="relative h-24 w-24 bg-[var(--color-bg)] shrink-0">
+                  <Thumb url={p.imageUrl} />
                 </div>
                 <div className="p-3 flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-1">
@@ -142,5 +138,20 @@ export default function ProductsPage() {
         </>
       )}
     </div>
+  );
+}
+
+/** Mahsulot rasmi — yo'q yoki yuklanmasa (404) toza placeholder ko'rsatadi. */
+function Thumb({ url }: { url: string | null }) {
+  const [error, setError] = useState(false);
+  if (!url || error) {
+    return (
+      <div className="h-full w-full grid place-items-center text-gray-300">
+        <ImageOff size={22} />
+      </div>
+    );
+  }
+  return (
+    <Image src={url} alt="" fill className="object-cover" sizes="96px" onError={() => setError(true)} />
   );
 }
