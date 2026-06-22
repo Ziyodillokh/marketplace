@@ -9,9 +9,11 @@ async function main(): Promise<void> {
   const adminFullName = process.env.ADMIN_SEED_FULLNAME ?? 'Super Admin';
 
   const passwordHash = await bcrypt.hash(adminPassword, 12);
+  // update bilan parolni ham yangilaymiz — aks holda admin allaqachon mavjud
+  // bo'lsa (qayta seed), ADMIN_SEED_PASSWORD o'zgargani kuchga kirmaydi.
   await prisma.admin.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: { passwordHash, fullName: adminFullName },
     create: {
       email: adminEmail,
       passwordHash,
@@ -19,7 +21,7 @@ async function main(): Promise<void> {
       role: AdminRole.SUPERADMIN,
     },
   });
-  console.log(`✓ Admin created: ${adminEmail}`);
+  console.log(`✓ Admin upserted: ${adminEmail}`);
 
   const categories = [
     { slug: 'phones', titleUz: 'Telefonlar', titleRu: 'Телефоны', iconUrl: null, position: 1 },
