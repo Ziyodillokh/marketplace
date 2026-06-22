@@ -28,7 +28,7 @@ export class TelegramWebhookController {
     }
 
     try {
-      await this.bot.bot.handleUpdate(update);
+      await this.bot.bot?.handleUpdate(update);
     } catch (err) {
       this.logger.error(`Webhook handleUpdate failed: ${(err as Error).message}`);
       // Telegram'ga 200 qaytaramiz — qayta yuborilmasligi uchun (xato bizning kodda)

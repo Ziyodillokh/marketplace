@@ -191,8 +191,11 @@ export class RecommendationsService {
         ]
       : undefined;
 
+    // Global bot o'chirilgan bo'lsa — post-purchase tavsiya yuborilmaydi
+    const gbot = this.bot.bot;
+    if (!gbot) return;
     try {
-      await this.bot.bot.api.sendMessage(Number(order.user.telegramId), text, {
+      await gbot.api.sendMessage(Number(order.user.telegramId), text, {
         parse_mode: 'HTML',
         link_preview_options: { is_disabled: true },
         ...(inlineKeyboard ? { reply_markup: { inline_keyboard: inlineKeyboard } } : {}),

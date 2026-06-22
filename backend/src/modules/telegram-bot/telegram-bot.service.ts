@@ -5,46 +5,63 @@ import { Bot, InlineKeyboard, InputFile, webhookCallback } from 'grammy';
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TelegramBotService.name);
-  readonly bot: Bot;
+  /**
+   * Global "platform" boti. TELEGRAM_BOT_TOKEN berilmasa `undefined` bo'ladi
+   * va xizmat "o'chirilgan" rejimda ishlaydi — backend crash bo'lmaydi.
+   * (Ko'p-tenantli rejimda har sotuvchi o'z botini ishlatadi — TenantBotService.)
+   */
+  readonly bot?: Bot;
   private readonly useWebhook: boolean;
   private readonly adminPanelUrl: string;
   private readonly ordersChannelId: string;
   private readonly paymentsChatId: string;
   private readonly botUsername: string;
 
+  /** Global bot sozlanganmi (token bor). */
+  get enabled(): boolean {
+    return this.bot !== undefined;
+  }
+
   constructor(private readonly config: ConfigService) {
-    const token = this.config.getOrThrow<string>('TELEGRAM_BOT_TOKEN');
-    this.bot = new Bot(token);
+    const token = (this.config.get<string>('TELEGRAM_BOT_TOKEN') ?? '').trim();
     this.useWebhook = this.config.get('TELEGRAM_USE_WEBHOOK') === 'true';
-    // Sellio bot do'kon emas, sotuvchi onboarding/panelini ochadi (/register).
-    // Sahifa o'zi hal qiladi: ro'yxatdan o'tgan bo'lsa panelga kiritadi, bo'lmasa forma ko'rsatadi.
-    // ADMIN_PANEL_URL berilmasa ADMIN_URL (masalan https://admin.selliostore.uz) + /register ishlatiladi.
-    // ADMIN_PANEL_URL bo'sh satr bo'lsa ham (?? bo'shni ushlamaydi) ADMIN_URL ga tushamiz
     this.adminPanelUrl =
       (this.config.get<string>('ADMIN_PANEL_URL') || '').trim() ||
       `${(this.config.get<string>('ADMIN_URL') ?? '').replace(/\/$/, '')}/register`;
-    this.ordersChannelId = this.config.getOrThrow<string>('TELEGRAM_ORDERS_CHANNEL_ID');
-    // To'lov tasdiqlash xabarlari shu chatga boradi (berilmasa orders kanaliga)
+    // Token bo'lmasa, getOrThrow ishlatmaymiz — aks holda butun backend yiqiladi.
+    this.ordersChannelId = this.config.get<string>('TELEGRAM_ORDERS_CHANNEL_ID') ?? '';
     this.paymentsChatId =
-      this.config.get<string>('TELEGRAM_PAYMENTS_CHAT_ID') ?? this.ordersChannelId;
-    this.botUsername = this.config.getOrThrow<string>('TELEGRAM_BOT_USERNAME');
+      this.config.get<string>('TELEGRAM_PAYMENTS_CHAT_ID') || this.ordersChannelId;
+    this.botUsername = this.config.get<string>('TELEGRAM_BOT_USERNAME') ?? '';
+
+    if (!token) {
+      this.logger.warn(
+        'TELEGRAM_BOT_TOKEN yo\'q — global platforma boti O\'CHIRILGAN. ' +
+          'Sotuvchilar o\'z botlarini admin panelidan ulaydi (per-tenant bot).',
+      );
+      return;
+    }
+
+    this.bot = new Bot(token);
     this.registerHandlers();
   }
 
   async onModuleInit(): Promise<void> {
+    const bot = this.bot;
+    if (!bot) return; // global bot o'chirilgan (token yo'q)
     try {
       // Webhook rejimida bot.init() majburiy — bot.handleUpdate uni talab qiladi.
       // Polling rejimida bot.start() avtomatik chaqiradi, lekin biz xohlamaymiz duplicate.
       if (this.useWebhook) {
-        await this.bot.init();
-        const me = this.bot.botInfo;
+        await bot.init();
+        const me = bot.botInfo;
         this.logger.log(`Bot @${me.username} initialized (id=${me.id})`);
         await this.ensureWebhook();
       } else {
-        const me = await this.bot.api.getMe();
+        const me = await bot.api.getMe();
         this.logger.log(`Bot @${me.username} connected (id=${me.id})`);
-        await this.bot.api.deleteWebhook({ drop_pending_updates: false }).catch(() => undefined);
-        void this.bot.start({
+        await bot.api.deleteWebhook({ drop_pending_updates: false }).catch(() => undefined);
+        void bot.start({
           onStart: (info) => this.logger.log(`Polling started as @${info.username}`),
         });
       }
@@ -57,8 +74,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
 
   /** Bot komandalar ro'yxati va chat pastidagi doimiy "Menu" tugmasini o'rnatadi. */
   private async setupBotMenu(): Promise<void> {
+    const bot = this.bot;
+    if (!bot) return;
     try {
-      await this.bot.api.setMyCommands([
+      await bot.api.setMyCommands([
         { command: 'start', description: "Do'konni ochish / Открыть магазин" },
         { command: 'admin', description: 'Admin panel' },
         { command: 'id', description: "Telegram ID (jamoaga qo'shilish uchun)" },
@@ -68,7 +87,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
 
       const adminUrl = this.adminPanelUrl;
       if (adminUrl.startsWith('https://')) {
-        await this.bot.api.setChatMenuButton({
+        await bot.api.setChatMenuButton({
           menu_button: {
             type: 'web_app',
             text: '🏪 Mening do\'konim',
@@ -83,6 +102,8 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async ensureWebhook(): Promise<void> {
+    const bot = this.bot;
+    if (!bot) return;
     const appUrl = this.config.get<string>('APP_URL') ?? '';
     if (!appUrl.startsWith('https://')) {
       this.logger.warn(`APP_URL HTTPS emas — webhook o'rnatilmadi: ${appUrl}`);
@@ -92,9 +113,9 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     const secret = this.config.getOrThrow<string>('TELEGRAM_WEBHOOK_SECRET');
 
     try {
-      const info = await this.bot.api.getWebhookInfo();
+      const info = await bot.api.getWebhookInfo();
       if (info.url !== webhookUrl) {
-        await this.bot.api.setWebhook(webhookUrl, {
+        await bot.api.setWebhook(webhookUrl, {
           secret_token: secret,
           allowed_updates: ['message', 'callback_query'],
           drop_pending_updates: false,
@@ -109,12 +130,13 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    if (!this.useWebhook) {
+    if (this.bot && !this.useWebhook) {
       await this.bot.stop().catch(() => undefined);
     }
   }
 
   private registerHandlers(): void {
+    if (!this.bot) return;
     // Universal error catcher — handler ichida xato bo'lsa loglarda ko'rinadi
     this.bot.catch((err) => {
       this.logger.error(`Bot handler error: ${err.error}`);
@@ -214,6 +236,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   }
 
   webhookHandler() {
+    if (!this.bot) {
+      // Bot o'chirilgan — webhook kelса 200 qaytaramiz (Telegram qayta urinmasin)
+      return (_req: unknown, res: { sendStatus: (n: number) => void }) => res.sendStatus(200);
+    }
     return webhookCallback(this.bot, 'express');
   }
 
@@ -223,6 +249,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     caption: string,
     tenantId: string,
   ): Promise<{ messageId: number }> {
+    if (!this.bot || !this.paymentsChatId) {
+      this.logger.warn('Global bot/chat yo\'q — to\'lov cheki yuborilmadi');
+      return { messageId: 0 };
+    }
     const keyboard = new InlineKeyboard()
       .text('✅ Tasdiqlash', `pay:approve:${tenantId}`)
       .text('❌ Bekor qilish', `pay:reject:${tenantId}`);
@@ -235,6 +265,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   }
 
   async sendToOrdersChannel(text: string, replyMarkup?: InlineKeyboard): Promise<{ messageId: number }> {
+    if (!this.bot || !this.ordersChannelId) return { messageId: 0 };
     const msg = await this.bot.api.sendMessage(this.ordersChannelId, text, {
       parse_mode: 'HTML',
       reply_markup: replyMarkup,
@@ -243,6 +274,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   }
 
   async editOrdersChannelMessage(messageId: number, text: string, replyMarkup?: InlineKeyboard): Promise<void> {
+    if (!this.bot || !this.ordersChannelId) return;
     try {
       await this.bot.api.editMessageText(this.ordersChannelId, messageId, text, {
         parse_mode: 'HTML',
@@ -254,6 +286,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   }
 
   async sendDirectMessage(telegramId: bigint | number, text: string): Promise<void> {
+    if (!this.bot) return;
     try {
       await this.bot.api.sendMessage(Number(telegramId), text, { parse_mode: 'HTML' });
     } catch (err) {
@@ -262,6 +295,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   }
 
   async sendToSupportChat(text: string, replyMarkup?: InlineKeyboard): Promise<void> {
+    if (!this.bot) return;
     // Support chat berilmasa — to'lov/admin kanaliga yuboramiz (har doim sozlangan)
     const chatId = this.config.get<string>('TELEGRAM_SUPPORT_CHAT_ID') || this.paymentsChatId;
     if (!chatId) return;

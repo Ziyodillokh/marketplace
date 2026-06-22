@@ -104,6 +104,17 @@ export class AdminBroadcastService {
 
     this.logger.log(`Broadcast ${broadcastId}: starting send to ${recipients.length} users`);
 
+    // Global bot o'chirilgan bo'lsa (token yo'q) — broadcast yuborib bo'lmaydi
+    const gbot = this.bot.bot;
+    if (!gbot) {
+      this.logger.warn(`Broadcast ${broadcastId}: global bot o'chirilgan — bekor qilindi`);
+      await this.prisma.broadcast.update({
+        where: { id: broadcastId },
+        data: { status: 'failed' },
+      });
+      return;
+    }
+
     let sent = 0;
     let failed = 0;
 
@@ -112,7 +123,7 @@ export class AdminBroadcastService {
       const results = await Promise.allSettled(
         batch.map((u) => {
           const text = u.language === 'ru' && broadcast.messageRu ? broadcast.messageRu : broadcast.messageUz;
-          return this.bot.bot.api.sendMessage(Number(u.telegramId), text, {
+          return gbot.api.sendMessage(Number(u.telegramId), text, {
             parse_mode: 'HTML',
             link_preview_options: { is_disabled: true },
           });
