@@ -28,10 +28,15 @@ echo "════════════════════════�
 echo ""
 
 # ─── 1. Sistema yangilash ───────────────────────────────────
+# MUHIM: noninteractive rejim — aks holda openssh-server/grub yangilanishi
+# debconf prompt'da qotib, SSH sessiyasini uzib yuboradi. confold/confdef
+# bilan mavjud config fayllarni saqlaymiz (sshd_config o'zgarmaydi).
 echo "▶ [1/8] Sistema yangilash..."
+export DEBIAN_FRONTEND=noninteractive
+APT_OPTS='-o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold'
 apt-get update -qq
-apt-get upgrade -y -qq
-apt-get install -y -qq curl wget git build-essential ca-certificates gnupg lsb-release ufw htop unzip
+apt-get upgrade -y -qq ${APT_OPTS}
+apt-get install -y -qq ${APT_OPTS} curl wget git build-essential ca-certificates gnupg lsb-release ufw htop unzip
 
 # ─── 2. Node.js 20 LTS (NodeSource) ─────────────────────────
 echo "▶ [2/8] Node.js 20 LTS o'rnatish..."
