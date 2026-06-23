@@ -3,14 +3,14 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Search, Ban } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Input, Select } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
 import { apiListAdminUsers } from '@/lib/endpoints';
 import { formatRelative } from '@/lib/format';
+import { cn } from '@/lib/cn';
 
 export default function UsersPage() {
   const [search, setSearch] = useState('');
@@ -80,22 +80,45 @@ export default function UsersPage() {
               <Link
                 key={u.id}
                 href={`/users/${u.id}`}
-                className="bg-white rounded-2xl border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors p-3 flex items-center gap-3"
+                className={cn(
+                  'rounded-2xl border p-3 flex items-center gap-3 transition-all',
+                  u.isBlocked
+                    ? 'bg-red-50/40 border-red-200 hover:border-red-300'
+                    : 'bg-white border-[var(--color-border)] hover:border-[var(--color-primary)] hover:shadow-md',
+                )}
               >
-                <div className="h-12 w-12 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] grid place-items-center font-semibold overflow-hidden shrink-0">
-                  {u.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={u.photoUrl} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    (u.firstName ?? u.username ?? '?').slice(0, 1).toUpperCase()
+                <div className="relative shrink-0">
+                  <div
+                    className={cn(
+                      'h-12 w-12 rounded-full grid place-items-center font-semibold overflow-hidden',
+                      u.isBlocked
+                        ? 'bg-red-100 text-red-400 grayscale'
+                        : 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]',
+                    )}
+                  >
+                    {u.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={u.photoUrl} alt="" className={cn('h-full w-full object-cover', u.isBlocked && 'grayscale opacity-80')} />
+                    ) : (
+                      (u.firstName ?? u.username ?? '?').slice(0, 1).toUpperCase()
+                    )}
+                  </div>
+                  {u.isBlocked && (
+                    <span className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-[var(--color-danger)] text-white grid place-items-center ring-2 ring-white">
+                      <Ban size={11} strokeWidth={2.5} />
+                    </span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium truncate">
+                    <p className={cn('text-sm font-medium truncate', u.isBlocked && 'text-[var(--color-text-muted)]')}>
                       {u.firstName ?? u.username ?? `ID ${u.telegramId}`}
                     </p>
-                    {u.isBlocked && <Badge tone="red">Blok</Badge>}
+                    {u.isBlocked && (
+                      <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-red-100 text-[var(--color-danger)] text-[10px] font-semibold px-2 py-0.5">
+                        <Ban size={10} strokeWidth={2.5} /> Bloklangan
+                      </span>
+                    )}
                   </div>
                   {u.username && <p className="text-xs text-[var(--color-text-muted)] truncate">@{u.username}</p>}
                   <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)] mt-0.5">
