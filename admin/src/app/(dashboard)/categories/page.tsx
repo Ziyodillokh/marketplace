@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Card } from '@/components/ui/card';
 import { Sheet } from '@/components/ui/sheet';
 import { Field, Input } from '@/components/ui/input';
+import { FlagUz, FlagRu } from '@/components/ui/flag';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -130,7 +131,7 @@ export default function CategoriesPage() {
 
       <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title={editing ? "Tahrirlash" : "Yangi kategoriya"}>
         <div className="space-y-3">
-          <Field label="🇺🇿 Nomi (O'zbek) *">
+          <Field label={<span className="inline-flex items-center gap-1.5"><FlagUz /> Nomi (O&apos;zbek) *</span>}>
             <Input
               value={form.titleUz}
               onChange={(e) => setForm({ ...form, titleUz: e.target.value })}
@@ -138,7 +139,7 @@ export default function CategoriesPage() {
               autoFocus
             />
           </Field>
-          <Field label="🇷🇺 Название (Русский) *">
+          <Field label={<span className="inline-flex items-center gap-1.5"><FlagRu /> Название (Русский) *</span>}>
             <Input
               value={form.titleRu}
               onChange={(e) => setForm({ ...form, titleRu: e.target.value })}
