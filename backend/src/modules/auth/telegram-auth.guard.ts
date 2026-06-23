@@ -1,7 +1,9 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import type { User } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { InvalidInitDataError } from '@/common/helpers/telegram-init-data';
 import { TenantScopeService } from '@/common/tenant-scope/tenant-scope.service';
+import { PrismaService } from '@/prisma/prisma.service';
 
 const DEV_TELEGRAM_ID = 999000001;
 
@@ -12,7 +14,24 @@ export class TelegramAuthGuard implements CanActivate {
   constructor(
     private readonly auth: AuthService,
     private readonly tenantScope: TenantScopeService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * Mijoz bloklanganmi: global (User.isBlocked) YOKI shu do'kon tomonidan
+   * (TenantBlockedUser). Do'kon egasi o'z do'konida bloklagan mijoz shu
+   * do'kondan foydalana olmaydi.
+   */
+  private async assertNotBlocked(user: User, tenantId: string | null): Promise<void> {
+    if (user.isBlocked) throw new ForbiddenException('User is blocked');
+    if (tenantId) {
+      const blocked = await this.prisma.tenantBlockedUser.findUnique({
+        where: { tenantId_userId: { tenantId, userId: user.id } },
+        select: { id: true },
+      });
+      if (blocked) throw new ForbiddenException('Bu do\'kon sizni bloklagan');
+    }
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<{
@@ -35,7 +54,7 @@ export class TelegramAuthGuard implements CanActivate {
     // initData yo'q va dev user ishlatiladi.
     if (!initData && this.devMode) {
       const user = await this.auth.devLogin(DEV_TELEGRAM_ID);
-      if (user.isBlocked) throw new ForbiddenException('User is blocked');
+      await this.assertNotBlocked(user, req.tenantId ?? null);
       (req as { user: unknown }).user = user;
       return true;
     }
@@ -46,7 +65,7 @@ export class TelegramAuthGuard implements CanActivate {
 
     try {
       const user = await this.auth.authenticate(initData, tenantBotToken);
-      if (user.isBlocked) throw new ForbiddenException('User is blocked');
+      await this.assertNotBlocked(user, req.tenantId ?? null);
       (req as { user: unknown }).user = user;
       return true;
     } catch (err) {
@@ -54,7 +73,7 @@ export class TelegramAuthGuard implements CanActivate {
         // Dev'da invalid initData ham bo'lishi mumkin — bypass qilamiz
         if (this.devMode) {
           const user = await this.auth.devLogin(DEV_TELEGRAM_ID);
-          if (user.isBlocked) throw new ForbiddenException('User is blocked');
+          await this.assertNotBlocked(user, req.tenantId ?? null);
           (req as { user: unknown }).user = user;
           return true;
         }

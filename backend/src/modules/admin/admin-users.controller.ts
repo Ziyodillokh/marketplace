@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
-import { AdminRole, EventType } from '@prisma/client';
+import { AdminRole, EventType, type Admin } from '@prisma/client';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
-import { Roles, RolesGuard } from '../admin-auth/roles.guard';
+import { CurrentAdmin, Roles, RolesGuard } from '../admin-auth/roles.guard';
 import { AdminUsersService } from './admin-users.service';
 
 class ListUsersDto {
@@ -39,19 +39,19 @@ export class AdminUsersController {
   constructor(private readonly users: AdminUsersService) {}
 
   @Get()
-  list(@Query() q: ListUsersDto) {
-    return this.users.list(q);
+  list(@Query() q: ListUsersDto, @CurrentAdmin() admin: Admin) {
+    return this.users.list({ ...q, tenantId: admin.tenantId });
   }
 
   @Get(':id')
-  getById(@Param('id') id: string) {
-    return this.users.getById(id);
+  getById(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
+    return this.users.getById(id, admin.tenantId);
   }
 
   @Patch(':id')
   @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
-  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
-    if (dto.isBlocked !== undefined) return this.users.block(id, dto.isBlocked);
+  update(@Param('id') id: string, @Body() dto: UpdateUserDto, @CurrentAdmin() admin: Admin) {
+    if (dto.isBlocked !== undefined) return this.users.block(id, dto.isBlocked, admin.tenantId);
     return { ok: true };
   }
 

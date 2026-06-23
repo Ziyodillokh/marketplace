@@ -143,6 +143,7 @@ model User {
   events      UserEvent[]
   tickets     SupportTicket[]
   promoUsages PromoCodeUsage[]
+  tenantBlocks TenantBlockedUser[]
 
   @@index([lastSeenAt])
 }
@@ -704,11 +705,30 @@ model Tenant {
   resourceStats  TenantResourceStat[]
   channelPosts   ChannelPost[]
   admins         Admin[]
+  blockedUsers   TenantBlockedUser[]
 
   @@index([status, tariffPlan])
   @@index([ownerEmail])
   @@index([ownerTelegramId])
   @@index([lastActivityAt])
+}
+
+/// Sotuvchi o'z do'konida bloklagan mijozlar (per-tenant).
+/// User global bo'lgani uchun blok do'kon darajasida saqlanadi —
+/// A do'konда bloklangan mijoz B do'kondan foydalana oladi.
+model TenantBlockedUser {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([userId])
 }
 
 /// Obunalar tarixi

@@ -8,6 +8,8 @@ export interface ListUsersParams {
   isBlocked?: boolean;
   cursor?: string;
   limit?: number;
+  /** Joriy admin do'koni — blok holatini shu do'kon bo'yicha hisoblaymiz. */
+  tenantId?: string | null;
 }
 
 @Injectable()
@@ -17,10 +19,23 @@ export class AdminUsersService {
   async list(params: ListUsersParams): Promise<CursorPage<unknown>> {
     const limit = Math.min(Math.max(params.limit ?? 30, 1), 100);
     const take = limit + 1;
+    const tenantId = params.tenantId ?? null;
+
+    // Blok holati: tenant admin uchun per-do'kon (TenantBlockedUser),
+    // platforma admini (tenantId yo'q) uchun global User.isBlocked.
+    let blockFilter: Prisma.UserWhereInput = {};
+    if (params.isBlocked !== undefined) {
+      if (tenantId) {
+        blockFilter = params.isBlocked
+          ? { tenantBlocks: { some: { tenantId } } }
+          : { tenantBlocks: { none: { tenantId } } };
+      } else {
+        blockFilter = { isBlocked: params.isBlocked };
+      }
+    }
+
     const where: Prisma.UserWhereInput = {
-      ...(params.isBlocked !== undefined
-        ? { isBlocked: params.isBlocked }
-        : {}),
+      ...blockFilter,
       ...(params.q
         ? {
             OR: [
@@ -39,6 +54,9 @@ export class AdminUsersService {
       ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
       include: {
         _count: { select: { orders: true, cart: true, favorites: true } },
+        ...(tenantId
+          ? { tenantBlocks: { where: { tenantId }, select: { id: true } } }
+          : {}),
       },
     });
     const items = rows.map((u) => ({
@@ -50,7 +68,10 @@ export class AdminUsersService {
       photoUrl: u.photoUrl,
       phone: u.phone,
       language: u.language,
-      isBlocked: u.isBlocked,
+      // Tenant admin uchun shu do'kondagi blok holati
+      isBlocked: tenantId
+        ? ((u as { tenantBlocks?: unknown[] }).tenantBlocks?.length ?? 0) > 0
+        : u.isBlocked,
       ordersCount: u._count.orders,
       cartCount: u._count.cart,
       favoritesCount: u._count.favorites,
@@ -60,7 +81,7 @@ export class AdminUsersService {
     return buildCursorPage(items, limit);
   }
 
-  async getById(id: string) {
+  async getById(id: string, tenantId?: string | null) {
     const u = await this.prisma.user.findUnique({
       where: { id },
       include: {
@@ -70,7 +91,17 @@ export class AdminUsersService {
       },
     });
     if (!u) throw new NotFoundException("User not found");
- 
+
+    // Tenant admin uchun blok holati shu do'kon bo'yicha
+    let isBlocked = u.isBlocked;
+    if (tenantId) {
+      const blk = await this.prisma.tenantBlockedUser.findUnique({
+        where: { tenantId_userId: { tenantId, userId: id } },
+        select: { id: true },
+      });
+      isBlocked = !!blk;
+    }
+
     const totals = await this.prisma.order.aggregate({
       where: { userId: id, status: { not: "CANCELLED" } },
       _sum: { total: true },
@@ -81,6 +112,7 @@ export class AdminUsersService {
     return {
       ...u,
       telegramId: u.telegramId.toString(),
+      isBlocked,
       stats: {
         ordersCount: totals._count,
         revenue: totals._sum.total ? Number(totals._sum.total) : 0,
@@ -92,8 +124,29 @@ export class AdminUsersService {
     };
   }
 
-  async block(id: string, isBlocked: boolean) {
-    return this.prisma.user.update({ where: { id }, data: { isBlocked } });
+  /**
+   * Mijozni bloklash/blokdan chiqarish.
+   * Tenant admin uchun — per-do'kon (TenantBlockedUser). Mijoz faqat
+   * shu do'kondan chiqariladi, boshqa do'konlardan foydalana oladi.
+   * Platforma admini (tenantId yo'q) uchun — global User.isBlocked.
+   */
+  async block(id: string, isBlocked: boolean, tenantId?: string | null) {
+    if (!tenantId) {
+      await this.prisma.user.update({ where: { id }, data: { isBlocked } });
+      return { ok: true, isBlocked };
+    }
+    if (isBlocked) {
+      await this.prisma.tenantBlockedUser.upsert({
+        where: { tenantId_userId: { tenantId, userId: id } },
+        update: {},
+        create: { tenantId, userId: id },
+      });
+    } else {
+      await this.prisma.tenantBlockedUser.deleteMany({
+        where: { tenantId, userId: id },
+      });
+    }
+    return { ok: true, isBlocked };
   }
 
   async timeline(
