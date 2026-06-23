@@ -22,6 +22,7 @@ import { StoreSwitcher } from '@/components/store-switcher';
 import { apiLogout } from '@/lib/endpoints';
 import { setAccessToken } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
+import { useOpenTicketCount } from '@/hooks/use-open-tickets';
 
 interface Item {
   href: string;
@@ -51,6 +52,7 @@ const ITEMS: Item[] = [
 
 export default function MorePage() {
   const admin = useAuthStore((s) => s.admin);
+  const openTickets = useOpenTicketCount();
   const logout = useMutation({
     mutationFn: apiLogout,
     onSuccess: () => {
@@ -79,6 +81,11 @@ export default function MorePage() {
                   <it.icon size={18} />
                 </span>
                 <span className="flex-1 text-sm font-medium">{it.label}</span>
+                {it.href === '/support' && openTickets > 0 && (
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-danger)] px-1.5 text-[11px] font-semibold text-white">
+                    {openTickets > 99 ? '99+' : openTickets}
+                  </span>
+                )}
                 <ChevronRight size={18} className="text-[var(--color-text-muted)]" />
               </Link>
             </li>

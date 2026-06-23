@@ -428,6 +428,10 @@ model SupportTicket {
   id               String            @id @default(cuid())
   userId           String
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Tiket qaysi do'kon (sotuvchi) kontekstida ochilgan — javob o'sha do'kon
+  // boti orqali mijozga yuboriladi (Sellio global boti emas). Eski/global
+  // tiketlar uchun null bo'lishi mumkin.
+  tenantId         String?
   subject          String
   message          String
   status           String            @default("open")
@@ -437,6 +441,7 @@ model SupportTicket {
   responses        SupportResponse[]
 
   @@index([userId, createdAt])
+  @@index([tenantId])
 }
 
 model SupportResponse {

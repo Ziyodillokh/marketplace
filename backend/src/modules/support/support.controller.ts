@@ -3,6 +3,7 @@ import { IsString, MaxLength, MinLength } from 'class-validator';
 import type { User } from '@prisma/client';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { CurrentTenantId } from '@/common/decorators/tenant.decorator';
 import { SupportService } from './support.service';
 
 class CreateTicketDto {
@@ -16,8 +17,12 @@ export class SupportController {
   constructor(private readonly support: SupportService) {}
 
   @Post()
-  create(@CurrentUser() user: User, @Body() dto: CreateTicketDto) {
-    return this.support.create(user.id, dto);
+  create(
+    @CurrentUser() user: User,
+    @Body() dto: CreateTicketDto,
+    @CurrentTenantId() tenantId: string | null,
+  ) {
+    return this.support.create(user.id, dto, tenantId);
   }
 
   @Get('my')

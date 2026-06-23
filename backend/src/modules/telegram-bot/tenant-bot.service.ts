@@ -285,6 +285,38 @@ export class TenantBotService implements OnModuleInit {
     }
   }
 
+  /**
+   * Mijozga (customer) shu do'konning o'z Telegram boti orqali xabar yuboradi.
+   * Mijoz do'konni shu bot orqali ochgani uchun bot unga yoza oladi.
+   *
+   * Tenant yo'q / bot ulanmagan (token yo'q) / yuborish muvaffaqiyatsiz bo'lsa
+   * `false` qaytaradi — chaqiruvchi global (Sellio) botga fallback qilishi mumkin.
+   * Shunda single-tenant / global rejim ham ishlashda davom etadi.
+   */
+  async sendToCustomer(
+    tenantId: string | null | undefined,
+    telegramId: bigint | number,
+    text: string,
+    replyMarkup?: InlineKeyboard,
+  ): Promise<boolean> {
+    if (!tenantId) return false;
+    const bot = await this.loadBot(tenantId);
+    if (!bot) return false;
+    try {
+      await bot.api.sendMessage(Number(telegramId), text, {
+        parse_mode: 'HTML',
+        link_preview_options: { is_disabled: true },
+        reply_markup: replyMarkup,
+      });
+      return true;
+    } catch (err) {
+      this.logger.warn(
+        `Mijozga do'kon boti orqali xabar yuborilmadi (tenant ${tenantId}): ${(err as Error).message}`,
+      );
+      return false;
+    }
+  }
+
   /** Keshdagi bot instansiyasini unutadi (token o'zgargan/o'chirilganda). */
   forget(tenantId: string): void {
     this.bots.delete(tenantId);

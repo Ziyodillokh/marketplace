@@ -9,9 +9,13 @@ export class SupportService {
     private readonly events: EventEmitter2,
   ) {}
 
-  async create(userId: string, input: { subject: string; message: string }) {
+  async create(
+    userId: string,
+    input: { subject: string; message: string },
+    tenantId?: string | null,
+  ) {
     const ticket = await this.prisma.supportTicket.create({
-      data: { userId, subject: input.subject, message: input.message },
+      data: { userId, tenantId: tenantId ?? null, subject: input.subject, message: input.message },
     });
     this.events.emit('support.ticket_created', { ticketId: ticket.id });
     return ticket;

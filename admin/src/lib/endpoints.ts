@@ -78,9 +78,21 @@ export interface TeamMember {
   isOwner: boolean;
   isSelf: boolean;
 }
+export interface MemberLookup {
+  found: boolean;
+  fullName: string | null;
+  username: string | null;
+  photoUrl: string | null;
+}
 export const apiTeam = () => api<TeamMember[]>('/admin/store/team');
-export const apiAddMember = (data: { telegramId: string; fullName: string; role: 'CREATOR' | 'MODERATOR' }) =>
-  api<{ ok: boolean }>('/admin/store/team', { method: 'POST', body: data });
+export const apiLookupMember = (telegramId: string) =>
+  api<MemberLookup>(`/admin/store/team/lookup/${telegramId}`);
+export const apiAddMember = (data: {
+  telegramId: string;
+  fullName: string;
+  role: 'CREATOR' | 'MODERATOR';
+  photoUrl?: string | null;
+}) => api<{ ok: boolean }>('/admin/store/team', { method: 'POST', body: data });
 export const apiUpdateMemberRole = (id: string, role: 'CREATOR' | 'MODERATOR') =>
   api<{ ok: boolean }>(`/admin/store/team/${id}`, { method: 'PUT', body: { role } });
 export const apiRemoveMember = (id: string) =>
@@ -369,6 +381,8 @@ export const apiRespondTicket = (id: string, message: string) =>
   api(`/admin/support/tickets/${id}/responses`, { method: 'POST', body: { message } });
 export const apiUpdateTicketStatus = (id: string, status: string) =>
   api(`/admin/support/tickets/${id}`, { method: 'PATCH', body: { status } });
+export const apiSupportOpenCount = () =>
+  api<{ count: number }>('/admin/support/tickets/open-count');
 
 // Banners
 export const apiListBanners = (placement?: string) =>

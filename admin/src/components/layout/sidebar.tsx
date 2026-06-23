@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { apiLogout } from '@/lib/endpoints';
+import { useOpenTicketCount } from '@/hooks/use-open-tickets';
 import { setAccessToken } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { Brand } from '@/components/brand';
@@ -59,9 +60,19 @@ const NAV: NavItem[] = [
   { href: '/admins', label: 'Adminlar', icon: ShieldCheck, superadminOnly: true },
 ];
 
+function NavBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-danger)] px-1.5 text-[11px] font-semibold text-white">
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const admin = useAuthStore((s) => s.admin);
+  const openTickets = useOpenTicketCount();
 
   const logout = useMutation({
     mutationFn: apiLogout,
@@ -102,6 +113,7 @@ export function Sidebar() {
                 >
                   <it.icon size={18} />
                   {it.label}
+                  {it.href === '/support' && <NavBadge count={openTickets} />}
                 </Link>
               </li>
             );
@@ -161,6 +173,7 @@ const BOTTOM_NAV: NavItem[] = [
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const openTickets = useOpenTicketCount();
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-[var(--color-border)] pb-[env(safe-area-inset-bottom)]">
       <ul className="grid grid-cols-5 px-1 pt-1">
@@ -177,7 +190,14 @@ export function MobileBottomNav() {
                     : 'text-[var(--color-text-muted)] active:bg-gray-100',
                 )}
               >
-                <it.icon size={20} />
+                <span className="relative">
+                  <it.icon size={20} />
+                  {it.href === '/more' && openTickets > 0 && (
+                    <span className="absolute -right-2 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-danger)] px-1 text-[10px] font-semibold text-white">
+                      {openTickets > 9 ? '9+' : openTickets}
+                    </span>
+                  )}
+                </span>
                 <span className="text-[10px] font-medium">{it.label}</span>
               </Link>
             </li>
