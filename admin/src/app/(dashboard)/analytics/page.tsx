@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Lock } from 'lucide-react';
+import { Lock, Package, ShoppingCart } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
@@ -142,9 +143,11 @@ export default function AnalyticsPage() {
           {!topProducts ? (
             <Skeleton className="h-40" />
           ) : topProducts.length === 0 ? (
-            <CardBody>
-              <p className="text-sm text-[var(--color-text-muted)] text-center py-8">Ma&apos;lumot yo&apos;q</p>
-            </CardBody>
+            <EmptyState
+              icon={Package}
+              title="Hozircha sotuv yo'q"
+              hint="Birinchi buyurtmalar kelgach, eng ko'p sotilgan mahsulotlar shu yerda chiqadi."
+            />
           ) : (
             <ul className="divide-y divide-[var(--color-border)]">
               {topProducts.map((p, i) => (
@@ -169,13 +172,18 @@ export default function AnalyticsPage() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <CardHeader title="Savatga qo'shilgan, lekin sotib olinmagan (cart abandonment)" />
+          <CardHeader
+            title="Tashlab ketilgan savatlar"
+            subtitle="Savatga qo'shilgan, lekin hali sotib olinmagan mahsulotlar"
+          />
           {!abandonment ? (
             <Skeleton className="h-40" />
           ) : abandonment.length === 0 ? (
-            <CardBody>
-              <p className="text-sm text-[var(--color-text-muted)] text-center py-8">Ma&apos;lumot yo&apos;q</p>
-            </CardBody>
+            <EmptyState
+              icon={ShoppingCart}
+              title="Tashlab ketilgan savat yo'q"
+              hint="Mijoz mahsulotni savatga qo'shib, sotib olmasa — shu yerda ko'rinadi va ularni qaytarish uchun chora ko'rishingiz mumkin."
+            />
           ) : (
             <ul className="divide-y divide-[var(--color-border)]">
               {abandonment.map((p) => (
