@@ -145,6 +145,12 @@ export class AdminUsersService {
       await this.prisma.tenantBlockedUser.deleteMany({
         where: { tenantId, userId: id },
       });
+      // Eski (legacy) global blok bayrog'ini ham tozalaymiz — aks holda
+      // o'tgan tizimda global bloklangan mijozni sotuvchi chiqara olmaydi.
+      await this.prisma.user.updateMany({
+        where: { id, isBlocked: true },
+        data: { isBlocked: false },
+      });
     }
     return { ok: true, isBlocked };
   }
