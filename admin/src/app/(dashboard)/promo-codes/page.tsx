@@ -19,12 +19,12 @@ import type { PromoCodeView } from '@/lib/types';
 interface FormData {
   code: string;
   type: 'PERCENT' | 'FIXED';
-  value: number;
+  value: number | '';
   minOrderAmount: number | '';
   maxDiscount: number | '';
   expiresAt: string;
   usageLimit: number | '';
-  perUserLimit: number;
+  perUserLimit: number | '';
   isPublic: boolean;
   isActive: boolean;
   descriptionUz: string;
@@ -83,12 +83,12 @@ export default function PromoCodesPage() {
   const buildBody = () => ({
     code: form.code.toUpperCase(),
     type: form.type,
-    value: form.value,
+    value: form.value === '' ? 0 : Number(form.value),
     minOrderAmount: form.minOrderAmount === '' ? undefined : Number(form.minOrderAmount),
     maxDiscount: form.maxDiscount === '' ? undefined : Number(form.maxDiscount),
     expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : undefined,
     usageLimit: form.usageLimit === '' ? undefined : Number(form.usageLimit),
-    perUserLimit: form.perUserLimit,
+    perUserLimit: form.perUserLimit === '' ? 1 : Number(form.perUserLimit),
     isPublic: form.isPublic,
     isActive: form.isActive,
     descriptionUz: form.descriptionUz,
@@ -229,13 +229,23 @@ export default function PromoCodesPage() {
               </Select>
             </Field>
             <Field label="Qiymat">
-              <Input type="number" value={form.value} onChange={(e) => setForm({ ...form, value: Number(e.target.value) })} />
+              <Input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                placeholder="0"
+                value={form.value}
+                onChange={(e) => setForm({ ...form, value: e.target.value === '' ? '' : Number(e.target.value) })}
+              />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Min buyurtma">
               <Input
                 type="number"
+                inputMode="numeric"
+                min={0}
+                placeholder="0"
                 value={form.minOrderAmount}
                 onChange={(e) => setForm({ ...form, minOrderAmount: e.target.value === '' ? '' : Number(e.target.value) })}
               />
@@ -243,6 +253,9 @@ export default function PromoCodesPage() {
             <Field label="Max chegirma">
               <Input
                 type="number"
+                inputMode="numeric"
+                min={0}
+                placeholder="Cheksiz"
                 value={form.maxDiscount}
                 onChange={(e) => setForm({ ...form, maxDiscount: e.target.value === '' ? '' : Number(e.target.value) })}
               />
@@ -252,6 +265,9 @@ export default function PromoCodesPage() {
             <Field label="Limit (jami)">
               <Input
                 type="number"
+                inputMode="numeric"
+                min={0}
+                placeholder="Cheksiz"
                 value={form.usageLimit}
                 onChange={(e) => setForm({ ...form, usageLimit: e.target.value === '' ? '' : Number(e.target.value) })}
               />
@@ -259,8 +275,11 @@ export default function PromoCodesPage() {
             <Field label="User limit">
               <Input
                 type="number"
+                inputMode="numeric"
+                min={1}
+                placeholder="1"
                 value={form.perUserLimit}
-                onChange={(e) => setForm({ ...form, perUserLimit: Number(e.target.value) || 1 })}
+                onChange={(e) => setForm({ ...form, perUserLimit: e.target.value === '' ? '' : Number(e.target.value) })}
               />
             </Field>
           </div>
