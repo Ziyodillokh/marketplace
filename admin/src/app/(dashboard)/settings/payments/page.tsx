@@ -29,6 +29,22 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
   );
 }
 
+/** Karta raqamini 4 tadan guruhlab ko'rsatadi (eng ko'pi 16 raqam). */
+function formatCardNumber(s: string): string {
+  return s.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
+}
+
+/** Karta turini boshlanish raqamlari bo'yicha aniqlaydi (Humo/Uzcard/Visa/Mastercard). */
+function detectCardScheme(s: string): { label: string; cls: string } | null {
+  const d = s.replace(/\D/g, '');
+  if (!d) return null;
+  if (/^9860/.test(d)) return { label: 'HUMO', cls: 'bg-teal-100 text-teal-700' };
+  if (/^(8600|5614|6262)/.test(d)) return { label: 'UZCARD', cls: 'bg-blue-100 text-blue-700' };
+  if (/^4/.test(d)) return { label: 'VISA', cls: 'bg-indigo-100 text-indigo-700' };
+  if (/^(5[1-5]|2[2-7])/.test(d)) return { label: 'MASTERCARD', cls: 'bg-orange-100 text-orange-700' };
+  return null;
+}
+
 export default function PaymentsSettingsPage() {
   const qc = useQueryClient();
   const { data, isLoading } = useStore();
@@ -63,7 +79,7 @@ export default function PaymentsSettingsPage() {
     setPaymeOn(!!(tenant.payme.merchantId || tenant.payme.hasKey));
     setClickOn(!!(tenant.click.serviceId || tenant.click.merchantId));
     setCard({
-      cardNumber: tenant.cardPayment.cardNumber,
+      cardNumber: formatCardNumber(tenant.cardPayment.cardNumber),
       cardHolder: tenant.cardPayment.cardHolder,
       channelId: tenant.cardPayment.channelId,
     });
@@ -108,6 +124,8 @@ export default function PaymentsSettingsPage() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  const cardScheme = detectCardScheme(card.cardNumber);
 
   return (
     <div>
@@ -229,13 +247,22 @@ export default function PaymentsSettingsPage() {
                 </p>
               </div>
               <Field label="Karta raqami">
-                <Input
-                  value={card.cardNumber}
-                  onChange={(e) => setCard({ ...card, cardNumber: e.target.value })}
-                  placeholder="8600 1234 5678 9012"
-                  inputMode="numeric"
-                  className="font-mono"
-                />
+                <div className="relative">
+                  <Input
+                    value={card.cardNumber}
+                    onChange={(e) => setCard({ ...card, cardNumber: formatCardNumber(e.target.value) })}
+                    placeholder="8600 1234 5678 9012"
+                    inputMode="numeric"
+                    className="font-mono tracking-wider pr-24"
+                  />
+                  {cardScheme && (
+                    <span
+                      className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-extrabold tracking-wide px-2 py-1 rounded ${cardScheme.cls}`}
+                    >
+                      {cardScheme.label}
+                    </span>
+                  )}
+                </div>
               </Field>
               <Field label="Karta egasi (ism familiya)">
                 <Input value={card.cardHolder} onChange={(e) => setCard({ ...card, cardHolder: e.target.value })} placeholder="DIYORBEK TURSUNOV" />
