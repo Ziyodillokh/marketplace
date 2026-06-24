@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Send, Users, CheckCircle2, AlertCircle, Loader2, Clock, Upload, X } from 'lucide-react';
+import { Plus, Send, Users, CheckCircle2, AlertCircle, AlertTriangle, Loader2, Clock, Upload, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -314,9 +314,12 @@ export default function BroadcastsPage() {
             </Button>
           ) : (
             <div className="space-y-2">
-              <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm">
-                ⚠️ <b>{preview?.count?.toLocaleString('ru-RU')}</b> foydalanuvchiga xabar yuboriladi.
-                Bu amalni bekor qilib bo&apos;lmaydi.
+              <div className="flex gap-2.5 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-500" />
+                <p className="leading-snug">
+                  <b>{preview?.count?.toLocaleString('ru-RU')}</b> foydalanuvchiga xabar yuboriladi.
+                  Bu amalni bekor qilib bo&apos;lmaydi.
+                </p>
               </div>
               <div className="flex gap-2">
                 <Button variant="secondary" fullWidth onClick={() => setConfirm(false)}>
@@ -328,7 +331,7 @@ export default function BroadcastsPage() {
                   loading={create.isPending}
                   onClick={() => create.mutate()}
                 >
-                  ✅ Yuborishni boshlash
+                  <Send size={16} /> Yuborishni boshlash
                 </Button>
               </div>
             </div>

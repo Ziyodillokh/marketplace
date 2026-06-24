@@ -55,6 +55,10 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/selliostore.uz/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
+    # Media yuklash uchun (broadcast video ≤20MB, rasmlar ≤10MB + multipart overhead).
+    # Bo'lmasa nginx default 1MB → katta yuklamalar HTTP 413 beradi.
+    client_max_body_size 30m;
+
     # www → apex
     if ($host = www.selliostore.uz) {
         return 301 https://selliostore.uz$request_uri;
@@ -108,6 +112,10 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/selliostore.uz/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
+    # Media yuklash uchun (broadcast video ≤20MB, rasmlar ≤10MB + multipart overhead).
+    # Bo'lmasa nginx default 1MB → katta yuklamalar HTTP 413 beradi.
+    client_max_body_size 30m;
+
     # Telegram webhook — server ko'chganda DNS keshini chetlab o'tish uchun
     location /telegram/ {
         proxy_pass http://marketplace_api;
@@ -155,6 +163,10 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/selliostore.uz/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
+    # Media yuklash uchun (broadcast video ≤20MB, rasmlar ≤10MB + multipart overhead).
+    # Bo'lmasa nginx default 1MB → katta yuklamalar HTTP 413 beradi.
+    client_max_body_size 30m;
+
     # Telegram webhook (markaziy + sotuvchi botlari) — subdomen orqali ham
     # ishlasin: yangi serverga ko'chganda Telegram apex DNS keshini chetlab o'tadi.
     location /telegram/ {
@@ -201,6 +213,10 @@ server {
     ssl_certificate     /etc/letsencrypt/live/selliostore.uz/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/selliostore.uz/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
+
+    # Media yuklash uchun (broadcast video ≤20MB, rasmlar ≤10MB + multipart overhead).
+    # Bo'lmasa nginx default 1MB → katta yuklamalar HTTP 413 beradi.
+    client_max_body_size 30m;
 
     # Faqat OWNER/DEVOPS uchun — IP allowlist (ixtiyoriy)
     # allow 1.2.3.4;   # ofis IP
