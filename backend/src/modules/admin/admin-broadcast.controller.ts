@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
@@ -23,7 +24,6 @@ import { AdminRole, type Admin } from '@prisma/client';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
 import { Roles, RolesGuard } from '../admin-auth/roles.guard';
 import { AdminBroadcastService } from './admin-broadcast.service';
-import { Req } from '@nestjs/common';
 
 class BroadcastFiltersDto {
   @IsOptional() @IsBoolean() hasOrders?: boolean;
@@ -37,6 +37,9 @@ class CreateBroadcastDto {
   @IsString() @MinLength(1) @MaxLength(4000) messageUz!: string;
   @IsOptional() @IsString() @MaxLength(4000) messageRu?: string | null;
   @ValidateNested() @Type(() => BroadcastFiltersDto) filters!: BroadcastFiltersDto;
+  @IsOptional() @IsIn(['text', 'photo', 'video']) mediaType?: 'text' | 'photo' | 'video';
+  @IsOptional() @IsString() @MaxLength(500) mediaUrl?: string | null;
+  @IsOptional() @IsString() @MaxLength(500) link?: string | null;
 }
 
 class PreviewQueryDto {
@@ -54,22 +57,22 @@ export class AdminBroadcastController {
   constructor(private readonly broadcasts: AdminBroadcastService) {}
 
   @Get()
-  list() {
-    return this.broadcasts.listHistory();
+  list(@Req() req: { admin: Admin }) {
+    return this.broadcasts.listHistory(req.admin.tenantId);
   }
 
   @Get('preview-count')
-  previewCount(@Query() filters: PreviewQueryDto) {
-    return this.broadcasts.countRecipients(filters).then((count) => ({ count }));
+  previewCount(@Query() filters: PreviewQueryDto, @Req() req: { admin: Admin }) {
+    return this.broadcasts.countRecipients(filters, req.admin.tenantId).then((count) => ({ count }));
   }
 
   @Get(':id')
-  getById(@Param('id') id: string) {
-    return this.broadcasts.getById(id);
+  getById(@Param('id') id: string, @Req() req: { admin: Admin }) {
+    return this.broadcasts.getById(id, req.admin.tenantId);
   }
 
   @Post()
   create(@Body() dto: CreateBroadcastDto, @Req() req: { admin: Admin }) {
-    return this.broadcasts.create(req.admin.id, dto);
+    return this.broadcasts.create(req.admin.id, req.admin.tenantId, dto);
   }
 }

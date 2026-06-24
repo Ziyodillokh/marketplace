@@ -14,6 +14,11 @@ export interface UploadedImage {
   size: number;
 }
 
+export interface UploadedVideo {
+  url: string;
+  size: number;
+}
+
 @Injectable()
 export class UploadsService {
   private readonly dir: string;
@@ -67,5 +72,17 @@ export class UploadsService {
       height: meta.height ?? 0,
       size: buffer.length,
     };
+  }
+
+  /**
+   * Videoni o'zgartirmasdan saqlaydi (mp4/mov/webm). Telegram URL orqali
+   * yuborganda ~20MB chegarasi bor — shu sababli yuklash hajmi cheklangan.
+   */
+  async saveVideo(buffer: Buffer, mime: string): Promise<UploadedVideo> {
+    await this.ensureDir();
+    const ext = /quicktime|mov/.test(mime) ? 'mov' : /webm/.test(mime) ? 'webm' : 'mp4';
+    const filename = `${Date.now()}-${randomUUID()}.${ext}`;
+    await fs.writeFile(join(this.dir, filename), buffer);
+    return { url: `${this.publicUrl}/${filename}`, size: buffer.length };
   }
 }

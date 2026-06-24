@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Send, Users, CheckCircle2, AlertCircle, Loader2, Clock } from 'lucide-react';
+import { Plus, Send, Users, CheckCircle2, AlertCircle, Loader2, Clock, Upload, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ import {
   apiBroadcastPreviewCount,
   apiCreateBroadcast,
   apiListBroadcasts,
+  apiUploadImage,
+  apiUploadVideo,
 } from '@/lib/endpoints';
 import { toast } from '@/stores/toast-store';
 import type { BroadcastFilters, BroadcastItem } from '@/lib/types';
@@ -25,7 +27,20 @@ interface FormState {
   messageRu: string;
   audience: 'all' | 'with-orders' | 'no-orders' | 'inactive-7' | 'inactive-30';
   language: '' | 'uz' | 'ru';
+  mediaMode: 'none' | 'photo' | 'video' | 'link';
+  mediaUrl: string;
+  link: string;
 }
+
+const EMPTY_FORM: FormState = {
+  messageUz: '',
+  messageRu: '',
+  audience: 'all',
+  language: '',
+  mediaMode: 'none',
+  mediaUrl: '',
+  link: '',
+};
 
 function filtersFromForm(form: FormState): BroadcastFilters {
   const base: BroadcastFilters = { excludeBlocked: true };
@@ -56,12 +71,25 @@ export default function BroadcastsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
-  const [form, setForm] = useState<FormState>({
-    messageUz: '',
-    messageRu: '',
-    audience: 'all',
-    language: '',
-  });
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function onPickFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const res = form.mediaMode === 'video' ? await apiUploadVideo(file) : await apiUploadImage(file);
+      setForm((f) => ({ ...f, mediaUrl: res.url }));
+      toast.success('Yuklandi');
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
 
   const { data: list, isLoading } = useQuery({
     queryKey: ['broadcasts'],
@@ -88,18 +116,30 @@ export default function BroadcastsPage() {
         messageUz: form.messageUz.trim(),
         messageRu: form.messageRu.trim() || null,
         filters,
+        ...(form.mediaMode === 'photo' && form.mediaUrl
+          ? { mediaType: 'photo' as const, mediaUrl: form.mediaUrl }
+          : form.mediaMode === 'video' && form.mediaUrl
+            ? { mediaType: 'video' as const, mediaUrl: form.mediaUrl }
+            : form.mediaMode === 'link' && form.link.trim()
+              ? { link: form.link.trim() }
+              : {}),
       }),
     onSuccess: (res) => {
       toast.success(`Yuborilmoqda: ${res.totalCount} foydalanuvchi`);
       qc.invalidateQueries({ queryKey: ['broadcasts'] });
       setOpen(false);
       setConfirm(false);
-      setForm({ messageUz: '', messageRu: '', audience: 'all', language: '' });
+      setForm(EMPTY_FORM);
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const canSubmit = form.messageUz.trim().length > 0 && (preview?.count ?? 0) > 0;
+  const mediaReady =
+    form.mediaMode === 'none' ||
+    ((form.mediaMode === 'photo' || form.mediaMode === 'video') && !!form.mediaUrl) ||
+    (form.mediaMode === 'link' && form.link.trim().length > 0);
+  const canSubmit =
+    form.messageUz.trim().length > 0 && (preview?.count ?? 0) > 0 && mediaReady && !uploading;
 
   return (
     <div>
@@ -161,6 +201,70 @@ export default function BroadcastsPage() {
               rows={5}
             />
           </Field>
+
+          <Field
+            label="Media (ixtiyoriy)"
+            hint="Media qo'shilsa, matn uning izohi (caption) bo'ladi — 1024 belgigacha. Xabar do'koningiz boti orqali ketadi."
+          >
+            <Select
+              value={form.mediaMode}
+              onChange={(e) =>
+                setForm({ ...form, mediaMode: e.target.value as FormState['mediaMode'], mediaUrl: '', link: '' })
+              }
+            >
+              <option value="none">Yo&apos;q (faqat matn)</option>
+              <option value="photo">Rasm yuklash</option>
+              <option value="video">Video yuklash (≤20MB)</option>
+              <option value="link">Havola orqali (Telegram / Instagram)</option>
+            </Select>
+          </Field>
+
+          {(form.mediaMode === 'photo' || form.mediaMode === 'video') && (
+            <div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept={form.mediaMode === 'photo' ? 'image/*' : 'video/mp4,video/quicktime,video/webm'}
+                className="hidden"
+                onChange={onPickFile}
+              />
+              {form.mediaUrl ? (
+                <div className="flex items-center gap-3">
+                  {form.mediaMode === 'photo' ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={form.mediaUrl} alt="" className="h-20 w-20 rounded-lg object-cover" />
+                  ) : (
+                    <video src={form.mediaUrl} className="h-20 w-32 rounded-lg object-cover" controls preload="metadata" muted />
+                  )}
+                  <Button variant="secondary" size="sm" onClick={() => setForm({ ...form, mediaUrl: '' })}>
+                    <X size={14} /> O&apos;chirish
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={uploading}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <Upload size={16} /> {form.mediaMode === 'photo' ? 'Rasm tanlash' : 'Video tanlash'}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {form.mediaMode === 'link' && (
+            <Field
+              label="Havola"
+              hint="Telegram kanal posti (botingiz o'sha kanalda admin bo'lishi shart) yoki Instagram post/reel havolasi. Instagram cheklovlari sababli ba'zan ishlamasligi mumkin — ishonchli yo'l: faylni yuklash."
+            >
+              <Input
+                value={form.link}
+                onChange={(e) => setForm({ ...form, link: e.target.value })}
+                placeholder="https://t.me/kanal/123  yoki  https://instagram.com/p/..."
+              />
+            </Field>
+          )}
 
           <Field label="Kimga yuborish?">
             <Select

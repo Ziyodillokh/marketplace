@@ -422,6 +422,9 @@ export const apiCreateBroadcast = (body: {
   messageUz: string;
   messageRu?: string | null;
   filters: BroadcastFilters;
+  mediaType?: 'text' | 'photo' | 'video';
+  mediaUrl?: string | null;
+  link?: string | null;
 }) => api<{ id: string; totalCount: number }>('/admin/broadcasts', { method: 'POST', body });
 
 // Uploads
@@ -429,4 +432,9 @@ export async function apiUploadImage(file: File): Promise<{ url: string; thumbUr
   const fd = new FormData();
   fd.append('file', file);
   return api('/admin/uploads/image', { method: 'POST', formData: fd });
+}
+export async function apiUploadVideo(file: File): Promise<{ url: string; size: number }> {
+  const fd = new FormData();
+  fd.append('file', file);
+  return api('/admin/uploads/video', { method: 'POST', formData: fd });
 }

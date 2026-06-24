@@ -280,6 +280,8 @@ export interface BroadcastItem {
   id: string;
   messageUz: string;
   messageRu: string | null;
+  mediaType?: 'text' | 'photo' | 'video';
+  mediaUrl?: string | null;
   filters: BroadcastFilters;
   totalCount: number;
   sentCount: number;

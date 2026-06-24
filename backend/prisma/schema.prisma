@@ -548,9 +548,19 @@ model OrderRecommendation {
 /// Admin tomonidan foydalanuvchilarga yuboriladigan ommaviy xabarlar.
 model Broadcast {
   id          String    @id @default(cuid())
+  // Qaysi do'kon yubordi — yuborish o'sha do'kon boti orqali ketadi.
+  // null = platforma egasi (global Sellio boti, barcha foydalanuvchilar).
+  tenantId    String?
   messageUz   String
   messageRu   String?
   filters     Json
+  // Media: 'text' | 'photo' | 'video'. mediaUrl — yuklangan fayl URL'i.
+  // copyFromChatId/copyMessageId — Telegram kanal postini copyMessage bilan
+  // qayta yuborish uchun (havola orqali qo'shilganda).
+  mediaType     String  @default("text")
+  mediaUrl      String?
+  copyFromChatId String?
+  copyMessageId Int?
   totalCount  Int       @default(0)
   sentCount   Int       @default(0)
   failedCount Int       @default(0)
@@ -561,6 +571,7 @@ model Broadcast {
 
   @@index([createdAt])
   @@index([status])
+  @@index([tenantId])
 }
 
 // ═══════════════════════════════════════════════════════════════════

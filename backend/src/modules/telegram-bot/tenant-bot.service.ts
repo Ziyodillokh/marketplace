@@ -101,6 +101,11 @@ export class TenantBotService implements OnModuleInit {
     return bot;
   }
 
+  /** Broadcast/bulk yuborish uchun do'kon botini ochib beradi (keshlangan). */
+  async getBot(tenantId: string): Promise<Bot | null> {
+    return this.loadBot(tenantId);
+  }
+
   private async loadBot(tenantId: string): Promise<Bot | null> {
     const cached = this.bots.get(tenantId);
     if (cached) return cached;
