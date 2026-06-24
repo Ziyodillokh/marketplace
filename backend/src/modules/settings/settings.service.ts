@@ -10,6 +10,10 @@ export interface StoreSettings {
   about?: string;
   primaryColor?: string | null;
   logoUrl?: string | null;
+  /** Storefront foni — rang (#RRGGBB). null = standart */
+  backgroundColor?: string | null;
+  /** Storefront foni — rasm URL. null = standart. Rasm bo'lsa rangdan ustun. */
+  backgroundImageUrl?: string | null;
   /** Paid tarif (branding) — webapp sarlavhasida do'kon nomini ko'rsatish uchun */
   branded?: boolean;
 }
@@ -78,6 +82,8 @@ export class SettingsService {
           about: true,
           primaryColor: true,
           logoUrl: true,
+          backgroundColor: true,
+          backgroundImageUrl: true,
         },
       });
       if (t) {
@@ -89,6 +95,8 @@ export class SettingsService {
           about: t.about ?? undefined,
           primaryColor: t.primaryColor,
           logoUrl: t.logoUrl,
+          backgroundColor: t.backgroundColor,
+          backgroundImageUrl: t.backgroundImageUrl,
         };
       }
     }
@@ -173,6 +181,8 @@ export class SettingsService {
             about: true,
             primaryColor: true,
             logoUrl: true,
+            backgroundColor: true,
+            backgroundImageUrl: true,
             tariffPlan: true,
             paymeMerchantId: true,
             clickServiceId: true,
@@ -198,6 +208,8 @@ export class SettingsService {
             about: t.about ?? undefined,
             primaryColor: t.primaryColor,
             logoUrl: t.logoUrl,
+            backgroundColor: t.backgroundColor,
+            backgroundImageUrl: t.backgroundImageUrl,
             branded: limitsFor(t.tariffPlan).branding,
           }
         : await this.getStore(null);

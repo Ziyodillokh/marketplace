@@ -714,10 +714,14 @@ model Tenant {
   prepaymentPercent      Int          @default(100) // 1–100; 100 = to'liq oldindan
 
   // Brendlash
-  logoUrl         String?
-  primaryColor    String?
-  customDomain    String?      @unique
-  isWhiteLabel    Boolean      @default(false)
+  logoUrl            String?
+  primaryColor       String?
+  // Storefront foni — rang (#RRGGBB) yoki rasm. Ikkalasi null = standart fon.
+  // Rasm bo'lsa rangdan ustun. Sotuvchi istalgan vaqt standartga qaytarishi mumkin.
+  backgroundColor    String?
+  backgroundImageUrl String?
+  customDomain       String?      @unique
+  isWhiteLabel       Boolean      @default(false)
 
   // Telegram bot
   botToken        String?      @unique

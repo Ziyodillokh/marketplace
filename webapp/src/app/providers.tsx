@@ -64,11 +64,32 @@ function InnerInit({ children }: { children: React.ReactNode }) {
   // Do'kon brendi — maxsus rangni storefront temasiga qo'llaymiz
   const { data: pub } = useQuery({ queryKey: ['public-settings'], queryFn: apiPublicSettings });
   useEffect(() => {
+    const root = document.documentElement;
     const color = pub?.store?.primaryColor;
     if (color && /^#[0-9a-fA-F]{6}$/.test(color)) {
-      const root = document.documentElement;
       root.style.setProperty('--color-primary', color);
       root.style.setProperty('--color-primary-hover', darken(color));
+    }
+
+    // Do'kon foni — rasm rangdan ustun; ikkalasi yo'q bo'lsa standartga qaytadi
+    const bgImage = pub?.store?.backgroundImageUrl;
+    const bgColor = pub?.store?.backgroundColor;
+    const body = document.body;
+    if (bgImage) {
+      body.style.backgroundImage = `url(${bgImage})`;
+      body.style.backgroundSize = 'cover';
+      body.style.backgroundPosition = 'center';
+      body.style.backgroundAttachment = 'fixed';
+      body.style.backgroundRepeat = 'no-repeat';
+      root.style.removeProperty('--color-bg');
+    } else {
+      body.style.backgroundImage = '';
+      body.style.backgroundAttachment = '';
+      if (bgColor && /^#[0-9a-fA-F]{6}$/.test(bgColor)) {
+        root.style.setProperty('--color-bg', bgColor);
+      } else {
+        root.style.removeProperty('--color-bg'); // CSS'dagi standart (#F4F6FA)
+      }
     }
   }, [pub]);
 

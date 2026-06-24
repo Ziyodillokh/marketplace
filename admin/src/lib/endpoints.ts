@@ -187,6 +187,8 @@ export interface MyStore {
     businessType: string | null;
     logoUrl: string | null;
     primaryColor: string | null;
+    backgroundColor: string | null;
+    backgroundImageUrl: string | null;
     tariffPlan: string;
     pendingTariff: string | null;
     botUsername: string | null;
@@ -217,8 +219,13 @@ export interface PaymentsInput {
 }
 export const apiUpdateStorePayments = (data: PaymentsInput) =>
   api<{ ok: boolean }>('/admin/store/payments', { method: 'PUT', body: data });
-export const apiUpdateStoreBranding = (data: { primaryColor?: string; logoUrl?: string }) =>
-  api<{ ok: boolean }>('/admin/store/branding', { method: 'PUT', body: data });
+export const apiUpdateStoreBranding = (data: {
+  primaryColor?: string;
+  logoUrl?: string;
+  // Bo'sh string '' yuborilsa — o'sha maydon standartga qaytadi (null)
+  backgroundColor?: string;
+  backgroundImageUrl?: string;
+}) => api<{ ok: boolean }>('/admin/store/branding', { method: 'PUT', body: data });
 export const apiSendSupport = (message: string) =>
   api<{ ok: boolean; priority: boolean }>('/admin/store/support', { method: 'POST', body: { message } });
 export interface CardPaymentInput {

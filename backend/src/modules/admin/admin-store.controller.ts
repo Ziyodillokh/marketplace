@@ -56,6 +56,9 @@ class StoreInfoDto {
 class BrandingDto {
   @IsOptional() @IsString() @MaxLength(20) primaryColor?: string;
   @IsOptional() @IsString() @MaxLength(500) logoUrl?: string;
+  // Storefront foni — rang (#RRGGBB) yoki rasm URL. Bo'sh string = standartga qaytarish.
+  @IsOptional() @IsString() @MaxLength(20) backgroundColor?: string;
+  @IsOptional() @IsString() @MaxLength(500) backgroundImageUrl?: string;
 }
 
 class SupportDto {
@@ -182,6 +185,8 @@ export class AdminStoreController {
         businessType: t.businessType,
         logoUrl: t.logoUrl,
         primaryColor: t.primaryColor,
+        backgroundColor: t.backgroundColor,
+        backgroundImageUrl: t.backgroundImageUrl,
         tariffPlan: t.tariffPlan,
         pendingTariff: t.pendingTariff,
         botUsername: t.botUsername,
@@ -553,7 +558,21 @@ export class AdminStoreController {
       data.primaryColor = c || null;
     }
     if (dto.logoUrl !== undefined) data.logoUrl = dto.logoUrl.trim() || null;
-    await this.prisma.tenant.update({ where: { id: admin.tenantId }, data });
+    // Fon rangi — bo'sh string standartga qaytaradi (null)
+    if (dto.backgroundColor !== undefined) {
+      const bg = dto.backgroundColor.trim();
+      if (bg && !/^#[0-9a-fA-F]{6}$/.test(bg)) throw new BadRequestException("Fon rangi #RRGGBB formatida bo'lsin");
+      data.backgroundColor = bg || null;
+    }
+    // Fon rasmi — bo'sh string standartga qaytaradi (null)
+    if (dto.backgroundImageUrl !== undefined) data.backgroundImageUrl = dto.backgroundImageUrl.trim() || null;
+    const updated = await this.prisma.tenant.update({
+      where: { id: admin.tenantId },
+      data,
+      select: { slug: true },
+    });
+    // Storefront fon/rang darhol yangilanishi uchun tenant cache'ini tozalaymiz
+    this.tenantScope.invalidate(updated.slug);
     return { ok: true };
   }
 

@@ -174,6 +174,10 @@ export interface PublicSettings {
     about?: string;
     primaryColor?: string | null;
     logoUrl?: string | null;
+    /** Storefront foni — rang (#RRGGBB). null = standart */
+    backgroundColor?: string | null;
+    /** Storefront foni — rasm URL. null = standart. Rasm bo'lsa rangdan ustun. */
+    backgroundImageUrl?: string | null;
     branded?: boolean;
   };
   business: {

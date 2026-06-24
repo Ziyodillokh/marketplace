@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bot, Users as UsersIcon, Lock, Palette, Upload } from 'lucide-react';
+import { Bot, Users as UsersIcon, Lock, Palette, Upload, Image as ImageIcon, RotateCcw, X } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -66,10 +66,22 @@ export default function StoreSettingsPage() {
 
   // Brending
   const brandingAllowed = data?.limits?.branding ?? false;
-  const [brand, setBrand] = useState({ primaryColor: '#2F6BFF', logoUrl: '' });
+  const [brand, setBrand] = useState({
+    primaryColor: '#2F6BFF',
+    logoUrl: '',
+    backgroundColor: '',
+    backgroundImageUrl: '',
+  });
   const [logoUploading, setLogoUploading] = useState(false);
+  const [bgUploading, setBgUploading] = useState(false);
   useEffect(() => {
-    if (tenant) setBrand({ primaryColor: tenant.primaryColor || '#2F6BFF', logoUrl: tenant.logoUrl || '' });
+    if (tenant)
+      setBrand({
+        primaryColor: tenant.primaryColor || '#2F6BFF',
+        logoUrl: tenant.logoUrl || '',
+        backgroundColor: tenant.backgroundColor || '',
+        backgroundImageUrl: tenant.backgroundImageUrl || '',
+      });
   }, [tenant]);
   async function uploadLogo(file: File | undefined) {
     if (!file) return;
@@ -83,15 +95,45 @@ export default function StoreSettingsPage() {
       setLogoUploading(false);
     }
   }
+  // Fon rasmi yuklanganda — rangni bo'shatamiz (rasm rangdan ustun, chalkashmasin)
+  async function uploadBackground(file: File | undefined) {
+    if (!file) return;
+    setBgUploading(true);
+    try {
+      const r = await apiUploadImage(file);
+      setBrand((b) => ({ ...b, backgroundImageUrl: r.url, backgroundColor: '' }));
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBgUploading(false);
+    }
+  }
   const saveBrand = useMutation({
     mutationFn: () =>
-      apiUpdateStoreBranding({ primaryColor: brand.primaryColor, logoUrl: brand.logoUrl || undefined }),
+      apiUpdateStoreBranding({
+        primaryColor: brand.primaryColor,
+        logoUrl: brand.logoUrl || undefined,
+        // '' yuborilsa backend o'sha maydonni null qiladi (standart)
+        backgroundColor: brand.backgroundColor,
+        backgroundImageUrl: brand.backgroundImageUrl,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-store'] });
       toast.success('Brending saqlandi');
     },
     onError: (err: Error) => toast.error(err.message),
   });
+  // Fonni standart holatga qaytarish — rang va rasmni tozalaydi
+  const resetBackground = useMutation({
+    mutationFn: () => apiUpdateStoreBranding({ backgroundColor: '', backgroundImageUrl: '' }),
+    onSuccess: () => {
+      setBrand((b) => ({ ...b, backgroundColor: '', backgroundImageUrl: '' }));
+      qc.invalidateQueries({ queryKey: ['my-store'] });
+      toast.success('Fon standart holatga qaytarildi');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+  const hasCustomBg = !!(brand.backgroundColor || brand.backgroundImageUrl);
 
   return (
     <div>
@@ -258,9 +300,114 @@ export default function StoreSettingsPage() {
                     </label>
                   </Field>
 
-                  <Button loading={saveBrand.isPending} onClick={() => saveBrand.mutate()}>Saqlash</Button>
+                  {/* ───── Do'kon foni — rang yoki rasm ───── */}
+                  <Field label="Do'kon foni" hint="Storefront orqa foni — rang yoki rasm tanlang">
+                    <div className="space-y-3">
+                      {/* Jonli ko'rinish */}
+                      <div
+                        className="h-24 rounded-xl border border-[var(--color-border)] grid place-items-center overflow-hidden bg-[var(--color-bg)]"
+                        style={
+                          brand.backgroundImageUrl
+                            ? {
+                                backgroundImage: `url(${brand.backgroundImageUrl})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                              }
+                            : brand.backgroundColor
+                              ? { background: brand.backgroundColor }
+                              : undefined
+                        }
+                      >
+                        <span className="rounded-lg bg-white/85 px-3 py-1.5 text-xs font-medium shadow-sm">
+                          {hasCustomBg ? "Ko'rinish namunasi" : 'Standart fon'}
+                        </span>
+                      </div>
+
+                      {/* Fon rangi */}
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={/^#[0-9a-fA-F]{6}$/.test(brand.backgroundColor) ? brand.backgroundColor : '#f4f6fa'}
+                          onChange={(e) =>
+                            setBrand({ ...brand, backgroundColor: e.target.value, backgroundImageUrl: '' })
+                          }
+                          className="h-11 w-14 rounded-lg border border-[var(--color-border)] cursor-pointer bg-white p-1 shrink-0"
+                          title="Fon rangi"
+                        />
+                        <Input
+                          value={brand.backgroundColor}
+                          onChange={(e) =>
+                            setBrand({ ...brand, backgroundColor: e.target.value, backgroundImageUrl: '' })
+                          }
+                          placeholder="Fon rangi — #F4F6FA"
+                          className="font-mono"
+                        />
+                        {brand.backgroundColor && (
+                          <button
+                            type="button"
+                            onClick={() => setBrand({ ...brand, backgroundColor: '' })}
+                            className="h-9 w-9 grid place-items-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] shrink-0"
+                            title="Rangni tozalash"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Fon rasmi */}
+                      <label className="flex items-center gap-3 h-16 px-3 rounded-xl border border-dashed border-[var(--color-border)] bg-white cursor-pointer">
+                        {brand.backgroundImageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={brand.backgroundImageUrl} alt="fon" className="h-12 w-12 rounded-lg object-cover" />
+                        ) : (
+                          <span className="inline-flex h-12 w-12 rounded-lg bg-[var(--color-bg)] items-center justify-center text-[var(--color-text-muted)]">
+                            <ImageIcon size={20} />
+                          </span>
+                        )}
+                        <span className="text-sm text-[var(--color-text-muted)] flex-1">
+                          {bgUploading
+                            ? 'Yuklanmoqda…'
+                            : brand.backgroundImageUrl
+                              ? 'Fon rasmini almashtirish'
+                              : 'Fon rasmini yuklash'}
+                        </span>
+                        {brand.backgroundImageUrl && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setBrand({ ...brand, backgroundImageUrl: '' });
+                            }}
+                            className="h-9 w-9 grid place-items-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] shrink-0"
+                            title="Rasmni o'chirish"
+                          >
+                            <X size={16} />
+                          </span>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="hidden"
+                          onChange={(e) => uploadBackground(e.target.files?.[0])}
+                        />
+                      </label>
+                    </div>
+                  </Field>
+
+                  <div className="flex items-center gap-2">
+                    <Button loading={saveBrand.isPending} onClick={() => saveBrand.mutate()}>Saqlash</Button>
+                    <Button
+                      variant="ghost"
+                      loading={resetBackground.isPending}
+                      disabled={!hasCustomBg}
+                      onClick={() => resetBackground.mutate()}
+                    >
+                      <RotateCcw size={15} /> Standart fonga qaytarish
+                    </Button>
+                  </div>
                   <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                    <Palette size={14} /> Rang va logo mijozlar do&apos;koningizga qo&apos;llanadi.
+                    <Palette size={14} /> Rang, logo va fon mijozlar do&apos;koningizga qo&apos;llanadi.
                   </div>
                 </>
               )}
