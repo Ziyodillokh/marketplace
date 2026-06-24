@@ -502,6 +502,9 @@ model UserEvent {
   id         String    @id @default(cuid())
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Qaysi do'kon (storefront) kontekstida sodir bo'lgani — per-tenant analitika uchun.
+  // null = global/eski hodisa. X-Tenant-Slug header'idan stamp qilinadi.
+  tenantId   String?
   type       EventType
   productId  String?
   product    Product?  @relation(fields: [productId], references: [id])
@@ -513,6 +516,7 @@ model UserEvent {
   @@index([type, createdAt])
   @@index([productId, type])
   @@index([createdAt])
+  @@index([tenantId, type, createdAt])
 }
 
 model WeeklyStat {

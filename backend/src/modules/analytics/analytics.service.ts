@@ -19,28 +19,30 @@ export class AnalyticsService {
     private readonly events: EventEmitter2,
   ) {}
 
-  async record(userId: string, event: IncomingEvent): Promise<void> {
+  async record(userId: string, event: IncomingEvent, tenantId?: string | null): Promise<void> {
     try {
       const created = await this.prisma.userEvent.create({
         data: {
           userId,
+          tenantId: tenantId ?? null,
           type: event.type,
           productId: event.productId,
           categoryId: event.categoryId,
           payload: event.payload as Prisma.InputJsonValue | undefined,
         },
       });
-      this.events.emit('user.event', { id: created.id, userId, ...event });
+      this.events.emit('user.event', { id: created.id, userId, tenantId, ...event });
     } catch (err) {
       this.logger.warn(`Failed to record event: ${(err as Error).message}`);
     }
   }
 
-  async recordBatch(userId: string, batch: IncomingEvent[]): Promise<void> {
+  async recordBatch(userId: string, batch: IncomingEvent[], tenantId?: string | null): Promise<void> {
     if (batch.length === 0) return;
     await this.prisma.userEvent.createMany({
       data: batch.map((e) => ({
         userId,
+        tenantId: tenantId ?? null,
         type: e.type,
         productId: e.productId,
         categoryId: e.categoryId,
@@ -49,7 +51,7 @@ export class AnalyticsService {
     });
     // Emit individually for admin live feed (lightweight)
     for (const e of batch) {
-      this.events.emit('user.event', { userId, ...e });
+      this.events.emit('user.event', { userId, tenantId, ...e });
     }
   }
 
