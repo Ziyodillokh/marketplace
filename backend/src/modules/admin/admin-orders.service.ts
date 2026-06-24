@@ -4,6 +4,7 @@ import { OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { buildCursorPage, type CursorPage } from '@/common/helpers/pagination';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
+import { TenantBotService } from '../telegram-bot/tenant-bot.service';
 
 export interface ListOrdersParams {
   status?: OrderStatus;
@@ -20,6 +21,7 @@ export class AdminOrdersService {
     private readonly prisma: PrismaService,
     private readonly events: EventEmitter2,
     private readonly bot: TelegramBotService,
+    private readonly tenantBot: TenantBotService,
   ) {}
 
   async list(params: ListOrdersParams, tenantId?: string | null): Promise<CursorPage<unknown>> {
@@ -168,7 +170,9 @@ export class AdminOrdersService {
     });
     if (!o) throw new NotFoundException('Order not found');
     if (tenantId && o.tenantId !== tenantId) throw new NotFoundException('Order not found');
-    await this.bot.sendDirectMessage(o.user.telegramId, text);
+    // Mijozга do'kon (sotuvchi) boti orqali — ulanmagan bo'lsa global botga fallback.
+    const sent = await this.tenantBot.sendToCustomer(o.tenantId, o.user.telegramId, text);
+    if (!sent) await this.bot.sendDirectMessage(o.user.telegramId, text);
     return { ok: true };
   }
 }

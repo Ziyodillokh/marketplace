@@ -17,6 +17,8 @@ import {
   apiUpdateStorePayments,
   apiUpdateStoreBranding,
   apiUpdateStoreCardPayment,
+  apiUpdateStoreDelivery,
+  apiUpdateStorePrepayment,
   apiSendSupport,
   apiUploadImage,
   apiUpsertSetting,
@@ -165,6 +167,51 @@ export default function SettingsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-store'] });
       toast.success("Karta to'lovi saqlandi");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Yetkazib berish — yoqish/o'chirish + narx + bepul chegara
+  const [delivery, setDelivery] = useState({ enabled: true, fee: 0, freeFrom: 0 });
+  useEffect(() => {
+    if (tenant) {
+      setDelivery({
+        enabled: tenant.delivery.enabled,
+        fee: tenant.delivery.fee,
+        freeFrom: tenant.delivery.freeFrom ?? 0,
+      });
+    }
+  }, [tenant]);
+  const saveDelivery = useMutation({
+    mutationFn: () =>
+      apiUpdateStoreDelivery({
+        enabled: delivery.enabled,
+        fee: delivery.fee,
+        freeFrom: delivery.freeFrom > 0 ? delivery.freeFrom : null,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-store'] });
+      toast.success('Yetkazib berish saqlandi');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Oldindan to'lov (chek) — yoqish + ulush (foiz)
+  const [prepay, setPrepay] = useState({ enabled: false, percent: 100 });
+  useEffect(() => {
+    if (tenant) {
+      setPrepay({ enabled: tenant.prepayment.enabled, percent: tenant.prepayment.percent });
+    }
+  }, [tenant]);
+  const savePrepay = useMutation({
+    mutationFn: () =>
+      apiUpdateStorePrepayment({
+        enabled: prepay.enabled,
+        percent: Math.min(100, Math.max(1, prepay.percent || 100)),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-store'] });
+      toast.success("Oldindan to'lov saqlandi");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -516,6 +563,115 @@ export default function SettingsPage() {
                 <CreditCard size={14} className="shrink-0 mt-0.5" />
                 Karta raqami va kanal to&apos;ldirilsa — do&apos;koningiz to&apos;lov sahifasida
                 &quot;Karta orqali&quot; varianti paydo bo&apos;ladi.
+              </div>
+            </CardBody>
+          </Card>
+        )}
+
+        {tenant && (
+          <Card>
+            <CardHeader title="Yetkazib berish" />
+            <CardBody className="space-y-3">
+              <label className="flex items-center justify-between gap-3">
+                <span className="text-sm">
+                  <span className="font-medium">Yetkazib berish bor</span>
+                  <span className="block text-xs text-[var(--color-text-muted)]">
+                    O&apos;chirilsa — faqat olib ketish (narx olinmaydi)
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={delivery.enabled}
+                  onClick={() => setDelivery({ ...delivery, enabled: !delivery.enabled })}
+                  className={`relative h-6 w-11 rounded-full transition-colors shrink-0 ${delivery.enabled ? 'bg-[var(--color-primary)]' : 'bg-gray-300'}`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${delivery.enabled ? 'translate-x-5' : ''}`}
+                  />
+                </button>
+              </label>
+
+              {delivery.enabled && (
+                <>
+                  <Field label="Yetkazib berish narxi (so'm)">
+                    <Input
+                      value={formatMoneyInput(delivery.fee)}
+                      onChange={(e) => setDelivery({ ...delivery, fee: parseMoneyInput(e.target.value) })}
+                      placeholder="25 000"
+                      inputMode="numeric"
+                    />
+                  </Field>
+                  <Field
+                    label="Bepul yetkazib berish chegarasi (so'm)"
+                    hint="Shu summadan yuqori buyurtmaga bepul. 0 — bepul chegara yo'q."
+                  >
+                    <Input
+                      value={formatMoneyInput(delivery.freeFrom)}
+                      onChange={(e) => setDelivery({ ...delivery, freeFrom: parseMoneyInput(e.target.value) })}
+                      placeholder="500 000"
+                      inputMode="numeric"
+                    />
+                  </Field>
+                </>
+              )}
+
+              <Button loading={saveDelivery.isPending} onClick={() => saveDelivery.mutate()}>
+                Saqlash
+              </Button>
+              <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                <Truck size={14} /> Narx checkout va buyurtmaga avtomatik qo&apos;llanadi.
+              </div>
+            </CardBody>
+          </Card>
+        )}
+
+        {tenant && (
+          <Card>
+            <CardHeader title="Oldindan to'lov (chek orqali)" />
+            <CardBody className="space-y-3">
+              <div className="flex gap-3 rounded-xl bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20 px-3 py-2.5 text-xs">
+                <Info size={16} className="text-[var(--color-primary)] shrink-0 mt-0.5" />
+                <p className="text-[var(--color-text-muted)]">
+                  Mijoz <b className="text-[var(--color-text)]">&quot;Karta orqali (chek)&quot;</b> ni
+                  tanlasa — summaning bir qismini yoki to&apos;lig&apos;ini oldindan to&apos;lab, chekni
+                  yuklaydi. Qolgani yetkazib berishda olinadi.
+                </p>
+              </div>
+
+              <label className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium">Oldindan to&apos;lov majburiy</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={prepay.enabled}
+                  onClick={() => setPrepay({ ...prepay, enabled: !prepay.enabled })}
+                  className={`relative h-6 w-11 rounded-full transition-colors shrink-0 ${prepay.enabled ? 'bg-[var(--color-primary)]' : 'bg-gray-300'}`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${prepay.enabled ? 'translate-x-5' : ''}`}
+                  />
+                </button>
+              </label>
+
+              {prepay.enabled && (
+                <Field label="Oldindan to'lov ulushi (%)" hint="100 = to'liq summa. Masalan 30 = 30% oldindan, qolgani yetkazishda.">
+                  <Input
+                    value={prepay.percent ? String(prepay.percent) : ''}
+                    onChange={(e) =>
+                      setPrepay({ ...prepay, percent: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 })
+                    }
+                    placeholder="30"
+                    inputMode="numeric"
+                  />
+                </Field>
+              )}
+
+              <Button loading={savePrepay.isPending} onClick={() => savePrepay.mutate()}>
+                Saqlash
+              </Button>
+              <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                <CreditCard size={14} /> Faqat &quot;Karta orqali (chek)&quot; to&apos;lov usulida amal qiladi.
               </div>
             </CardBody>
           </Card>

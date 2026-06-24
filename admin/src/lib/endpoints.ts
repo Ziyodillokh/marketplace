@@ -198,6 +198,8 @@ export interface MyStore {
     payme: { merchantId: string; hasKey: boolean };
     click: { serviceId: string; merchantId: string; merchantUserId: string; hasSecret: boolean };
     cardPayment: { cardNumber: string; cardHolder: string; channelId: string };
+    delivery: { enabled: boolean; fee: number; freeFrom: number | null };
+    prepayment: { enabled: boolean; percent: number };
   };
   limits?: TariffLimits;
   usage?: { products: number; categories: number; banners: number };
@@ -224,6 +226,19 @@ export interface CardPaymentInput {
 }
 export const apiUpdateStoreCardPayment = (data: CardPaymentInput) =>
   api<{ ok: boolean }>('/admin/store/card-payment', { method: 'PUT', body: data });
+export interface DeliveryInput {
+  enabled?: boolean;
+  fee?: number;
+  freeFrom?: number | null;
+}
+export const apiUpdateStoreDelivery = (data: DeliveryInput) =>
+  api<{ ok: boolean }>('/admin/store/delivery', { method: 'PUT', body: data });
+export interface PrepaymentInput {
+  enabled?: boolean;
+  percent?: number;
+}
+export const apiUpdateStorePrepayment = (data: PrepaymentInput) =>
+  api<{ ok: boolean }>('/admin/store/prepayment', { method: 'PUT', body: data });
 
 // ───── Kanal e'lonlari (channel posts) ─────
 export interface ChannelConfig {
@@ -252,7 +267,20 @@ export interface CreateChannelPostInput {
   buttonText?: string;
   scheduledAt: string;
 }
+export interface ChannelInfo {
+  connected: boolean;
+  reason?: string;
+  id?: string;
+  title?: string;
+  username?: string | null;
+  type?: string;
+  description?: string | null;
+  subscriberCount?: number | null;
+  isAdmin?: boolean;
+  photoDataUrl?: string | null;
+}
 export const apiChannelConfig = () => api<ChannelConfig>('/admin/channel-posts/config');
+export const apiChannelInfo = () => api<ChannelInfo>('/admin/channel-posts/channel-info');
 export const apiSetChannel = (channelId: string) =>
   api<{ ok: boolean }>('/admin/channel-posts/config', { method: 'PUT', body: { channelId } });
 export const apiListChannelPosts = () => api<ChannelPost[]>('/admin/channel-posts');

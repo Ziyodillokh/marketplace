@@ -2,8 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { InlineKeyboard } from 'grammy';
 import { PrismaService } from '@/prisma/prisma.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
+import { TenantBotService } from '../telegram-bot/tenant-bot.service';
 import { RelatedProductsService } from '../related-products/related-products.service';
 import { localizeTitle, type Locale } from '@/common/helpers/localize';
 
@@ -28,6 +30,7 @@ export class RecommendationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly bot: TelegramBotService,
+    private readonly tenantBot: TenantBotService,
     private readonly related: RelatedProductsService,
     config: ConfigService,
   ) {
@@ -178,27 +181,41 @@ export class RecommendationsService {
 
     // WebApp tugma — savatga o'tadi (productlar list'iga linkga ko'p mahsulot bo'lsa search'ga)
     const firstProductId = sentIds[0];
-    const inlineKeyboard = firstProductId
-      ? [
-          [
-            {
-              text: lang === 'ru' ? '🛍 Посмотреть товары' : '🛍 Mahsulotlarni ko\'rish',
-              ...(this.webappUrl.startsWith('https://')
-                ? { web_app: { url: this.webappUrl } }
-                : { url: this.webappUrl }),
-            },
-          ],
-        ]
-      : undefined;
+    let replyMarkup: InlineKeyboard | undefined;
+    if (firstProductId) {
+      const label = lang === 'ru' ? '🛍 Посмотреть товары' : '🛍 Mahsulotlarni ko\'rish';
+      replyMarkup = this.webappUrl.startsWith('https://')
+        ? new InlineKeyboard().webApp(label, this.webappUrl)
+        : new InlineKeyboard().url(label, this.webappUrl);
+    }
 
-    // Global bot o'chirilgan bo'lsa — post-purchase tavsiya yuborilmaydi
+    // Tavsiya xabari mijozга do'kon (sotuvchi) boti orqali boradi — Sellio global boti emas.
+    const sentViaStore = await this.tenantBot.sendToCustomer(
+      order.tenantId,
+      order.user.telegramId,
+      text,
+      replyMarkup,
+    );
+    if (sentViaStore) {
+      await this.prisma.orderRecommendation.update({
+        where: { id: recId },
+        data: { sentAt: new Date(), sentProductIds: sentIds, lastError: null },
+      });
+      this.logger.log(
+        `Recommendation ${recId} sent to user ${order.userId} (${sentIds.length} products) via store bot`,
+      );
+      return;
+    }
+
+    // Do'kon boti ulanmagan — global (Sellio) botga fallback.
+    // Global bot ham o'chirilgan bo'lsa — post-purchase tavsiya yuborilmaydi.
     const gbot = this.bot.bot;
     if (!gbot) return;
     try {
       await gbot.api.sendMessage(Number(order.user.telegramId), text, {
         parse_mode: 'HTML',
         link_preview_options: { is_disabled: true },
-        ...(inlineKeyboard ? { reply_markup: { inline_keyboard: inlineKeyboard } } : {}),
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
       });
 
       await this.prisma.orderRecommendation.update({

@@ -59,6 +59,10 @@ export interface OrderDetailDto {
   }>;
   events: Array<{ status: OrderStatus; comment: string | null; createdAt: Date }>;
   paidAt: Date | null;
+  /** Chek orqali oldindan to'lanishi kerak bo'lgan summa (CARD_TRANSFER; 0 — qolganlarida) */
+  prepayAmount: number;
+  /** Sotuvchi chekni tasdiqlagan vaqt (qisman/to'liq) */
+  prepaidAt: Date | null;
   paymentReceiptUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -135,9 +139,30 @@ export class OrdersService {
       promoSnapshot = evaluation.promo.code;
     }
 
-    const deliveryFee =
-      subtotal - discountAmount >= business.freeDeliveryThreshold ? 0 : business.deliveryFee;
-    const total = subtotal - discountAmount + deliveryFee;
+    // Yetkazib berish — har do'kon o'zi belgilaydi (yoqilган/narx/bepul chegara).
+    // O'chirilган bo'lsa — olib ketish, narx 0.
+    const delivery = await this.settings.getDelivery(tenantId);
+    const afterDiscount = subtotal - discountAmount;
+    let deliveryFee = 0;
+    if (delivery.enabled) {
+      deliveryFee = delivery.freeFrom != null && afterDiscount >= delivery.freeFrom ? 0 : delivery.fee;
+    }
+    const total = afterDiscount + deliveryFee;
+
+    // Oldindan to'lov (chek orqali) — faqat CARD_TRANSFER. Sotuvchi yoqgan bo'lsa
+    // percent ulushi oldindan to'lanadi (qolgani yetkazib berishda); aks holda
+    // CARD_TRANSFER doim to'liq summani chek orqali to'lashni bildiradi.
+    const method = input.paymentMethod ?? PaymentMethod.CASH_ON_DELIVERY;
+    let prepayAmount = 0;
+    if (method === PaymentMethod.CARD_TRANSFER) {
+      const prepay = await this.settings.getPrepayment(tenantId);
+      if (prepay.enabled) {
+        const pct = Math.min(100, Math.max(1, prepay.percent));
+        prepayAmount = pct >= 100 ? total : Math.round((total * pct) / 100);
+      } else {
+        prepayAmount = total;
+      }
+    }
 
     const orderNumber = await this.generateOrderNumber();
 
@@ -159,6 +184,7 @@ export class OrdersService {
           discountAmount,
           deliveryFee,
           total,
+          prepayAmount,
           promoCodeId: promoId,
           promoSnapshot,
           events: { create: { status: OrderStatus.PENDING, comment: 'Order created' } },
@@ -323,6 +349,8 @@ export class OrdersService {
       })),
       events: o.events.map((e) => ({ status: e.status, comment: e.comment, createdAt: e.createdAt })),
       paidAt: o.paidAt,
+      prepayAmount: Number(o.prepayAmount),
+      prepaidAt: o.prepaidAt,
       paymentReceiptUrl: o.paymentReceiptUrl,
       createdAt: o.createdAt,
       updatedAt: o.updatedAt,
@@ -347,16 +375,26 @@ export class OrdersService {
     if (o.paymentMethod !== PaymentMethod.CARD_TRANSFER) {
       throw new BadRequestException('Bu buyurtma karta o\'tkazma orqali emas');
     }
-    if (o.paidAt) throw new BadRequestException('To\'lov allaqachon tasdiqlangan');
+    if (o.prepaidAt) throw new BadRequestException('Chek allaqachon tasdiqlangan');
     if (!o.tenantId) throw new BadRequestException('Do\'kon topilmadi');
 
     // Rasmni saqlaymiz (do'kon sahifasida ko'rsatish uchun)
     const saved = await this.uploads.saveImage(fileBuffer);
 
+    const fmt = (n: number) => Number(n).toLocaleString('ru-RU').replace(/,/g, ' ');
+    const totalNum = Number(o.total);
+    const prepayNum = Number(o.prepayAmount) || totalNum;
+    const isPartial = prepayNum < totalNum;
+
     const itemLines = o.items
       .map((i) => `• ${i.titleUz}${i.variantLabel ? ` (${i.variantLabel})` : ''} × ${i.quantity}`)
       .join('\n');
     const userLine = o.user.username ? `@${o.user.username}` : o.user.firstName ?? `ID ${o.user.telegramId}`;
+    const payLines = isPartial
+      ? `<b>Oldindan (chek): ${fmt(prepayNum)} so'm</b>\n` +
+        `Qolgani yetkazishda: ${fmt(totalNum - prepayNum)} so'm\n` +
+        `Jami: ${fmt(totalNum)} so'm`
+      : `<b>Jami: ${fmt(totalNum)} so'm</b>`;
     const caption =
       `🧾 <b>To'lov cheki — tasdiqlash kerak</b>\n\n` +
       `<b>Buyurtma:</b> #${o.orderNumber}\n` +
@@ -364,7 +402,7 @@ export class OrdersService {
       `<b>Telefon:</b> ${o.receiverPhone}\n` +
       `<b>Manzil:</b> ${o.address}\n\n` +
       `${itemLines}\n\n` +
-      `<b>Jami: ${Number(o.total).toLocaleString('ru-RU').replace(/,/g, ' ')} so'm</b>`;
+      payLines;
 
     let messageId: number | null = null;
     try {

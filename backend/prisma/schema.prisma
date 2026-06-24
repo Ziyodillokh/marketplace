@@ -341,6 +341,13 @@ model Order {
   paidAt        DateTime?
   transactions  PaymentTransaction[]
 
+  // Oldindan to'lov (chek orqali): yaratilganda hisoblangan, chek orqali
+  // to'lanishi kerak bo'lgan summa (CARD_TRANSFER uchun; 0 — qolganlarida),
+  // va sotuvchi chekni tasdiqlagan vaqt. To'liq to'lovda paidAt ham o'rnatiladi;
+  // qisman to'lovda faqat prepaidAt (qolgani yetkazib berishda to'lanadi).
+  prepayAmount  Decimal   @default(0) @db.Decimal(12, 2)
+  prepaidAt     DateTime?
+
   // Karta o'tkazma (CARD_TRANSFER) — yuklangan chek va sotuvchi kanalidagi xabar id
   paymentReceiptUrl   String?
   payReceiptMessageId Int?
@@ -691,6 +698,16 @@ model Tenant {
   manualCardNumber       String?
   manualCardHolder       String?
   manualPaymentChannelId String?
+
+  // Yetkazib berish — sotuvchi o'zi yoqadi/o'chiradi va narxini belgilaydi.
+  // deliveryEnabled=false bo'lsa — faqat olib ketish (pickup), narx 0.
+  deliveryEnabled        Boolean      @default(true)
+  deliveryFee            Decimal      @default(0) @db.Decimal(12, 2)
+  freeDeliveryFrom       Decimal?     @db.Decimal(12, 2) // shu summadan yuqori — bepul
+
+  // Oldindan to'lov (chek orqali) — to'liq yoki qisman (foiz). Faqat CARD_TRANSFER.
+  prepaymentEnabled      Boolean      @default(false)
+  prepaymentPercent      Int          @default(100) // 1–100; 100 = to'liq oldindan
 
   // Brendlash
   logoUrl         String?

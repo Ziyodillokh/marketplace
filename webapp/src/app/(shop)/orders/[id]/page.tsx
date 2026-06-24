@@ -82,6 +82,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     order.status === 'PENDING' &&
     Date.now() - new Date(order.createdAt).getTime() < 60 * 60 * 1000;
 
+  // Oldindan to'lov (chek): qisman bo'lsa qolgani yetkazib berishda to'lanadi
+  const prepay = order.prepayAmount || 0;
+  const isPartialPrepay = order.paymentMethod === 'CARD_TRANSFER' && prepay > 0 && prepay < order.total;
+  const remaining = order.total - prepay;
+
   return (
     <div className="pb-24">
       <PageHeader title={`#${order.orderNumber}`} />
@@ -129,12 +134,27 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
       {order.paymentMethod === 'CARD_TRANSFER' && (
         <section className="px-4 pt-1 pb-3">
-          {order.paidAt ? (
-            <div className="rounded-2xl border border-[var(--color-success)]/30 bg-[var(--color-success)]/10 p-3 flex items-center gap-2">
+          {order.prepaidAt ? (
+            <div className="rounded-2xl border border-[var(--color-success)]/30 bg-[var(--color-success)]/10 p-3 flex items-start gap-2">
               <CheckCircle2 size={20} className="text-[var(--color-success)] shrink-0" />
-              <p className="text-sm font-medium text-[var(--color-success)]">
-                {locale === 'ru' ? 'Оплата подтверждена' : "To'lov tasdiqlandi"}
-              </p>
+              <div>
+                <p className="text-sm font-medium text-[var(--color-success)]">
+                  {order.paidAt
+                    ? locale === 'ru'
+                      ? 'Оплата подтверждена'
+                      : "To'lov tasdiqlandi"
+                    : locale === 'ru'
+                      ? 'Предоплата подтверждена'
+                      : "Oldindan to'lov tasdiqlandi"}
+                </p>
+                {!order.paidAt && (
+                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                    {locale === 'ru'
+                      ? `Остаток ${formatMoney(remaining, locale)} — при доставке`
+                      : `Qolgani ${formatMoney(remaining, locale)} — yetkazib berishda`}
+                  </p>
+                )}
+              </div>
             </div>
           ) : order.paymentReceiptUrl ? (
             <div className="rounded-2xl border border-[var(--color-border)] bg-white p-3 flex items-center gap-3">
@@ -157,6 +177,30 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="rounded-xl bg-white border border-[var(--color-border)] p-3">
                   <p className="font-mono text-base font-semibold tracking-wide">{pub.cardPayment.number}</p>
                   <p className="text-sm text-[var(--color-text-muted)]">{pub.cardPayment.holder}</p>
+                </div>
+              )}
+              {prepay > 0 && (
+                <div className="rounded-xl bg-white border border-[var(--color-border)] p-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-[var(--color-text-muted)]">
+                      {isPartialPrepay
+                        ? locale === 'ru'
+                          ? 'К оплате сейчас'
+                          : "Hozir to'lash"
+                        : locale === 'ru'
+                          ? 'К оплате'
+                          : "To'lash"}
+                    </span>
+                    <span className="font-semibold text-[var(--color-primary)]">{formatMoney(prepay, locale)}</span>
+                  </div>
+                  {isPartialPrepay && (
+                    <div className="flex justify-between mt-1">
+                      <span className="text-[var(--color-text-muted)]">
+                        {locale === 'ru' ? 'При доставке' : 'Yetkazib berishda'}
+                      </span>
+                      <span className="font-medium">{formatMoney(remaining, locale)}</span>
+                    </div>
+                  )}
                 </div>
               )}
               <p className="text-xs text-[var(--color-text-muted)]">
@@ -225,6 +269,18 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           value={formatMoney(order.total, locale)}
           className="font-bold text-base text-[var(--color-primary)]"
         />
+        {isPartialPrepay && (
+          <>
+            <Row
+              label={locale === 'ru' ? 'Предоплата (чек)' : "Oldindan (chek)"}
+              value={formatMoney(prepay, locale)}
+            />
+            <Row
+              label={locale === 'ru' ? 'При доставке' : 'Yetkazib berishda'}
+              value={formatMoney(remaining, locale)}
+            />
+          </>
+        )}
       </section>
 
       <section className="px-4 mt-4">

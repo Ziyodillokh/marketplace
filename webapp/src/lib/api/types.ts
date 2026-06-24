@@ -135,6 +135,10 @@ export interface OrderDetail {
   }>;
   events: Array<{ status: OrderStatus; comment: string | null; createdAt: string }>;
   paidAt: string | null;
+  /** Chek orqali oldindan to'lanishi kerak bo'lgan summa (CARD_TRANSFER; 0 — qolganlarida) */
+  prepayAmount: number;
+  /** Sotuvchi chekni tasdiqlagan vaqt (qisman/to'liq) */
+  prepaidAt: string | null;
   paymentReceiptUrl: string | null;
   createdAt: string;
   updatedAt: string;
@@ -172,7 +176,15 @@ export interface PublicSettings {
     logoUrl?: string | null;
     branded?: boolean;
   };
-  business: { minOrderAmount: number; deliveryFee: number; freeDeliveryThreshold: number; currency: string };
+  business: {
+    minOrderAmount: number;
+    deliveryFee: number;
+    freeDeliveryThreshold: number;
+    deliveryEnabled: boolean;
+    currency: string;
+  };
+  /** Oldindan to'lov (chek) — faqat CARD_TRANSFER uchun amal qiladi */
+  prepayment: { enabled: boolean; percent: number };
   payments: { payme: boolean; click: boolean; card: boolean };
   cardPayment: { number: string; holder: string } | null;
 }

@@ -1,14 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Crown, Pencil, Eye, Trash2, UserPlus, Info, ShieldCheck } from 'lucide-react';
+import { Crown, Pencil, Eye, Trash2, UserPlus, Info, ShieldCheck, Loader2, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input, Select } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { apiTeam, apiAddMember, apiUpdateMemberRole, apiRemoveMember } from '@/lib/endpoints';
+import { apiTeam, apiAddMember, apiUpdateMemberRole, apiRemoveMember, apiLookupMember } from '@/lib/endpoints';
 import { toast } from '@/stores/toast-store';
 
 const ROLE_INFO: Record<string, { label: string; desc: string; cls: string; Icon: typeof Crown }> = {
@@ -28,13 +28,66 @@ export default function TeamPage() {
   const [telegramId, setTelegramId] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<'CREATOR' | 'MODERATOR'>('CREATOR');
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [lookupUsername, setLookupUsername] = useState<string | null>(null);
+  const [lookup, setLookup] = useState<'idle' | 'loading' | 'found' | 'notfound'>('idle');
+
+  const idValid = /^\d{5,15}$/.test(telegramId.trim());
+
+  // Telegram ID kiritilganda — ism va profil rasmni avto-to'ldirish (debounce)
+  useEffect(() => {
+    const id = telegramId.trim();
+    if (!/^\d{5,15}$/.test(id)) {
+      setLookup('idle');
+      setPhotoUrl(null);
+      setLookupUsername(null);
+      return;
+    }
+    let cancelled = false;
+    setLookup('loading');
+    const t = setTimeout(async () => {
+      try {
+        const res = await apiLookupMember(id);
+        if (cancelled) return;
+        if (res.found) {
+          setLookup('found');
+          setPhotoUrl(res.photoUrl);
+          setLookupUsername(res.username);
+          // Ism — ID o'zgargani uchun lookup ishga tushdi, demak yangi odam: avto to'ldiramiz
+          if (res.fullName) setFullName(res.fullName);
+        } else {
+          setLookup('notfound');
+          setPhotoUrl(null);
+          setLookupUsername(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setLookup('notfound');
+          setPhotoUrl(null);
+          setLookupUsername(null);
+        }
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [telegramId]);
+
+  const resetForm = () => {
+    setTelegramId('');
+    setFullName('');
+    setPhotoUrl(null);
+    setLookupUsername(null);
+    setLookup('idle');
+  };
 
   const add = useMutation({
-    mutationFn: () => apiAddMember({ telegramId: telegramId.trim(), fullName: fullName.trim(), role }),
+    mutationFn: () =>
+      apiAddMember({ telegramId: telegramId.trim(), fullName: fullName.trim(), role, photoUrl }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['team'] });
-      setTelegramId('');
-      setFullName('');
+      resetForm();
       toast.success('Xodim qo\'shildi');
     },
     onError: (e: Error) => toast.error(e.message),
@@ -98,14 +151,58 @@ export default function TeamPage() {
             <Field label="Xodim Telegram ID">
               <Input
                 value={telegramId}
-                onChange={(e) => setTelegramId(e.target.value)}
+                onChange={(e) => setTelegramId(e.target.value.replace(/\D/g, ''))}
                 placeholder="123456789"
                 inputMode="numeric"
                 className="font-mono"
               />
+              {lookup === 'loading' && (
+                <p className="mt-1 flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]">
+                  <Loader2 size={12} className="animate-spin" /> Telegramdan qidirilmoqda…
+                </p>
+              )}
+              {lookup === 'found' && (
+                <p className="mt-1 flex items-center gap-1 text-[11px] text-emerald-600">
+                  <CheckCircle2 size={12} /> Topildi{lookupUsername ? ` · @${lookupUsername}` : ''}
+                </p>
+              )}
+              {lookup === 'notfound' && idValid && (
+                <p className="mt-1 text-[11px] text-amber-600">
+                  Topilmadi — xodim avval <b>@selliostorebot</b> ga <b>/id</b> yozsin. Ismni qo&apos;lda kiriting.
+                </p>
+              )}
             </Field>
             <Field label="Ism">
-              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ism familiya" />
+              <div className="flex items-center gap-3">
+                <span className="shrink-0">
+                  {photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={photoUrl}
+                      alt={fullName}
+                      className="h-11 w-11 rounded-full object-cover ring-1 ring-[var(--color-border)]"
+                    />
+                  ) : (
+                    <span className="inline-flex h-11 w-11 rounded-full items-center justify-center bg-gray-100 text-gray-400">
+                      {lookup === 'loading' ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : fullName.trim() ? (
+                        <span className="font-semibold text-gray-500">
+                          {fullName.trim().slice(0, 1).toUpperCase()}
+                        </span>
+                      ) : (
+                        <UserPlus size={18} />
+                      )}
+                    </span>
+                  )}
+                </span>
+                <Input
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Ism familiya"
+                  className="flex-1"
+                />
+              </div>
             </Field>
             <Field label="Rol">
               <Select value={role} onChange={(e) => setRole(e.target.value as 'CREATOR' | 'MODERATOR')}>

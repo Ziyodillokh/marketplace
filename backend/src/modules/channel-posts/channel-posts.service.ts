@@ -39,6 +39,11 @@ export class ChannelPostsService {
     };
   }
 
+  /** Ulangan kanal haqida jonli ma'lumot (nomi, rasmi, obunachilar soni). */
+  async channelInfo(tenantId: string) {
+    return this.tenantBot.getChannelInfo(tenantId);
+  }
+
   /** Kanal id ni o'rnatadi. */
   async setChannel(tenantId: string, channelId: string) {
     const ch = (channelId ?? '').trim();

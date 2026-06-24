@@ -17,7 +17,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { randomBytes } from 'crypto';
 import { AdminRole, BusinessType, TariffPlan, type Admin } from '@prisma/client';
 import { InlineKeyboard } from 'grammy';
@@ -79,10 +79,24 @@ class TeamMemberDto {
   @IsString() @MaxLength(20) telegramId!: string;
   @IsString() @MaxLength(80) fullName!: string;
   @IsEnum(AdminRole) role!: AdminRole;
+  // Telegramdan avto-olingan profil rasmi (lookup endpointi qaytargan /uploads/ URL)
+  @IsOptional() @IsString() @MaxLength(500) photoUrl?: string;
 }
 
 class TeamRoleDto {
   @IsEnum(AdminRole) role!: AdminRole;
+}
+
+class DeliveryDto {
+  @IsOptional() @IsBoolean() enabled?: boolean;
+  @IsOptional() @IsNumber() @Min(0) fee?: number;
+  // null — bepul yetkazib berish chegarasini olib tashlash
+  @IsOptional() @IsNumber() @Min(0) freeFrom?: number | null;
+}
+
+class PrepaymentDto {
+  @IsOptional() @IsBoolean() enabled?: boolean;
+  @IsOptional() @IsInt() @Min(1) @Max(100) percent?: number;
 }
 
 class PaymentsDto {
@@ -193,6 +207,15 @@ export class AdminStoreController {
           cardHolder: t.manualCardHolder ?? '',
           channelId: t.manualPaymentChannelId ?? '',
         },
+        delivery: {
+          enabled: t.deliveryEnabled,
+          fee: Number(t.deliveryFee),
+          freeFrom: t.freeDeliveryFrom != null ? Number(t.freeDeliveryFrom) : null,
+        },
+        prepayment: {
+          enabled: t.prepaymentEnabled,
+          percent: t.prepaymentPercent,
+        },
       },
       limits,
       usage: { products, categories, banners },
@@ -267,6 +290,36 @@ export class AdminStoreController {
     }));
   }
 
+  /**
+   * Telegram ID bo'yicha xodim profilini (ism, username, rasm) topadi —
+   * "Xodim qo'shish" formasida avto-to'ldirish uchun. Faqat global @bot
+   * ushbu foydalanuvchini ko'rgan bo'lsa (u /id yozgan bo'lsa) topadi.
+   * Rasm topilsa uploads'ga saqlanadi va URL qaytariladi.
+   */
+  @Get('team/lookup/:telegramId')
+  @Roles(...BOSS_ROLES)
+  async lookupMember(@CurrentAdmin() admin: Admin, @Param('telegramId') telegramId: string) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    const tgId = (telegramId ?? '').trim();
+    if (!/^\d{5,15}$/.test(tgId)) throw new BadRequestException("Telegram ID noto'g'ri (faqat raqam)");
+
+    const profile = await this.tgbot.lookupUserProfile(BigInt(tgId)).catch(() => null);
+    if (!profile?.found) {
+      return { found: false, fullName: null, username: null, photoUrl: null };
+    }
+    const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim() || null;
+    let photoUrl: string | null = null;
+    if (profile.photo) {
+      try {
+        const saved = await this.uploads.saveImage(profile.photo);
+        photoUrl = saved.url;
+      } catch {
+        // rasm saqlanmasa — ism baribir qaytadi
+      }
+    }
+    return { found: true, fullName, username: profile.username ?? null, photoUrl };
+  }
+
   /** Xodim qo'shish — Telegram ID + ism + rol (CREATOR yoki MODERATOR). */
   @Post('team')
   @Roles(...BOSS_ROLES)
@@ -292,6 +345,9 @@ export class AdminStoreController {
     });
     if (exists) throw new ConflictException('Bu foydalanuvchi allaqachon jamoada');
 
+    // Profil rasmi — faqat o'zimiz yuklagan uploads URL qabul qilinadi (lookup qaytargan)
+    const photoUrl = dto.photoUrl && /\/uploads\//.test(dto.photoUrl) ? dto.photoUrl : null;
+
     await this.prisma.admin.create({
       data: {
         email: `tg${tgId}.${tenant.slug}@sellio.bot`,
@@ -300,6 +356,7 @@ export class AdminStoreController {
         isActive: true,
         telegramId,
         tenantId: admin.tenantId,
+        photoUrl,
       },
     });
     return { ok: true };
@@ -588,6 +645,35 @@ export class AdminStoreController {
       }
       data.manualPaymentChannelId = ch || null;
     }
+    await this.prisma.tenant.update({ where: { id: admin.tenantId }, data });
+    return { ok: true };
+  }
+
+  /** Yetkazib berish — yoqish/o'chirish, narx va bepul chegara (barcha tariflarda). */
+  @Put('delivery')
+  @Roles(...BOSS_ROLES)
+  @HttpCode(200)
+  async updateDelivery(@CurrentAdmin() admin: Admin, @Body() dto: DeliveryDto) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    const data: { deliveryEnabled?: boolean; deliveryFee?: number; freeDeliveryFrom?: number | null } = {};
+    if (dto.enabled !== undefined) data.deliveryEnabled = dto.enabled;
+    if (dto.fee !== undefined) data.deliveryFee = Math.max(0, Math.round(dto.fee));
+    if (dto.freeFrom !== undefined) {
+      data.freeDeliveryFrom = dto.freeFrom === null ? null : Math.max(0, Math.round(dto.freeFrom));
+    }
+    await this.prisma.tenant.update({ where: { id: admin.tenantId }, data });
+    return { ok: true };
+  }
+
+  /** Oldindan to'lov (chek orqali) — yoqish va ulush (foiz). */
+  @Put('prepayment')
+  @Roles(...BOSS_ROLES)
+  @HttpCode(200)
+  async updatePrepayment(@CurrentAdmin() admin: Admin, @Body() dto: PrepaymentDto) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    const data: { prepaymentEnabled?: boolean; prepaymentPercent?: number } = {};
+    if (dto.enabled !== undefined) data.prepaymentEnabled = dto.enabled;
+    if (dto.percent !== undefined) data.prepaymentPercent = Math.min(100, Math.max(1, Math.round(dto.percent)));
     await this.prisma.tenant.update({ where: { id: admin.tenantId }, data });
     return { ok: true };
   }

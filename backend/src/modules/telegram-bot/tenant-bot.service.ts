@@ -6,6 +6,27 @@ import { Bot, type Context, InlineKeyboard, InputFile } from 'grammy';
 import { PrismaService } from '@/prisma/prisma.service';
 
 /**
+ * Sotuvchi ulagan Telegram kanali haqida jonli ma'lumot (e'lonlar sahifasida
+ * "ulangan kanal" kartochkasi uchun). `connected` — bot kanalni ko'ra oladimi.
+ */
+export interface ChannelInfo {
+  connected: boolean;
+  /** connected=false bo'lsa — foydalanuvchiga ko'rsatiladigan sabab. */
+  reason?: string;
+  id?: string;
+  title?: string;
+  username?: string | null;
+  type?: string; // 'channel' | 'group' | 'supergroup'
+  description?: string | null;
+  /** Obunachilar soni — faqat bot admin bo'lsa o'qiladi. */
+  subscriberCount?: number | null;
+  /** Bot kanalda admin (obunachi sonini o'qiy oladi / e'lon joylay oladi). */
+  isAdmin?: boolean;
+  /** Kanal rasmi (data URL — bot tokeni oshkor bo'lmaydi). Rasm bo'lmasa null. */
+  photoDataUrl?: string | null;
+}
+
+/**
  * Har sotuvchining o'z Telegram boti — mijozlar o'sha bot orqali shu sotuvchining
  * do'konini ochadi. Webhook'lar /telegram/t/:tenantId/webhook ga keladi.
  */
@@ -200,6 +221,79 @@ export class TenantBotService implements OnModuleInit {
     return msg.message_id;
   }
 
+  /**
+   * Sotuvchi ulagan kanal haqida jonli ma'lumot oladi: nomi, @username, turi,
+   * obunachilar soni va (mavjud bo'lsa) kanal rasmi. Bot kanalga admin qilingan
+   * bo'lishi kerak — aks holda `connected: false` va sabab qaytadi.
+   */
+  async getChannelInfo(tenantId: string): Promise<ChannelInfo> {
+    const t = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { botToken: true, channelId: true },
+    });
+    if (!t?.botToken) return { connected: false, reason: "Avval do'kon botini ulang" };
+    if (!t.channelId) return { connected: false, reason: 'Avval kanal ID ni kiriting' };
+
+    const bot = await this.loadBot(tenantId);
+    if (!bot) return { connected: false, reason: 'Bot ulanmagan' };
+
+    // Telegram chat_id: raqamli id -> number, @username -> string
+    const chatId = t.channelId.startsWith('@') ? t.channelId : Number(t.channelId);
+
+    let chat;
+    try {
+      chat = await bot.api.getChat(chatId);
+    } catch {
+      return {
+        connected: false,
+        reason: "Bot kanalni ko'ra olmadi. Botni kanalga ADMIN qiling va qayta urinib ko'ring.",
+      };
+    }
+
+    // Obunachilar soni — kanalda faqat admin bot o'qiy oladi
+    let subscriberCount: number | null = null;
+    let isAdmin = false;
+    try {
+      subscriberCount = await bot.api.getChatMemberCount(chatId);
+      isAdmin = true;
+    } catch {
+      isAdmin = false;
+    }
+
+    // Kanal rasmi (ixtiyoriy) — bot orqali yuklab, data URL qilamiz (token oshkor emas)
+    let photoDataUrl: string | null = null;
+    const fileId = chat.photo?.big_file_id ?? chat.photo?.small_file_id;
+    if (fileId) {
+      try {
+        const file = await bot.api.getFile(fileId);
+        if (file.file_path) {
+          const res = await fetch(
+            `https://api.telegram.org/file/bot${t.botToken}/${file.file_path}`,
+          );
+          if (res.ok) {
+            const buf = Buffer.from(new Uint8Array(await res.arrayBuffer()));
+            const mime = file.file_path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+            photoDataUrl = `data:${mime};base64,${buf.toString('base64')}`;
+          }
+        }
+      } catch {
+        // rasm yuklab bo'lmadi — muhim emas
+      }
+    }
+
+    return {
+      connected: true,
+      id: String(chat.id),
+      title: chat.title ?? '',
+      username: chat.username ?? null,
+      type: chat.type,
+      description: chat.description ?? null,
+      subscriberCount,
+      isAdmin,
+      photoDataUrl,
+    };
+  }
+
   /** Kanaldagi e'lonni o'chiradi (post o'chirilganda). Xato bo'lsa — e'tiborsiz. */
   async deleteChannelMessage(tenantId: string, messageId: number): Promise<void> {
     const t = await this.prisma.tenant.findUnique({
@@ -224,17 +318,31 @@ export class TenantBotService implements OnModuleInit {
       include: { user: true },
     });
     if (!order || order.tenantId !== tenantId) return;
-    if (order.paidAt) return; // allaqachon tasdiqlangan — qayta ishlamaymiz
+    if (order.prepaidAt) return; // chek allaqachon tasdiqlangan — qayta ishlamaymiz
 
     const bot = await this.loadBot(tenantId);
 
     if (action === 'approve') {
+      // Qisman oldindan to'lov bo'lsa — buyurtma tasdiqlanadi, lekin to'liq
+      // to'langan deb belgilanmaydi (paidAt null qoladi; qolgani yetkazishda).
+      const totalN = Number(order.total);
+      const prepayN = Number(order.prepayAmount) || totalN;
+      const full = prepayN >= totalN;
+      const now = new Date();
       await this.prisma.order.update({
         where: { id: orderId },
         data: {
-          paidAt: new Date(),
+          prepaidAt: now,
+          paidAt: full ? now : null,
           status: OrderStatus.CONFIRMED,
-          events: { create: { status: OrderStatus.CONFIRMED, comment: "To'lov cheki tasdiqlandi" } },
+          events: {
+            create: {
+              status: OrderStatus.CONFIRMED,
+              comment: full
+                ? "To'lov cheki tasdiqlandi"
+                : `Oldindan to'lov tasdiqlandi (${this.formatMoney(prepayN)})`,
+            },
+          },
         },
       });
       // Admin paneli + foydalanuvchi WebApp real-time
@@ -247,12 +355,14 @@ export class TenantBotService implements OnModuleInit {
       });
       // Mijozga xabar (sotuvchining boti orqali)
       if (bot && order.user.telegramId) {
+        const msg = full
+          ? `✅ <b>To'lovingiz tasdiqlandi!</b>\n\nBuyurtma <b>#${order.orderNumber}</b> (${this.formatMoney(totalN)}) qabul qilindi va tayyorlanmoqda.`
+          : `✅ <b>Oldindan to'lovingiz tasdiqlandi!</b>\n\n` +
+            `Buyurtma <b>#${order.orderNumber}</b> qabul qilindi va tayyorlanmoqda.\n\n` +
+            `Oldindan to'langan: <b>${this.formatMoney(prepayN)}</b>\n` +
+            `Yetkazib berishda: <b>${this.formatMoney(totalN - prepayN)}</b>`;
         await bot.api
-          .sendMessage(
-            Number(order.user.telegramId),
-            `✅ <b>To'lovingiz tasdiqlandi!</b>\n\nBuyurtma <b>#${order.orderNumber}</b> (${this.formatMoney(Number(order.total))}) qabul qilindi va tayyorlanmoqda.`,
-            { parse_mode: 'HTML' },
-          )
+          .sendMessage(Number(order.user.telegramId), msg, { parse_mode: 'HTML' })
           .catch(() => undefined);
       }
     } else {

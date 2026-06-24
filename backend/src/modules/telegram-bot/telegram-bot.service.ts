@@ -90,7 +90,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
         await bot.api.setChatMenuButton({
           menu_button: {
             type: 'web_app',
-            text: '🏪 Mening do\'konim',
+            text: '⚡ Mening do\'konim',
             web_app: { url: adminUrl },
           },
         });
@@ -304,5 +304,53 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     } catch (err) {
       this.logger.warn(`Failed to send to support chat: ${(err as Error).message}`);
     }
+  }
+
+  /**
+   * Telegram ID bo'yicha foydalanuvchi profilini (ism, username, rasm) qaytaradi.
+   * Faqat global bot ushbu foydalanuvchini "ko'rgan" bo'lsa ishlaydi — ya'ni
+   * xodim avval @bot ga /id yozган bo'lsa. Aks holda `found: false`.
+   * Jamoaga xodim qo'shishda ism va profil rasmini avto-to'ldirish uchun.
+   */
+  async lookupUserProfile(telegramId: bigint | number): Promise<{
+    found: boolean;
+    firstName?: string;
+    lastName?: string;
+    username?: string;
+    photo?: Buffer;
+  }> {
+    if (!this.bot) return { found: false };
+    try {
+      const chat = await this.bot.api.getChat(Number(telegramId));
+      // Faqat shaxsiy foydalanuvchi — kanal/guruh emas
+      if (chat.type !== 'private') return { found: false };
+      let photo: Buffer | undefined;
+      const fileId = chat.photo?.big_file_id;
+      if (fileId) {
+        photo = await this.downloadFile(fileId).catch(() => undefined);
+      }
+      return {
+        found: true,
+        firstName: chat.first_name,
+        lastName: chat.last_name,
+        username: chat.username,
+        photo,
+      };
+    } catch (err) {
+      // "chat not found" — bot bu foydalanuvchini ko'rmagan (u botga /id yozmagan)
+      this.logger.debug(`lookupUserProfile(${telegramId}) failed: ${(err as Error).message}`);
+      return { found: false };
+    }
+  }
+
+  /** Telegram file_id bo'yicha faylni yuklab Buffer qaytaradi (global bot tokeni bilan). */
+  private async downloadFile(fileId: string): Promise<Buffer> {
+    if (!this.bot) throw new Error('Bot disabled');
+    const token = (this.config.get<string>('TELEGRAM_BOT_TOKEN') ?? '').trim();
+    const file = await this.bot.api.getFile(fileId);
+    const path = file.file_path;
+    if (!path) throw new Error('file_path yo\'q');
+    const ab = await fetch(`https://api.telegram.org/file/bot${token}/${path}`).then((r) => r.arrayBuffer());
+    return Buffer.from(new Uint8Array(ab));
   }
 }

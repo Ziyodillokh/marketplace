@@ -87,8 +87,10 @@ export class SuperTeamController {
     return serialize(await this.service.getById(id));
   }
 
+  // DIQQAT: @PlatformRoles() (argsiz) = required.length===0 → guard HAMMAGA ruxsat beradi.
+  // OWNER bilan cheklash uchun rolni ANIQ ko'rsatish shart: @PlatformRoles(PlatformRole.OWNER).
   @Post()
-  @PlatformRoles() // OWNER only (PlatformRolesGuard'da OWNER hammasiga ruxsat)
+  @PlatformRoles(PlatformRole.OWNER)
   async create(
     @Body() dto: CreateAdminDto,
     @CurrentPlatformAdmin() actor: PlatformAdmin,
@@ -108,6 +110,7 @@ export class SuperTeamController {
   }
 
   @Patch(':id')
+  @PlatformRoles(PlatformRole.OWNER)
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateAdminDto,
@@ -128,6 +131,7 @@ export class SuperTeamController {
   }
 
   @Post(':id/reset-password')
+  @PlatformRoles(PlatformRole.OWNER)
   async resetPassword(
     @Param('id') id: string,
     @Body() dto: ResetPasswordDto,
@@ -147,6 +151,7 @@ export class SuperTeamController {
   }
 
   @Delete(':id')
+  @PlatformRoles(PlatformRole.OWNER)
   async deactivate(
     @Param('id') id: string,
     @CurrentPlatformAdmin() actor: PlatformAdmin,
@@ -166,6 +171,7 @@ export class SuperTeamController {
   }
 
   @Post(':id/activate')
+  @PlatformRoles(PlatformRole.OWNER)
   async activate(
     @Param('id') id: string,
     @CurrentPlatformAdmin() actor: PlatformAdmin,

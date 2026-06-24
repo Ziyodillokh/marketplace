@@ -4,6 +4,7 @@ import { OrderStatus, PaymentMethod } from '@prisma/client';
 import { InlineKeyboard } from 'grammy';
 import { PrismaService } from '@/prisma/prisma.service';
 import { TelegramBotService } from './telegram-bot.service';
+import { TenantBotService } from './tenant-bot.service';
 
 @Injectable()
 export class TelegramOrdersListener implements OnModuleInit {
@@ -11,9 +12,24 @@ export class TelegramOrdersListener implements OnModuleInit {
 
   constructor(
     private readonly bot: TelegramBotService,
+    private readonly tenantBot: TenantBotService,
     private readonly prisma: PrismaService,
     private readonly events: EventEmitter2,
   ) {}
+
+  /**
+   * Mijozга xabar yuboradi — avval do'kon (sotuvchi) boti orqali, ulanmagan
+   * bo'lsa global (Sellio) botiga fallback. Mijoz do'konni o'z boti orqali
+   * ochgani uchun xabar shu botdan kelishi to'g'ri.
+   */
+  private async notifyCustomer(
+    tenantId: string | null,
+    telegramId: bigint,
+    text: string,
+  ): Promise<void> {
+    const sent = await this.tenantBot.sendToCustomer(tenantId, telegramId, text);
+    if (!sent) await this.bot.sendDirectMessage(telegramId, text);
+  }
 
   onModuleInit(): void {
     this.bot.setCallbackEmitter(this.events);
@@ -177,8 +193,9 @@ export class TelegramOrdersListener implements OnModuleInit {
       this.logger.error(`Failed to post order to channel: ${(err as Error).message}`);
     }
 
-    // Notify user
-    await this.bot.sendDirectMessage(
+    // Notify user (do'kon boti orqali)
+    await this.notifyCustomer(
+      order.tenantId,
       order.user.telegramId,
       `✅ <b>Buyurtmangiz qabul qilindi!</b>\n\nRaqami: <b>#${order.orderNumber}</b>\nJami: <b>${this.formatMoney(Number(order.total))}</b>\n\nTez orada operatorimiz siz bilan bog'lanadi.`,
     );
@@ -215,7 +232,7 @@ export class TelegramOrdersListener implements OnModuleInit {
       CANCELLED: `❌ Buyurtmangiz #${order.orderNumber} bekor qilindi.`,
     };
     const msg = userMessages[order.status];
-    if (msg) await this.bot.sendDirectMessage(order.user.telegramId, msg);
+    if (msg) await this.notifyCustomer(order.tenantId, order.user.telegramId, msg);
   }
 
   private async handleCallback(action: string, orderId: string): Promise<void> {

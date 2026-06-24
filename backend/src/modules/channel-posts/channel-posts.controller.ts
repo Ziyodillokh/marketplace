@@ -31,6 +31,13 @@ export class ChannelPostsController {
     return this.service.config(admin.tenantId);
   }
 
+  /** Ulangan kanal haqida jonli ma'lumot (nomi, rasmi, obunachilar soni). */
+  @Get('channel-info')
+  channelInfo(@CurrentAdmin() admin: Admin) {
+    if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
+    return this.service.channelInfo(admin.tenantId);
+  }
+
   @Put('config')
   @HttpCode(200)
   setChannel(@CurrentAdmin() admin: Admin, @Body() dto: ChannelDto) {

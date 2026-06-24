@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Radio, Send, Upload, Trash2, Clock, CheckCircle2, AlertCircle, ShoppingBag, X } from 'lucide-react';
+import { Radio, Send, Upload, Trash2, Clock, CheckCircle2, AlertCircle, ShoppingBag, Users, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input, Textarea } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   apiChannelConfig,
+  apiChannelInfo,
   apiSetChannel,
   apiListChannelPosts,
   apiCreateChannelPost,
@@ -17,6 +18,7 @@ import {
   apiUploadImage,
   type ChannelPostStatus,
 } from '@/lib/endpoints';
+import { formatCount } from '@/lib/format';
 import { toast } from '@/stores/toast-store';
 
 /** Hozirgi vaqtni datetime-local input formatiga (mahalliy) o'giradi. */
@@ -41,6 +43,15 @@ export default function ChannelPostsPage() {
   });
   const { data: posts } = useQuery({ queryKey: ['channel-posts'], queryFn: apiListChannelPosts });
 
+  // Ulangan kanal haqida jonli ma'lumot (nomi, rasmi, obunachilar soni)
+  const channelConfigured = !!config?.channelId && !!config?.hasBot;
+  const { data: channelInfo, isLoading: infoLoading } = useQuery({
+    // channelId bilan kalitlanadi — kanal o'zgarsa eski kartochka ko'rinib qolmaydi
+    queryKey: ['channel-info', config?.channelId],
+    queryFn: apiChannelInfo,
+    enabled: channelConfigured,
+  });
+
   // Kanal ID
   const [channelId, setChannelId] = useState('');
   useEffect(() => {
@@ -50,6 +61,7 @@ export default function ChannelPostsPage() {
     mutationFn: () => apiSetChannel(channelId.trim()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['channel-config'] });
+      qc.invalidateQueries({ queryKey: ['channel-info'] });
       toast.success('Kanal saqlandi');
     },
     onError: (e: Error) => toast.error(e.message),
@@ -143,6 +155,56 @@ export default function ChannelPostsPage() {
                 <Button loading={saveChannel.isPending} onClick={() => saveChannel.mutate()}>
                   Kanalni saqlash
                 </Button>
+
+                {/* Ulangan kanal — jonli ko'rinish (nomi, rasmi, obunachilar soni) */}
+                {channelConfigured &&
+                  (infoLoading ? (
+                    <Skeleton className="h-[68px] rounded-xl" />
+                  ) : channelInfo?.connected ? (
+                    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+                      <div className="flex items-center gap-3">
+                        {channelInfo.photoDataUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={channelInfo.photoDataUrl}
+                            alt=""
+                            className="h-12 w-12 rounded-full object-cover shrink-0 border border-[var(--color-border)]"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] grid place-items-center shrink-0">
+                            <Radio size={20} />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-sm truncate">{channelInfo.title || 'Kanal'}</p>
+                            <CheckCircle2 size={15} className="text-[var(--color-success)] shrink-0" />
+                          </div>
+                          {channelInfo.username && (
+                            <p className="text-xs text-[var(--color-text-muted)] truncate">@{channelInfo.username}</p>
+                          )}
+                          {channelInfo.subscriberCount != null && (
+                            <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
+                              <Users size={13} /> {formatCount(channelInfo.subscriberCount)} obunachi
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {!channelInfo.isAdmin && (
+                        <div className="mt-2.5 flex gap-2 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-2 text-[11px] text-amber-700">
+                          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                          <p className="leading-snug">
+                            Obunachilar soni va e&apos;lon joylash uchun botni kanalga <b>ADMIN</b> qiling.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : channelInfo && !channelInfo.connected ? (
+                    <div className="flex gap-2.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-700">
+                      <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                      <p className="flex-1 leading-snug">{channelInfo.reason}</p>
+                    </div>
+                  ) : null)}
               </>
             )}
           </CardBody>

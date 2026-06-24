@@ -10,11 +10,13 @@ import { Input, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   apiCreateOrder,
+  apiGetCartSummary,
   apiPaymentCheckout,
   apiPublicSettings,
   type CreateOrderBody,
 } from '@/lib/api/endpoints';
 import type { PaymentMethod } from '@/lib/api/types';
+import { formatMoney } from '@/lib/format';
 import { useLocaleStore } from '@/stores/locale-store';
 import { getMessages, tr } from '@/i18n';
 import { useTelegramBackButton, useTelegramUser } from '@/hooks/use-telegram';
@@ -59,6 +61,31 @@ export default function CheckoutPage() {
     if (m === 'PAYME') return 'Payme (onlayn)';
     return 'Click (onlayn)';
   };
+
+  // Buyurtma xulosasi (taxminiy — aniq summa buyurtma sahifasida server tomonda hisoblanadi)
+  const { data: cartSummary } = useQuery({ queryKey: ['cart-summary'], queryFn: apiGetCartSummary });
+  const subtotal = cartSummary?.subtotal ?? 0;
+  const discount = promo?.discountAmount ?? 0;
+  const afterDiscount = Math.max(0, subtotal - discount);
+  const biz = pub?.business;
+  const deliveryEnabled = biz?.deliveryEnabled ?? true;
+  const deliveryFee = !deliveryEnabled
+    ? 0
+    : biz && afterDiscount >= biz.freeDeliveryThreshold
+      ? 0
+      : biz?.deliveryFee ?? 0;
+  const total = afterDiscount + deliveryFee;
+  // Oldindan to'lov (chek) — faqat CARD_TRANSFER
+  const prep = pub?.prepayment;
+  const prepayActive = paymentMethod === 'CARD_TRANSFER' && !!prep?.enabled;
+  const prepayPercent = prep?.percent ?? 100;
+  const prepayAmount =
+    paymentMethod === 'CARD_TRANSFER'
+      ? prepayActive && prepayPercent < 100
+        ? Math.round((total * prepayPercent) / 100)
+        : total
+      : 0;
+  const isPartialPrepay = prepayAmount > 0 && prepayAmount < total;
 
   const {
     register,
@@ -135,6 +162,10 @@ export default function CheckoutPage() {
   const onSubmit = (data: CheckoutForm) => {
     createOrder.mutate({
       ...data,
+      // Yetkazib berish o'chirilgan bo'lsa — manzil ixtiyoriy (olib ketish)
+      address: deliveryEnabled
+        ? data.address
+        : data.address?.trim() || (locale === 'ru' ? 'Самовывоз' : 'Olib ketish'),
       paymentMethod,
       promoCode: promo?.code,
       latitude: coords?.lat,
@@ -169,11 +200,24 @@ export default function CheckoutPage() {
         </Field>
 
         <div>
-          <label className="text-sm text-[var(--color-text-muted)] mb-1 block">{tr(messages, 'checkout.address')}</label>
+          {!deliveryEnabled && (
+            <div className="mb-2 rounded-xl bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20 px-3 py-2 text-xs text-[var(--color-text-muted)]">
+              {locale === 'ru'
+                ? 'Этот магазин не доставляет — самовывоз.'
+                : "Bu do'kon yetkazib bermaydi — olib ketasiz."}
+            </div>
+          )}
+          <label className="text-sm text-[var(--color-text-muted)] mb-1 block">
+            {deliveryEnabled
+              ? tr(messages, 'checkout.address')
+              : locale === 'ru'
+                ? 'Адрес (необязательно)'
+                : 'Manzil (ixtiyoriy)'}
+          </label>
           <Textarea
             {...register('address', {
-              required: tr(messages, 'common.error'),
-              minLength: { value: 3, message: '?' },
+              required: deliveryEnabled ? tr(messages, 'common.error') : false,
+              minLength: { value: deliveryEnabled ? 3 : 0, message: '?' },
             })}
             placeholder={locale === 'ru' ? 'Улица, дом, ориентир' : 'Ko\'cha, uy, mo\'ljal'}
             rows={3}
@@ -258,13 +302,74 @@ export default function CheckoutPage() {
           )}
         </div>
 
+        {/* Buyurtma xulosasi */}
+        <div className="rounded-2xl border border-[var(--color-border)] bg-white p-3 space-y-1.5 text-sm">
+          <div className="flex justify-between">
+            <span className="text-[var(--color-text-muted)]">{tr(messages, 'cart.subtotal')}</span>
+            <span className="font-medium">{formatMoney(subtotal, locale)}</span>
+          </div>
+          {discount > 0 && (
+            <div className="flex justify-between text-[var(--color-success)]">
+              <span>
+                {tr(messages, 'cart.discount')}
+                {promo?.code ? ` (${promo.code})` : ''}
+              </span>
+              <span className="font-medium">−{formatMoney(discount, locale)}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-[var(--color-text-muted)]">
+              {deliveryEnabled
+                ? tr(messages, 'cart.delivery')
+                : locale === 'ru'
+                  ? 'Самовывоз'
+                  : 'Olib ketish'}
+            </span>
+            <span className="font-medium">
+              {deliveryEnabled
+                ? deliveryFee === 0
+                  ? tr(messages, 'common.free')
+                  : formatMoney(deliveryFee, locale)
+                : '—'}
+            </span>
+          </div>
+          <div className="flex justify-between pt-1.5 border-t border-[var(--color-border)]">
+            <span className="font-semibold">{tr(messages, 'cart.total')}</span>
+            <span className="font-bold text-[var(--color-primary)]">{formatMoney(total, locale)}</span>
+          </div>
+          {paymentMethod === 'CARD_TRANSFER' && prepayActive && (
+            <div className="mt-1.5 pt-1.5 border-t border-[var(--color-border)] space-y-1">
+              <div className="flex justify-between">
+                <span className="text-[var(--color-text-muted)]">
+                  {isPartialPrepay
+                    ? locale === 'ru'
+                      ? `Предоплата (${prepayPercent}%)`
+                      : `Oldindan (${prepayPercent}%)`
+                    : locale === 'ru'
+                      ? 'К оплате (чек)'
+                      : "To'lash (chek)"}
+                </span>
+                <span className="font-semibold text-[var(--color-primary)]">{formatMoney(prepayAmount, locale)}</span>
+              </div>
+              {isPartialPrepay && (
+                <div className="flex justify-between">
+                  <span className="text-[var(--color-text-muted)]">
+                    {locale === 'ru' ? 'При доставке' : 'Yetkazib berishda'}
+                  </span>
+                  <span className="font-medium">{formatMoney(total - prepayAmount, locale)}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="fixed bottom-[72px] inset-x-0 max-w-md mx-auto bg-white border-t border-[var(--color-border)] px-4 py-3">
           <Button
             type="submit"
             fullWidth
             size="lg"
             loading={createOrder.isPending}
-            disabled={!isValid || !address}
+            disabled={!isValid || (deliveryEnabled && !address)}
           >
             {tr(messages, 'checkout.submit')}
           </Button>
