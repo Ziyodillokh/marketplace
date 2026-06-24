@@ -109,9 +109,28 @@ export class ReferralService {
     return t?.id ?? null;
   }
 
+  /** Bot /start ref<KOD> ko'rganda — referal kodni Telegram ID bo'yicha saqlaydi (server tomonda). */
+  async rememberPending(telegramId: bigint | number, code: string): Promise<void> {
+    const c = (code ?? '').trim();
+    if (!c) return;
+    const tid = BigInt(telegramId);
+    await this.prisma.pendingReferral
+      .upsert({ where: { telegramId: tid }, update: { code: c }, create: { telegramId: tid, code: c } })
+      .catch(() => undefined);
+  }
+
+  /** Ro'yxatdan o'tishda — saqlangan referal kodni o'qiydi va o'chiradi (URL'ga bog'liq emas). */
+  async consumePending(telegramId: bigint | number): Promise<string | null> {
+    const tid = BigInt(telegramId);
+    const row = await this.prisma.pendingReferral.findUnique({ where: { telegramId: tid } }).catch(() => null);
+    if (!row) return null;
+    await this.prisma.pendingReferral.delete({ where: { telegramId: tid } }).catch(() => undefined);
+    return row.code;
+  }
+
   /**
    * Komissiya hisoblaydi — taklif qilingan do'kon (referredId) pulli tarif
-   * to'laganda referrer balansiga qo'shadi. Har to'lovда chaqiriladi (recurring).
+   * to'laganda referrer balansiga qo'shadi. Har to'lovda chaqiriladi (recurring).
    * Notification uchun { referrerId, amount } qaytaradi (yoki null).
    */
   async creditCommission(

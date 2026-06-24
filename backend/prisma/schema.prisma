@@ -1035,3 +1035,11 @@ model WithdrawalRequest {
   @@index([tenantId, createdAt])
   @@index([status, createdAt])
 }
+
+/// Kutilayotgan referal — bot /start ref<KOD> ni ko'rganda Telegram ID bo'yicha
+/// saqlanadi; ro'yxatdan o'tishda o'qiladi (URL ?ref= yo'qolib qolsa ham ishlaydi).
+model PendingReferral {
+  telegramId BigInt   @id
+  code       String
+  createdAt  DateTime @default(now())
+}

@@ -207,10 +207,12 @@ export class SellerOnboardingService {
       }
     }
 
-    // Referal — kim taklif qilgani (?ref=KOD). O'zini taklif qila olmaydi.
+    // Referal — kim taklif qilgani. Manba: URL ?ref= YOKI bot saqlagan pending
+    // (Telegram ID bo'yicha). O'zini taklif qila olmaydi.
     let referredById: string | null = null;
-    if (dto.ref) {
-      const refId = await this.referral.resolveReferrer(dto.ref);
+    const refCode = dto.ref || (await this.referral.consumePending(telegramId).catch(() => null));
+    if (refCode) {
+      const refId = await this.referral.resolveReferrer(refCode);
       if (refId) {
         const refOwner = await this.prisma.tenant.findUnique({
           where: { id: refId },

@@ -28,7 +28,7 @@ export function TariffUpgrade({
 }) {
   const { data: tariffs } = useQuery({ queryKey: ['tariffs'], queryFn: apiSellerTariffs });
   const [step, setStep] = useState<'choose' | 'pay'>('choose');
-  const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
+  const [period, setPeriod] = useState<'monthly' | 'yearly'>('yearly');
   const [plan, setPlan] = useState<TariffOption | null>(null);
   const [payment, setPayment] = useState<PaymentInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,6 +36,7 @@ export function TariffUpgrade({
   const [sent, setSent] = useState(false);
 
   const all = tariffs ?? [];
+  const maxDiscount = Math.max(0, ...all.filter((t) => t.value !== 'FREE').map((t) => t.yearlyDiscount));
 
   async function choose(t: TariffOption) {
     if (t.value === 'FREE') return;
@@ -102,9 +103,11 @@ export function TariffUpgrade({
             )}
           >
             Yillik
-            <span className="rounded-full bg-[var(--color-success)]/15 px-1.5 text-[10px] font-bold text-[var(--color-success)]">
-              arzon
-            </span>
+            {maxDiscount > 0 && (
+              <span className="rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-[10px] font-bold text-white">
+                {maxDiscount}% chegirma
+              </span>
+            )}
           </button>
         </div>
         {all.map((t) => {
@@ -120,8 +123,8 @@ export function TariffUpgrade({
                 <span className="text-right">
                   <span className="block font-extrabold">{fmt(price, period)}</span>
                   {!isFree && period === 'yearly' && (
-                    <span className="block text-[10px] font-medium text-[var(--color-success)]">
-                      −{t.yearlyDiscount}% · oyiga ~{Math.round(t.priceYearly / 12).toLocaleString('ru-RU')}
+                    <span className="block text-[10px] font-medium text-[var(--color-text-muted)]">
+                      oyiga ~{Math.round(t.priceYearly / 12).toLocaleString('ru-RU')} so'm
                     </span>
                   )}
                 </span>

@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import type { TariffPlan, Tenant, TenantStatus, Prisma } from '@prisma/client';
+import { ReferralService } from '../referral/referral.service';
 
 export interface TenantListParams {
   page?: number;
@@ -14,7 +15,10 @@ export interface TenantListParams {
 
 @Injectable()
 export class SuperTenantsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly referral: ReferralService,
+  ) {}
 
   private orderBy(sort?: string, order: 'asc' | 'desc' = 'desc'): Prisma.TenantOrderByWithRelationInput {
     switch (sort) {
@@ -130,13 +134,23 @@ export class SuperTenantsService {
   }
 
   async changeTariff(id: string, plan: TariffPlan): Promise<Tenant> {
-    return this.prisma.tenant.update({
+    const updated = await this.prisma.tenant.update({
       where: { id },
       data: {
         tariffPlan: plan,
         tariffStartedAt: new Date(),
       },
     });
+    // Pulli tarif qo'lda faollashtirilsa ham — referal komissiya hisoblanadi
+    if (plan !== 'FREE') {
+      try {
+        const price = await this.referral.planPrice(plan);
+        await this.referral.creditCommission(id, plan, price);
+      } catch {
+        // komissiya xatosi tarif o'zgartirishni buzmasligi kerak
+      }
+    }
+    return updated;
   }
 
   async extendTrial(id: string, days: number): Promise<Tenant> {

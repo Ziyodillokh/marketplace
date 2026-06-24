@@ -84,9 +84,10 @@ export default function ReferralPage() {
                 </div>
                 <p className="text-xs text-[var(--color-text-muted)] flex items-start gap-1.5">
                   <Gift size={14} className="text-[var(--color-primary)] shrink-0 mt-0.5" />
-                  Sizning havolangiz orqali ro&apos;yxatdan o&apos;tgan do&apos;kon tarif to&apos;laganda — har
-                  to&apos;lovidan <b className="text-[var(--color-text)]">{data.commissionPercent}%</b> balansingizga
-                  tushadi.
+                  <span>
+                    Havolangiz orqali qo&apos;shilgan do&apos;kon tarif to&apos;laganda — har to&apos;lovidan{' '}
+                    <b className="text-[var(--color-text)]">{data.commissionPercent}%</b> sizning balansingizga tushadi.
+                  </span>
                 </p>
               </CardBody>
             </Card>
@@ -120,7 +121,7 @@ export default function ReferralPage() {
               <CardBody className="space-y-3">
                 {data.hasPendingWithdrawal ? (
                   <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-700">
-                    Sizда kutilayotgan yechish so&apos;rovi bor. Ko&apos;rib chiqilgach yangisini yubora olasiz.
+                    Sizda kutilayotgan yechish so&apos;rovi bor. Ko&apos;rib chiqilgach yangisini yubora olasiz.
                   </div>
                 ) : data.balance < data.minWithdrawal ? (
                   <div className="rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] px-3 py-2.5 text-xs text-[var(--color-text-muted)]">

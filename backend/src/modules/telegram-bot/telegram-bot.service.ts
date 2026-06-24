@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Bot, InlineKeyboard, InputFile, webhookCallback } from 'grammy';
+import { ReferralService } from '../referral/referral.service';
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
@@ -22,7 +23,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     return this.bot !== undefined;
   }
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly referral: ReferralService,
+  ) {
     const token = (this.config.get<string>('TELEGRAM_BOT_TOKEN') ?? '').trim();
     this.useWebhook = this.config.get('TELEGRAM_USE_WEBHOOK') === 'true';
     this.adminPanelUrl =
@@ -146,6 +150,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       // Referal deep-link: /start ref<KOD> → admin Mini App URL'iga ?ref=<KOD> qo'shamiz
       const payload = (ctx.match ?? '').toString().trim();
       const ref = payload.startsWith('ref') ? payload.slice(3) : '';
+      // Referalни server tomonда (Telegram ID bo'yicha) saqlaymiz — URL ?ref= yo'qolsa ham ishlaydi
+      if (ref && ctx.from?.id) {
+        void this.referral.rememberPending(ctx.from.id, ref);
+      }
       let url = this.adminPanelUrl;
       if (ref && url.startsWith('https://')) {
         url += (url.includes('?') ? '&' : '?') + 'ref=' + encodeURIComponent(ref);

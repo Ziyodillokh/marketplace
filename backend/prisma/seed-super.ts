@@ -18,6 +18,7 @@ const DEFAULT_TARIFFS = [
     plan: TariffPlan.FREE,
     monthlyPrice: 0,
     yearlyPrice: 0,
+    yearlyDiscount: 0,
     maxCategories: 3,
     maxProducts: 6,
     maxBanners: 1,
@@ -41,7 +42,8 @@ const DEFAULT_TARIFFS = [
   {
     plan: TariffPlan.STANDARD,
     monthlyPrice: 199_000,
-    yearlyPrice: 1_910_400, // -20%
+    yearlyPrice: 1_990_000, // 2 oy bepul (~17%) — landing bilan bir xil
+    yearlyDiscount: 17,
     maxCategories: 50,
     maxProducts: 200,
     maxBanners: 5,
@@ -66,7 +68,8 @@ const DEFAULT_TARIFFS = [
   {
     plan: TariffPlan.PRO,
     monthlyPrice: 499_000,
-    yearlyPrice: 4_790_400,
+    yearlyPrice: 4_990_000, // 2 oy bepul (~17%) — landing bilan bir xil
+    yearlyDiscount: 17,
     maxCategories: 100,
     maxProducts: 2_000,
     maxBanners: 10,
@@ -92,8 +95,9 @@ const DEFAULT_TARIFFS = [
   },
   {
     plan: TariffPlan.PREMIUM,
-    monthlyPrice: 999_000,
-    yearlyPrice: 8_991_000, // -25%
+    monthlyPrice: 790_000,
+    yearlyPrice: 7_900_000, // 2 oy bepul (~17%) — landing bilan bir xil
+    yearlyDiscount: 17,
     maxCategories: 999_999,
     maxProducts: 999_999,
     maxBanners: 999_999,
@@ -152,6 +156,7 @@ async function main(): Promise<void> {
       update: {
         monthlyPrice: t.monthlyPrice,
         yearlyPrice: t.yearlyPrice,
+        yearlyDiscount: t.yearlyDiscount,
         maxCategories: t.maxCategories,
         maxProducts: t.maxProducts,
         maxBanners: t.maxBanners,
