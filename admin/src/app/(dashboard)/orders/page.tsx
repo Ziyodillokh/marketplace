@@ -1,10 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Search, Clock, User, Phone, ShoppingBag } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -102,30 +101,34 @@ export default function OrdersPage() {
               <Link
                 key={o.id}
                 href={`/orders/${o.id}`}
-                className="bg-white rounded-2xl border border-[var(--color-border)] p-3 hover:border-[var(--color-primary)] transition-colors"
+                className="group flex flex-col bg-white rounded-2xl border border-[var(--color-border)] p-4 hover:border-[var(--color-primary)] hover:shadow-sm transition-all"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-semibold text-sm">#{o.orderNumber}</span>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span className="font-mono font-semibold text-sm tracking-tight">#{o.orderNumber}</span>
                   <OrderStatusBadge status={o.status} />
                 </div>
-                <p className="text-xs text-[var(--color-text-muted)] mb-2">{formatDateTime(o.createdAt)}</p>
-                <div className="text-sm mb-2">
-                  <span className="text-[var(--color-text-muted)]">Mijoz:</span> {o.receiverName} · {o.receiverPhone}
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex -space-x-2">
-                    {o.previewImages.slice(0, 3).map((u, i) => (
-                      <div key={i} className="relative h-9 w-9 rounded-lg overflow-hidden border-2 border-white bg-gray-100">
-                        <Image src={u} alt="" fill className="object-cover" sizes="36px" />
-                      </div>
-                    ))}
-                    {o.itemsCount > 3 && (
-                      <div className="h-9 w-9 rounded-lg bg-gray-100 grid place-items-center text-xs font-semibold">
-                        +{o.itemsCount - 3}
-                      </div>
-                    )}
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                    <Clock size={14} className="shrink-0" />
+                    <span>{formatDateTime(o.createdAt)}</span>
                   </div>
-                  <span className="font-bold text-[var(--color-primary)]">{formatMoney(o.total)}</span>
+                  <div className="flex items-center gap-2 text-sm">
+                    <User size={14} className="shrink-0 text-[var(--color-text-muted)]" />
+                    <span className="font-medium truncate">{o.receiverName}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                    <Phone size={14} className="shrink-0" />
+                    <span className="font-mono">{o.receiverPhone}</span>
+                  </div>
+                </div>
+
+                <div className="mt-auto pt-3 border-t border-[var(--color-border)] flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+                    <ShoppingBag size={14} />
+                    {o.itemsCount} ta mahsulot
+                  </span>
+                  <span className="font-bold text-base text-[var(--color-primary)]">{formatMoney(o.total)}</span>
                 </div>
               </Link>
             ))}
