@@ -65,7 +65,7 @@ export default function SupportSettingsPage() {
                   )}
                 </p>
               </div>
-              <Field label="Xabaringiz">
+              <Field label="Xabaringiz" hint="Kamida 5 ta belgi">
                 <Textarea
                   rows={4}
                   value={supportMsg}
@@ -73,6 +73,11 @@ export default function SupportSettingsPage() {
                   placeholder="Muammo yoki savolingizni yozing…"
                 />
               </Field>
+              {supportMsg.trim().length > 0 && supportMsg.trim().length < 5 && (
+                <p className="-mt-1 text-[11px] text-amber-600">
+                  Yana {5 - supportMsg.trim().length} ta belgi yozing
+                </p>
+              )}
               <Button loading={sendSupport.isPending} disabled={supportMsg.trim().length < 5} onClick={() => sendSupport.mutate()}>
                 <Send size={16} /> Yuborish
               </Button>
