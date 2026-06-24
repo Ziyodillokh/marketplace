@@ -206,8 +206,8 @@ export default function ChannelPostsPage() {
                             className="h-12 w-12 rounded-full object-cover shrink-0 border border-[var(--color-border)]"
                           />
                         ) : (
-                          <div className="h-12 w-12 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] grid place-items-center shrink-0">
-                            <Radio size={20} />
+                          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[var(--color-primary)]/10 text-lg font-bold text-[var(--color-primary)]">
+                            {(channelInfo.title || '#').trim().slice(0, 1).toUpperCase()}
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
@@ -359,8 +359,8 @@ export default function ChannelPostsPage() {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={channelInfo.photoDataUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
                       ) : (
-                        <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
-                          <Radio size={12} />
+                        <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--color-primary)]/10 text-[10px] font-bold text-[var(--color-primary)]">
+                          {(channelInfo?.title || config?.channelId || '#').trim().slice(0, 1).toUpperCase()}
                         </span>
                       )}
                       <span className="truncate text-xs font-semibold text-[var(--color-primary)]">
