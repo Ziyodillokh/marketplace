@@ -35,7 +35,7 @@ function readPaymentInfo(): PaymentInfo {
   const cards: PaymentCard[] = [];
   const humo = process.env.PAYMENT_CARD_HUMO?.trim();
   const visa = process.env.PAYMENT_CARD_VISA?.trim();
-  if (humo) cards.push({ type: 'Humo', number: humo });
+  if (humo) cards.push({ type: 'Humo/Uzcard', number: humo });
   if (visa) cards.push({ type: 'Visa', number: visa });
 
   const holder = process.env.PAYMENT_CARD_HOLDER?.trim() ?? '';
