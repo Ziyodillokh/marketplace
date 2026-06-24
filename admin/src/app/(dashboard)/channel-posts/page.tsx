@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Radio, Send, Upload, Trash2, Clock, CheckCircle2, AlertCircle, ShoppingBag, Users, X } from 'lucide-react';
+import { Radio, Send, Upload, Trash2, Clock, CheckCircle2, AlertCircle, ShoppingBag, Users, X, Eye } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input, Textarea } from '@/components/ui/input';
@@ -34,6 +34,25 @@ const STATUS: Record<ChannelPostStatus, { label: string; cls: string; Icon: type
   FAILED: { label: 'Xato', cls: 'bg-red-50 text-red-600', Icon: AlertCircle },
   CANCELLED: { label: 'Bekor', cls: 'bg-gray-100 text-gray-500', Icon: X },
 };
+
+/** E'lon matnini xavfsiz HTML-ko'rinishga o'giradi (faqat <b>,<i>,<u>,<s>,<code>). */
+function previewHtml(raw: string): string {
+  const esc = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return esc.replace(/&lt;(\/?)(b|strong|i|em|u|s|code)&gt;/gi, '<$1$2>');
+}
+
+/** Yuqoridagi kichik statistika kartochkasi. */
+function StatMini({ icon: Icon, label, value, cls }: { icon: typeof Users; label: string; value: string; cls: string }) {
+  return (
+    <div className="rounded-2xl border border-[var(--color-border)] bg-white p-3 text-center">
+      <span className={`mx-auto mb-1.5 inline-flex h-8 w-8 items-center justify-center rounded-lg ${cls}`}>
+        <Icon size={16} />
+      </span>
+      <p className="text-lg font-extrabold leading-none tabular-nums">{value}</p>
+      <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{label}</p>
+    </div>
+  );
+}
 
 export default function ChannelPostsPage() {
   const qc = useQueryClient();
@@ -119,12 +138,28 @@ export default function ChannelPostsPage() {
   });
 
   const channelReady = !!config?.channelId && config.hasBot;
+  const scheduledCount = posts?.filter((p) => p.status === 'SCHEDULED').length ?? 0;
+  const publishedCount = posts?.filter((p) => p.status === 'PUBLISHED').length ?? 0;
+  const captionLimit = imageUrl ? 1024 : 4096;
 
   return (
     <div className="pb-10">
       <PageHeader title="Kanal e'lonlari" description="Telegram kanalingizga rejalashtirilgan postlar" />
 
       <div className="w-full md:max-w-2xl md:mx-auto space-y-3">
+        {/* Statistika */}
+        {channelConfigured && (
+          <div className="grid grid-cols-3 gap-2">
+            <StatMini
+              icon={Users}
+              label="Obunachi"
+              value={channelInfo?.subscriberCount != null ? formatCount(channelInfo.subscriberCount) : '—'}
+              cls="bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+            />
+            <StatMini icon={Clock} label="Rejada" value={String(scheduledCount)} cls="bg-blue-50 text-blue-600" />
+            <StatMini icon={CheckCircle2} label="Joylandi" value={String(publishedCount)} cls="bg-green-50 text-green-600" />
+          </div>
+        )}
         {/* Kanal sozlamasi */}
         <Card>
           <CardHeader title="Kanal" />
@@ -161,7 +196,7 @@ export default function ChannelPostsPage() {
                   (infoLoading ? (
                     <Skeleton className="h-[68px] rounded-xl" />
                   ) : channelInfo?.connected ? (
-                    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+                    <div className="rounded-2xl border border-[var(--color-primary)]/20 bg-gradient-to-br from-[var(--color-primary)]/[0.07] to-transparent p-3.5">
                       <div className="flex items-center gap-3">
                         {channelInfo.photoDataUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -221,6 +256,12 @@ export default function ChannelPostsPage() {
                 onChange={(e) => setText(e.target.value)}
                 placeholder="E'lon matni… (HTML qo'llab-quvvatlanadi: <b>, <i>)"
               />
+              <div className="mt-1 flex items-center justify-between text-[11px] text-[var(--color-text-muted)]">
+                <span>Formatlash: &lt;b&gt; &lt;i&gt; &lt;u&gt;</span>
+                <span className={text.length > captionLimit ? 'font-semibold text-[var(--color-danger)]' : ''}>
+                  {text.length.toLocaleString('ru-RU')} / {captionLimit.toLocaleString('ru-RU')}
+                </span>
+              </div>
             </Field>
 
             <Field label="Rasm (ixtiyoriy)">
@@ -301,6 +342,58 @@ export default function ChannelPostsPage() {
               </Field>
             )}
 
+            {/* Jonli ko'rinish — kanalda qanday chiqishi */}
+            <div>
+              <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <Eye size={13} /> Kanalda qanday ko&apos;rinadi
+              </p>
+              <div className="rounded-2xl bg-[var(--color-bg)] p-3">
+                <div className="mx-auto max-w-[330px] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white shadow-sm">
+                  {imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={imageUrl} alt="" className="max-h-52 w-full object-cover" />
+                  )}
+                  <div className="p-3">
+                    <div className="mb-1.5 flex items-center gap-2">
+                      {channelInfo?.photoDataUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={channelInfo.photoDataUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
+                      ) : (
+                        <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                          <Radio size={12} />
+                        </span>
+                      )}
+                      <span className="truncate text-xs font-semibold text-[var(--color-primary)]">
+                        {channelInfo?.title || config?.channelId || 'Kanal'}
+                      </span>
+                    </div>
+                    {text.trim() ? (
+                      <div
+                        className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--color-text)]"
+                        dangerouslySetInnerHTML={{ __html: previewHtml(text) }}
+                      />
+                    ) : (
+                      <p className="text-[13px] text-[var(--color-text-muted)]">E&apos;lon matni shu yerda ko&apos;rinadi…</p>
+                    )}
+                    <p className="mt-2 text-right text-[10px] text-[var(--color-text-muted)]">
+                      {now
+                        ? 'hozir'
+                        : new Date(when).toLocaleString('ru-RU', {
+                            day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                          })}
+                    </p>
+                  </div>
+                  {buyButton && (
+                    <div className="border-t border-[var(--color-border)] p-2">
+                      <div className="rounded-lg bg-[var(--color-primary)]/10 py-2 text-center text-[13px] font-semibold text-[var(--color-primary)]">
+                        {buttonText.trim() || '🛍 Sotib olish'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <Button
               loading={create.isPending}
               disabled={!channelReady || text.trim().length < 1}
@@ -321,9 +414,12 @@ export default function ChannelPostsPage() {
           <CardHeader title="E'lonlar" />
           <CardBody className="space-y-2">
             {!posts?.length ? (
-              <p className="text-sm text-[var(--color-text-muted)] py-2 text-center">
-                Hozircha e&apos;lonlar yo&apos;q
-              </p>
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <span className="grid h-12 w-12 place-items-center rounded-full bg-[var(--color-bg)] text-[var(--color-text-muted)]">
+                  <Radio size={22} />
+                </span>
+                <p className="text-sm text-[var(--color-text-muted)]">Hozircha e&apos;lonlar yo&apos;q</p>
+              </div>
             ) : (
               posts.map((p) => {
                 const s = STATUS[p.status];
