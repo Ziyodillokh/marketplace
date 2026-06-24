@@ -1,6 +1,9 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Bot, InlineKeyboard, InputFile, webhookCallback } from 'grammy';
+import { AdminRole } from '@prisma/client';
+import { Bot, type Context, InlineKeyboard, InputFile, webhookCallback } from 'grammy';
+import { PrismaService } from '@/prisma/prisma.service';
+import { isTariffActive } from '@/common/tariff';
 import { ReferralService } from '../referral/referral.service';
 
 @Injectable()
@@ -26,6 +29,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly config: ConfigService,
     private readonly referral: ReferralService,
+    private readonly prisma: PrismaService,
   ) {
     const token = (this.config.get<string>('TELEGRAM_BOT_TOKEN') ?? '').trim();
     this.useWebhook = this.config.get('TELEGRAM_USE_WEBHOOK') === 'true';
@@ -84,6 +88,8 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       await bot.api.setMyCommands([
         { command: 'start', description: "Do'konni ochish / Открыть магазин" },
         { command: 'admin', description: 'Admin panel' },
+        { command: 'creator', description: 'Creator paneli (jamoa a\'zosi)' },
+        { command: 'moderator', description: 'Moderator paneli (jamoa a\'zosi)' },
         { command: 'id', description: "Telegram ID (jamoaga qo'shilish uchun)" },
         { command: 'help', description: 'Yordam / Помощь' },
       ]);
@@ -224,6 +230,11 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       }
     });
 
+    // Jamoa a'zolari uchun qulay kirish: /creator va /moderator.
+    // Foydalanuvchi shu roldagi do'kon(lar)да bo'lsa va tarif faol bo'lsa — panel ochiladi.
+    this.bot.command('creator', (ctx) => this.handleRoleCommand(ctx, AdminRole.CREATOR, 'creator'));
+    this.bot.command('moderator', (ctx) => this.handleRoleCommand(ctx, AdminRole.MODERATOR, 'moderator'));
+
     this.bot.callbackQuery(/^order:(.+?):(.+)$/, async (ctx) => {
       const match = ctx.match;
       if (!match) return;
@@ -247,6 +258,67 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   private callbackEmitter?: { emit: (event: string, data: unknown) => void };
   setCallbackEmitter(emitter: { emit: (event: string, data: unknown) => void }): void {
     this.callbackEmitter = emitter;
+  }
+
+  /**
+   * /creator yoki /moderator — jamoa a'zosini panelга yo'naltiradi.
+   * - Shu roldagi do'konda umuman yo'q bo'lsa → qanday qo'shilishni tushuntiradi.
+   * - Bor, lekin barcha do'konlari tarifi faol bo'lmasa → "tarif faol emas" xabari.
+   * - Tarifi faol do'koni bo'lsa → panelni ochish tugmasi (Telegram ID bo'yicha avto-login).
+   */
+  private async handleRoleCommand(ctx: Context, role: AdminRole, label: string): Promise<void> {
+    const tgId = ctx.from?.id;
+    if (!tgId) return;
+    try {
+      const rows = await this.prisma.admin.findMany({
+        where: { telegramId: BigInt(tgId), isActive: true, role, tenantId: { not: null } },
+        select: {
+          tenant: {
+            select: {
+              shopName: true,
+              status: true,
+              tariffPlan: true,
+              tariffExpiresAt: true,
+              tariffStartedAt: true,
+              isOnTrial: true,
+              trialEndsAt: true,
+            },
+          },
+        },
+      });
+      if (rows.length === 0) {
+        await ctx.reply(
+          `ℹ️ Siz hech qaysi do'konда <b>${label}</b> sifatida qo'shilmagansiz.\n\n` +
+            `Do'kon egasi sizni jamoaga qo'shishi kerak — Telegram ID'ingizni olish uchun /id buyrug'ini bosing.`,
+          { parse_mode: 'HTML' },
+        );
+        return;
+      }
+      const active = rows.filter((r) => r.tenant && isTariffActive(r.tenant));
+      if (active.length === 0) {
+        await ctx.reply(
+          `❌ Do'kon tarifi faol emas.\n\n` +
+            `Egasi tarifni yangilagach, <b>${label}</b> funksiyalaridan foydalana olasiz.`,
+          { parse_mode: 'HTML' },
+        );
+        return;
+      }
+      const url = this.adminPanelUrl;
+      const shops = active.map((r) => r.tenant!.shopName).join(', ');
+      const text =
+        `✅ Xush kelibsiz! Siz <b>${shops}</b> do'koni(lar)да <b>${label}</b>siz.\n\n` +
+        `Quyidagi tugmadan panelni oching:`;
+      if (url.startsWith('https://')) {
+        await ctx.reply(text, {
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: [[{ text: '🎛 Panelni ochish', web_app: { url } }]] },
+        });
+      } else {
+        await ctx.reply(text + `\n\n${url}`, { parse_mode: 'HTML' });
+      }
+    } catch (err) {
+      this.logger.error(`/${label} command failed: ${(err as Error).message}`);
+    }
   }
 
   webhookHandler() {

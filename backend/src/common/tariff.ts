@@ -1,4 +1,4 @@
-import { TariffPlan } from '@prisma/client';
+import { TariffPlan, TenantStatus } from '@prisma/client';
 
 /** -1 = cheksiz */
 export interface TariffLimits {
@@ -95,4 +95,32 @@ export function limitsFor(plan: TariffPlan): TariffLimits {
 
 export function hasFeature(plan: TariffPlan, feature: TariffFeature): boolean {
   return limitsFor(plan)[feature] === true;
+}
+
+/** isTariffActive uchun kerakli do'kon maydonlari. */
+export interface TariffStatusFields {
+  status: TenantStatus;
+  tariffPlan: TariffPlan;
+  tariffExpiresAt: Date | null;
+  tariffStartedAt: Date;
+  isOnTrial: boolean;
+  trialEndsAt: Date | null;
+}
+
+/**
+ * Do'kon tarifi/obunasi FAOL'mi. Jamoa a'zolari (creator/moderator/manager)
+ * faqat tarif faol bo'lganda panelга kira oladi. Egasi alohida tekshiriladi
+ * (tarif tugasa ham yangilash uchun kira oladi).
+ *
+ * Faol =:
+ *   - tenant.status === ACTIVE (SUSPENDED/CANCELLED/PENDING_PAYMENT — faol emas), VA
+ *   - FREE tarif (doimiy) YOKI faol trial YOKI pulli tarif muddati tugamagan.
+ *     Pulli muddat: tariffExpiresAt, bo'lmasa tariffStartedAt + 30 kun.
+ */
+export function isTariffActive(t: TariffStatusFields): boolean {
+  if (t.status !== TenantStatus.ACTIVE) return false;
+  if (t.tariffPlan === TariffPlan.FREE) return true;
+  if (t.isOnTrial && t.trialEndsAt && t.trialEndsAt.getTime() > Date.now()) return true;
+  const end = t.tariffExpiresAt ?? new Date(t.tariffStartedAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+  return end.getTime() > Date.now();
 }

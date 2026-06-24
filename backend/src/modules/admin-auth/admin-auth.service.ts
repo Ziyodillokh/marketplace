@@ -3,13 +3,37 @@ import * as bcrypt from 'bcryptjs';
 import { createHash, randomUUID } from 'crypto';
 import { PrismaService } from '@/prisma/prisma.service';
 import { JwtService } from './jwt.service';
-import type { Admin } from '@prisma/client';
+import { AdminRole, type Admin, type TariffPlan, type TenantStatus } from '@prisma/client';
+import { isTariffActive } from '@/common/tariff';
 
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
   expiresAt: Date;
 }
+
+/** loginWithTelegram/switchStore'da kira-olish tekshiruvi uchun kerakli do'kon maydonlari. */
+type TenantAccessFields = {
+  ownerTelegramId: bigint | null;
+  status: TenantStatus;
+  tariffPlan: TariffPlan;
+  tariffExpiresAt: Date | null;
+  tariffStartedAt: Date;
+  isOnTrial: boolean;
+  trialEndsAt: Date | null;
+};
+type AdminWithTenant = Admin & { tenant: TenantAccessFields | null };
+
+/** Telegram login uchun do'kon maydonlari (kira-olishni hisoblash uchun). */
+const TENANT_ACCESS_SELECT = {
+  ownerTelegramId: true,
+  status: true,
+  tariffPlan: true,
+  tariffExpiresAt: true,
+  tariffStartedAt: true,
+  isOnTrial: true,
+  trialEndsAt: true,
+} as const;
 
 @Injectable()
 export class AdminAuthService {
@@ -31,8 +55,26 @@ export class AdminAuthService {
   }
 
   /**
-   * Telegram ID bo'yicha login (parolsiz) — onboarding qilingan sotuvchilar uchun.
-   * Bir nechta do'kon bo'lsa — birinchisiga (eng eski) kiritamiz; panel ichida almashtiriladi.
+   * Do'kon EGASI'mi yoki BOSS (ADMIN/SUPERADMIN)'mi — bular tarifdan qat'i nazar
+   * kira oladi (tarif tugasa ham yangilash uchun). tenant'siz (platforma) admin ham.
+   */
+  private ownerOrBoss(a: AdminWithTenant, telegramId: bigint): boolean {
+    if (!a.tenant) return true;
+    if (a.tenant.ownerTelegramId !== null && a.tenant.ownerTelegramId === telegramId) return true;
+    return a.role === AdminRole.ADMIN || a.role === AdminRole.SUPERADMIN;
+  }
+
+  /** Shu admin yozuvi orqali panelga kira oladimi: egasi/boss YOKI tarifi faol jamoa a'zosi. */
+  private canAccess(a: AdminWithTenant, telegramId: bigint): boolean {
+    if (this.ownerOrBoss(a, telegramId)) return true;
+    // Jamoa a'zosi (creator/moderator/manager) — faqat do'kon tarifi faol bo'lsa.
+    return a.tenant ? isTariffActive(a.tenant) : true;
+  }
+
+  /**
+   * Telegram ID bo'yicha login (parolsiz). Egasi/boss har doim kiradi; jamoa a'zosi
+   * (creator/moderator/manager) faqat do'kon tarifi FAOL bo'lsa. Egasi/boss yozuvi
+   * afzal ko'riladi (bir nechta do'kon bo'lsa), aks holda eng eski kira-olinadigan.
    */
   async loginWithTelegram(
     telegramId: bigint,
@@ -44,13 +86,23 @@ export class AdminAuthService {
         .updateMany({ where: { telegramId }, data: { photoUrl } })
         .catch(() => undefined);
     }
-    const admin = await this.prisma.admin.findFirst({
+    const admins = (await this.prisma.admin.findMany({
       where: { telegramId, isActive: true },
       orderBy: { createdAt: 'asc' },
-    });
-    if (!admin) {
+      include: { tenant: { select: TENANT_ACCESS_SELECT } },
+    })) as AdminWithTenant[];
+    if (admins.length === 0) {
       throw new UnauthorizedException("Ro'yxatdan o'tilmagan");
     }
+    const accessible = admins.filter((a) => this.canAccess(a, telegramId));
+    if (accessible.length === 0) {
+      // Jamoa a'zosi, lekin barcha do'konlari tarifi faol emas.
+      throw new UnauthorizedException(
+        "Do'kon tarifi faol emas. Egasi tarifni yangilagach kira olasiz.",
+      );
+    }
+    // Egasi/boss yozuvini afzal ko'ramiz, aks holda eng eski kira-olinadigan.
+    const admin = accessible.find((a) => this.ownerOrBoss(a, telegramId)) ?? accessible[0];
     const tokens = await this.issueTokens(admin);
     return { admin, tokens };
   }
@@ -66,10 +118,17 @@ export class AdminAuthService {
     if (!currentAdmin.telegramId) {
       throw new UnauthorizedException("Do'kon almashtirish faqat Telegram sotuvchilar uchun");
     }
-    const target = await this.prisma.admin.findFirst({
+    const target = (await this.prisma.admin.findFirst({
       where: { telegramId: currentAdmin.telegramId, tenantId, isActive: true },
-    });
+      include: { tenant: { select: TENANT_ACCESS_SELECT } },
+    })) as AdminWithTenant | null;
     if (!target) throw new UnauthorizedException("Do'kon topilmadi");
+    // Jamoa a'zosi bo'lsa — faqat tarif faol do'konga o'ta oladi (egasi/boss har doim).
+    if (!this.canAccess(target, currentAdmin.telegramId)) {
+      throw new UnauthorizedException(
+        "Do'kon tarifi faol emas. Egasi tarifni yangilagach kira olasiz.",
+      );
+    }
     const tokens = await this.issueTokens(target);
     return { admin: target, tokens };
   }
@@ -107,8 +166,17 @@ export class AdminAuthService {
       where: { id: stored.id },
       data: { revokedAt: new Date() },
     });
-    const admin = await this.prisma.admin.findUnique({ where: { id: payload.sub } });
+    const admin = (await this.prisma.admin.findUnique({
+      where: { id: payload.sub },
+      include: { tenant: { select: TENANT_ACCESS_SELECT } },
+    })) as AdminWithTenant | null;
     if (!admin || !admin.isActive) throw new UnauthorizedException('Admin not found');
+    // Tarif gate: jamoa a'zosi tarif tugagach sessiyani uzaytira olmaydi (egasi/boss — bemalol).
+    if (admin.telegramId !== null && !this.canAccess(admin, admin.telegramId)) {
+      throw new UnauthorizedException(
+        "Do'kon tarifi faol emas. Egasi tarifni yangilagach kira olasiz.",
+      );
+    }
     return this.issueTokens(admin);
   }
 

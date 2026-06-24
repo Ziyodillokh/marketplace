@@ -13,7 +13,6 @@ import { cn } from '@/lib/cn';
 import { TariffCarousel } from '@/components/tariff-carousel';
 import {
   apiSellerBusinessTypes,
-  apiSellerMe,
   apiSellerOnboard,
   apiSellerPaymentInfo,
   apiSellerSubmitPayment,
@@ -84,7 +83,8 @@ export default function RegisterPage() {
   const router = useRouter();
   const setAdmin = useAuthStore((s) => s.setAdmin);
 
-  const [phase, setPhase] = useState<'loading' | 'wizard' | 'no-telegram' | 'payment'>('loading');
+  const [phase, setPhase] = useState<'loading' | 'wizard' | 'no-telegram' | 'payment' | 'blocked'>('loading');
+  const [blockedMsg, setBlockedMsg] = useState('');
   const [step, setStep] = useState(1);
   const [initData, setInitData] = useState('');
 
@@ -136,18 +136,25 @@ export default function RegisterPage() {
       apiSellerTariffs().then((t) => !cancelled && setTariffs(t)).catch(() => undefined);
       apiSellerPaymentInfo().then((p) => !cancelled && setPaymentInfo(p)).catch(() => undefined);
 
+      // Avval to'g'ridan-to'g'ri login — EGASI yoki JAMOA a'zosi (creator/moderator/
+      // manager) bo'lsa shu yerda kiradi. Faqat yangi foydalanuvchi onboarding'ga tushadi.
       try {
-        const profile = await apiSellerMe(id);
+        const res = await apiTelegramLogin(id);
         if (cancelled) return;
-        if (profile.registered) {
-          const res = await apiTelegramLogin(id);
-          setAccessToken(res.accessToken);
-          setAdmin(res.admin);
-          router.replace('/');
+        setAccessToken(res.accessToken);
+        setAdmin(res.admin);
+        router.replace('/');
+        return;
+      } catch (e) {
+        if (cancelled) return;
+        const msg = (e as Error).message ?? '';
+        // Jamoa a'zosi, lekin do'kon tarifi faol emas — wizard'ga tushirmaymiz.
+        if (/tarif|faol emas/i.test(msg)) {
+          setBlockedMsg(msg);
+          setPhase('blocked');
           return;
         }
-      } catch {
-        // formani ko'rsatamiz
+        // Aks holda — ro'yxatdan o'tmagan yangi foydalanuvchi → onboarding wizard.
       }
       if (!cancelled) setPhase('wizard');
     })();
@@ -312,6 +319,24 @@ export default function RegisterPage() {
           <a href={BOT_URL} className="inline-block">
             <Button>Sellio botini ochish</Button>
           </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'blocked') {
+    return (
+      <div className="min-h-dvh grid place-items-center px-4 text-center">
+        <div className="max-w-sm">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Sellio" className="h-14 w-14 object-contain mx-auto mb-3" />
+          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-amber-50 text-amber-500">
+            <CreditCard size={22} />
+          </div>
+          <h1 className="text-lg font-bold mb-1">Do&apos;kon tarifi faol emas</h1>
+          <p className="text-sm text-[var(--color-text-muted)]">
+            {blockedMsg || "Egasi tarifni yangilagach, panel funksiyalaridan foydalana olasiz."}
+          </p>
         </div>
       </div>
     );
