@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiGetCategoryBySlug, apiListProducts, type ListProductsQuery } from '@/lib/api/endpoints';
-import { useTrackOnMount } from '@/hooks/use-track';
+import { track } from '@/hooks/use-track';
 import { useTelegramBackButton } from '@/hooks/use-telegram';
 import { useLocaleStore } from '@/stores/locale-store';
 import { getMessages, tr } from '@/i18n';
@@ -30,7 +30,15 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
     queryFn: () => apiGetCategoryBySlug(slug),
   });
 
-  useTrackOnMount({ type: 'VIEW_CATEGORY', categoryId: category?.id });
+  // VIEW_CATEGORY ni faqat category yuklangach, categoryId bilan bir marta yuboramiz
+  // (mount paytida category?.id undefined bo'lardi)
+  const tracked = useRef(false);
+  useEffect(() => {
+    if (!tracked.current && category?.id) {
+      tracked.current = true;
+      track({ type: 'VIEW_CATEGORY', categoryId: category.id });
+    }
+  }, [category?.id]);
 
   const [sort, setSort] = useState<Sort>('newest');
   const [minPrice, setMinPrice] = useState('');

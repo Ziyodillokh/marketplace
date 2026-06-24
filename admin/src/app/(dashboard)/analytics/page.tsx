@@ -34,9 +34,10 @@ export default function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>('7d');
   const { from, to } = rangeFor(period);
 
-  const { data: store } = useQuery({ queryKey: ['my-store'], queryFn: apiMyStore });
-  // Tenant'siz admin (owner) → ruxsat; tenant bo'lsa tarifga qarab
-  const analyticsAllowed = store ? (store.limits?.analytics ?? true) : undefined;
+  const { data: store, isError: storeError } = useQuery({ queryKey: ['my-store'], queryFn: apiMyStore });
+  // Tenant'siz admin (owner) → ruxsat; tenant bo'lsa tarifga qarab.
+  // my-store xato bo'lsa ham bloklanib qolmaymiz — ruxsat beramiz (statlar o'z xatosini ko'rsatadi).
+  const analyticsAllowed = store ? (store.limits?.analytics ?? true) : storeError ? true : undefined;
   const enabled = analyticsAllowed === true;
 
   const { data: funnel, isLoading: funnelLoading } = useQuery({

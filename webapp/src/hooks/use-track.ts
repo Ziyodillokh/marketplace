@@ -66,10 +66,12 @@ export function useFlushOnUnload(): void {
     const onHide = () => {
       if (document.visibilityState === 'hidden') flush(true);
     };
+    const onPageHide = () => flush(true);
     document.addEventListener('visibilitychange', onHide);
-    window.addEventListener('pagehide', () => flush(true));
+    window.addEventListener('pagehide', onPageHide);
     return () => {
       document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onPageHide);
     };
   }, []);
 }
