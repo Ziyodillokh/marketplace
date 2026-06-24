@@ -4,13 +4,13 @@ import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
 import { DollarSign, Eye, Package, Percent } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
-import { KpiCard } from '@/components/dashboard/kpi-card';
+import { KpiCard, MoneyValue } from '@/components/dashboard/kpi-card';
 import { LiveActivity } from '@/components/dashboard/live-activity';
 import { TimeseriesChart } from '@/components/dashboard/timeseries-chart';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiStatsOverview, apiStatsTopProducts } from '@/lib/endpoints';
-import { formatMoney } from '@/lib/format';
+import { formatCount, formatMoney } from '@/lib/format';
 import { useAuthStore } from '@/stores/auth-store';
 
 export default function DashboardPage() {
@@ -30,24 +30,24 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {loadingOverview || !overview ? (
-          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28" />)
+          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[150px] rounded-2xl" />)
         ) : (
           <>
             <KpiCard
               title="Bugungi buyurtmalar"
-              value={overview.today.orders}
+              value={formatCount(overview.today.orders)}
               icon={<Package size={16} />}
               delta={overview.delta.orders}
             />
             <KpiCard
               title="Bugungi tushum"
-              value={formatMoney(overview.today.revenue)}
+              value={<MoneyValue value={overview.today.revenue} />}
               icon={<DollarSign size={16} />}
               delta={overview.delta.revenue}
             />
             <KpiCard
               title="Bugungi tashrif"
-              value={overview.today.uniqueVisitors}
+              value={formatCount(overview.today.uniqueVisitors)}
               icon={<Eye size={16} />}
               delta={overview.delta.uniqueVisitors}
             />
