@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OrderStatus } from '@prisma/client';
 import { Bot, type Context, InlineKeyboard, InputFile } from 'grammy';
+import { join } from 'path';
 import { PrismaService } from '@/prisma/prisma.service';
 import { TelegramBotService } from './telegram-bot.service';
 
@@ -40,6 +41,8 @@ export class TenantBotService implements OnModuleInit {
   private readonly secret: string;
   private readonly globalBotToken: string;
   private readonly globalBotUsername: string;
+  private readonly uploadDir: string;
+  private readonly uploadsPublicUrl: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -52,6 +55,16 @@ export class TenantBotService implements OnModuleInit {
     this.secret = config.get<string>('TELEGRAM_WEBHOOK_SECRET') ?? '';
     this.globalBotToken = (config.get<string>('TELEGRAM_BOT_TOKEN') ?? '').trim();
     this.globalBotUsername = (config.get<string>('TELEGRAM_BOT_USERNAME') ?? '').replace(/^@/, '');
+    this.uploadDir = config.get<string>('UPLOAD_DIR') ?? './uploads';
+    this.uploadsPublicUrl = (config.get<string>('PUBLIC_UPLOADS_URL') ?? '/uploads').replace(/\/$/, '');
+  }
+
+  /** Public URL'dan disk yo'lini topadi — faqat bizning /uploads yuklamalari uchun. */
+  private localUploadPath(url: string | null | undefined): string | null {
+    if (!url || !url.startsWith(`${this.uploadsPublicUrl}/`)) return null;
+    const name = url.slice(this.uploadsPublicUrl.length + 1);
+    if (!name || name.includes('/') || name.includes('\\') || name.includes('..')) return null;
+    return join(this.uploadDir, name);
   }
 
   private channelChatId(channelId: string): string | number {
@@ -228,7 +241,13 @@ export class TenantBotService implements OnModuleInit {
    */
   async publishToChannel(
     tenantId: string,
-    post: { text: string; imageUrl?: string | null; buyButton: boolean; buttonText?: string | null },
+    post: {
+      text: string;
+      imageUrl?: string | null;
+      videoUrl?: string | null;
+      buyButton: boolean;
+      buttonText?: string | null;
+    },
   ): Promise<number> {
     const t = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
@@ -251,6 +270,23 @@ export class TenantBotService implements OnModuleInit {
       );
     }
 
+    if (post.videoUrl) {
+      // Bizning yuklama bo'lsa — faylni to'g'ridan-to'g'ri yuklaymiz (InputFile),
+      // shunda 20MB (URL chegarasi) emas, 50MB gacha video ketadi. Tashqi URL bo'lsa — URL.
+      const local = this.localUploadPath(post.videoUrl);
+      const src = local
+        ? new InputFile(local)
+        : post.videoUrl.startsWith('http')
+          ? post.videoUrl
+          : `${this.appUrl}${post.videoUrl}`;
+      const msg = await bot.api.sendVideo(chatId, src, {
+        caption: post.text,
+        parse_mode: 'HTML',
+        reply_markup: keyboard,
+        supports_streaming: true,
+      });
+      return msg.message_id;
+    }
     if (post.imageUrl) {
       const abs = post.imageUrl.startsWith('http')
         ? post.imageUrl

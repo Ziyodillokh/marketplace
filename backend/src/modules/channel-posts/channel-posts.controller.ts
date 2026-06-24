@@ -13,6 +13,7 @@ class ChannelDto {
 class CreatePostDto {
   @IsString() @MinLength(1) @MaxLength(3500) text!: string;
   @IsOptional() @IsString() @MaxLength(500) imageUrl?: string;
+  @IsOptional() @IsString() @MaxLength(500) videoUrl?: string;
   @IsOptional() @IsBoolean() buyButton?: boolean;
   @IsOptional() @IsString() @MaxLength(60) buttonText?: string;
   @IsISO8601() scheduledAt!: string;

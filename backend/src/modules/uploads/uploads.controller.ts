@@ -34,14 +34,15 @@ export class UploadsController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: 20 * 1024 * 1024 },
+      // 50MB — Telegram bot (cloud API) faylni yuklash uchun maksimal chegara.
+      limits: { fileSize: 50 * 1024 * 1024 },
     }),
   )
   async uploadVideo(
     @UploadedFile(
       new ParseFilePipeBuilder()
         .addFileTypeValidator({ fileType: /video\/(mp4|quicktime|webm)/ })
-        .addMaxSizeValidator({ maxSize: 20 * 1024 * 1024 })
+        .addMaxSizeValidator({ maxSize: 50 * 1024 * 1024 })
         .build({ fileIsRequired: true }),
     )
     file: Express.Multer.File,

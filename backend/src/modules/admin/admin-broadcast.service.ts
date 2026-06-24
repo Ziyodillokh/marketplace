@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { Bot } from 'grammy';
+import { InputFile, type Bot } from 'grammy';
 import { PrismaService } from '@/prisma/prisma.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { TenantBotService } from '../telegram-bot/tenant-bot.service';
@@ -174,13 +174,50 @@ export class AdminBroadcastService {
       return;
     }
 
+    // Yuklangan video — bir marta Telegram'ga yuklab, qaytgan file_id ni har
+    // keyingi userga qayta ishlatamiz (50MB videoni 1000 marta qayta yuklamaymiz).
+    // Boshqa media (rasm/havola) avvalgidek URL orqali ketadi.
+    const localVideoPath =
+      broadcast.mediaType === 'video' ? this.uploads.localPathFromUrl(broadcast.mediaUrl) : null;
+    let videoFileId: string | null = null;
+
     let sent = 0;
     let failed = 0;
+    let startIdx = 0;
 
-    for (let i = 0; i < recipients.length; i += this.BATCH_SIZE) {
+    // 1-faza: yuklangan video bo'lsa — file_id olinmaguncha ketma-ket yuboramiz
+    // (faqat 1-2 ta yuborish, odatda birinchisi muvaffaqiyatli bo'ladi).
+    if (localVideoPath) {
+      while (startIdx < recipients.length && !videoFileId) {
+        const u = recipients[startIdx];
+        try {
+          const msg = await this.sendOne(
+            sender,
+            Number(u.telegramId),
+            u.language,
+            broadcast,
+            new InputFile(localVideoPath),
+          );
+          videoFileId = this.videoFileIdOf(msg);
+          sent++;
+        } catch {
+          failed++;
+        }
+        startIdx++;
+      }
+      await this.prisma.broadcast.update({
+        where: { id: broadcastId },
+        data: { sentCount: sent, failedCount: failed },
+      });
+    }
+
+    // 2-faza: qolganlarga batch'larda. Video uchun file_id (bo'lsa), aks holda mediaUrl.
+    for (let i = startIdx; i < recipients.length; i += this.BATCH_SIZE) {
       const batch = recipients.slice(i, i + this.BATCH_SIZE);
       const results = await Promise.allSettled(
-        batch.map((u) => this.sendOne(sender, Number(u.telegramId), u.language, broadcast)),
+        batch.map((u) =>
+          this.sendOne(sender, Number(u.telegramId), u.language, broadcast, videoFileId ?? undefined),
+        ),
       );
       for (const r of results) {
         if (r.status === 'fulfilled') sent++;
@@ -205,7 +242,26 @@ export class AdminBroadcastService {
       },
     });
 
+    // Tugagach — yuklangan video faylni o'chiramiz: diskda joy egallamasin.
+    // (Video Telegram'da file_id orqali saqlanadi, bizga kerak emas.)
+    if (localVideoPath) {
+      await this.uploads.deleteByUrl(broadcast.mediaUrl).catch(() => undefined);
+      await this.prisma.broadcast
+        .update({ where: { id: broadcastId }, data: { mediaUrl: null } })
+        .catch(() => undefined);
+    }
+
     this.logger.log(`Broadcast ${broadcastId} finished: ${sent} sent, ${failed} failed`);
+  }
+
+  /** sendVideo javobidan file_id ni ajratadi (video/animation/document bo'lishi mumkin). */
+  private videoFileIdOf(msg: unknown): string | null {
+    const m = msg as {
+      video?: { file_id?: string };
+      animation?: { file_id?: string };
+      document?: { file_id?: string };
+    } | null;
+    return m?.video?.file_id ?? m?.animation?.file_id ?? m?.document?.file_id ?? null;
   }
 
   /** Telegram caption chegarasi. Bundan uzun matn alohida xabar bo'lib ketadi. */
@@ -218,12 +274,18 @@ export class AdminBroadcastService {
     });
   }
 
-  /** Bitta foydalanuvchiga matn yoki media yuboradi. */
+  /**
+   * Bitta foydalanuvchiga matn yoki media yuboradi.
+   * `videoRef` — video uchun manba: birinchi yuborishda `InputFile` (fayl yuklanadi),
+   * keyin esa file_id (string) qayta ishlatiladi. Berilmasa — `mediaUrl` ishlatiladi.
+   * Video yuborilganda Message qaytadi (file_id ni ajratish uchun).
+   */
   private async sendOne(
     bot: Bot,
     chatId: number,
     lang: string,
     b: { messageUz: string; messageRu: string | null; mediaType: string; mediaUrl: string | null; copyFromChatId: string | null; copyMessageId: number | null },
+    videoRef?: InputFile | string,
   ): Promise<unknown> {
     const text = (lang === 'ru' && b.messageRu ? b.messageRu : b.messageUz) ?? '';
 
@@ -235,19 +297,22 @@ export class AdminBroadcastService {
       return bot.api.copyMessage(chatId, b.copyFromChatId, b.copyMessageId);
     }
 
-    const hasMedia = (b.mediaType === 'photo' || b.mediaType === 'video') && b.mediaUrl;
+    const hasMedia = (b.mediaType === 'photo' || b.mediaType === 'video') && (b.mediaUrl || videoRef);
     if (hasMedia) {
       // Caption faqat 1024 belgidan oshmasa beramiz (kesmaymiz — HTML teglari buzilmasligi uchun).
       const fits = text.length <= this.CAPTION_MAX;
       const opts = fits && text.trim() ? { caption: text, parse_mode: 'HTML' as const } : {};
+      let msg: unknown;
       if (b.mediaType === 'photo') {
-        await bot.api.sendPhoto(chatId, b.mediaUrl as string, opts);
+        msg = await bot.api.sendPhoto(chatId, b.mediaUrl as string, opts);
       } else {
-        await bot.api.sendVideo(chatId, b.mediaUrl as string, opts);
+        // Video: InputFile (birinchi marta yuklash) yoki file_id, aks holda URL.
+        const ref = videoRef ?? (b.mediaUrl as string);
+        msg = await bot.api.sendVideo(chatId, ref, { ...opts, supports_streaming: true });
       }
       // Matn caption'ga sig'masa — to'liq matnni alohida xabar qilib yuboramiz.
       if (!fits && text.trim()) await this.sendText(bot, chatId, text);
-      return undefined;
+      return msg;
     }
 
     return this.sendText(bot, chatId, text);

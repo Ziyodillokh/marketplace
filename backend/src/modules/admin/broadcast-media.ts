@@ -129,9 +129,9 @@ export async function resolveInstagramMedia(raw: string): Promise<ResolvedMedia 
     });
     if (!mres.ok) return null; // 3xx redirect ham !ok — bloklanadi
     const declaredLen = Number(mres.headers.get('content-length') ?? '0');
-    if (declaredLen > 20 * 1024 * 1024) return null;
+    if (declaredLen > 50 * 1024 * 1024) return null;
     const buffer = Buffer.from(new Uint8Array(await mres.arrayBuffer()));
-    if (buffer.length === 0 || buffer.length > 20 * 1024 * 1024) return null;
+    if (buffer.length === 0 || buffer.length > 50 * 1024 * 1024) return null;
     const mime = mres.headers.get('content-type') ?? (videoUrl ? 'video/mp4' : 'image/jpeg');
     return { type: videoUrl ? 'video' : 'photo', buffer, mime };
   } catch {

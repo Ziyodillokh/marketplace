@@ -300,6 +300,7 @@ export interface ChannelPost {
   id: string;
   text: string;
   imageUrl: string | null;
+  videoUrl: string | null;
   buyButton: boolean;
   buttonText: string | null;
   scheduledAt: string;
@@ -311,6 +312,7 @@ export interface ChannelPost {
 export interface CreateChannelPostInput {
   text: string;
   imageUrl?: string;
+  videoUrl?: string;
   buyButton?: boolean;
   buttonText?: string;
   scheduledAt: string;

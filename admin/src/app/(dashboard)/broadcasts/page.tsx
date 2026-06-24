@@ -214,7 +214,7 @@ export default function BroadcastsPage() {
             >
               <option value="none">Yo&apos;q (faqat matn)</option>
               <option value="photo">Rasm yuklash</option>
-              <option value="video">Video yuklash (≤20MB)</option>
+              <option value="video">Video yuklash (≤50MB)</option>
               <option value="link">Havola orqali (Telegram / Instagram)</option>
             </Select>
           </Field>

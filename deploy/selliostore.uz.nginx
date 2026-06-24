@@ -55,9 +55,9 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/selliostore.uz/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
-    # Media yuklash uchun (broadcast video ≤20MB, rasmlar ≤10MB + multipart overhead).
+    # Media yuklash uchun (broadcast/kanal video ≤50MB, rasmlar ≤10MB + multipart overhead).
     # Bo'lmasa nginx default 1MB → katta yuklamalar HTTP 413 beradi.
-    client_max_body_size 30m;
+    client_max_body_size 60m;
 
     # www → apex
     if ($host = www.selliostore.uz) {
@@ -112,9 +112,9 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/selliostore.uz/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
-    # Media yuklash uchun (broadcast video ≤20MB, rasmlar ≤10MB + multipart overhead).
+    # Media yuklash uchun (broadcast/kanal video ≤50MB, rasmlar ≤10MB + multipart overhead).
     # Bo'lmasa nginx default 1MB → katta yuklamalar HTTP 413 beradi.
-    client_max_body_size 30m;
+    client_max_body_size 60m;
 
     # Telegram webhook — server ko'chganda DNS keshini chetlab o'tish uchun
     location /telegram/ {
@@ -163,9 +163,9 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/selliostore.uz/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
-    # Media yuklash uchun (broadcast video ≤20MB, rasmlar ≤10MB + multipart overhead).
+    # Media yuklash uchun (broadcast/kanal video ≤50MB, rasmlar ≤10MB + multipart overhead).
     # Bo'lmasa nginx default 1MB → katta yuklamalar HTTP 413 beradi.
-    client_max_body_size 30m;
+    client_max_body_size 60m;
 
     # Telegram webhook (markaziy + sotuvchi botlari) — subdomen orqali ham
     # ishlasin: yangi serverga ko'chganda Telegram apex DNS keshini chetlab o'tadi.
@@ -214,9 +214,9 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/selliostore.uz/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
-    # Media yuklash uchun (broadcast video ≤20MB, rasmlar ≤10MB + multipart overhead).
+    # Media yuklash uchun (broadcast/kanal video ≤50MB, rasmlar ≤10MB + multipart overhead).
     # Bo'lmasa nginx default 1MB → katta yuklamalar HTTP 413 beradi.
-    client_max_body_size 30m;
+    client_max_body_size 60m;
 
     # Faqat OWNER/DEVOPS uchun — IP allowlist (ixtiyoriy)
     # allow 1.2.3.4;   # ofis IP

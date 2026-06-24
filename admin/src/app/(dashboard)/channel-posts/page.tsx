@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Radio, Send, Upload, Trash2, Clock, CheckCircle2, AlertCircle, ShoppingBag, Users, X, Eye } from 'lucide-react';
+import { Radio, Send, Upload, Trash2, Clock, CheckCircle2, AlertCircle, ShoppingBag, Users, X, Eye, Film } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input, Textarea } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import {
   apiCreateChannelPost,
   apiDeleteChannelPost,
   apiUploadImage,
+  apiUploadVideo,
   type ChannelPostStatus,
 } from '@/lib/endpoints';
 import { formatCount } from '@/lib/format';
@@ -89,23 +90,40 @@ export default function ChannelPostsPage() {
   // Yangi e'lon
   const [text, setText] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
   const [buyButton, setBuyButton] = useState(true);
   const [buttonText, setButtonText] = useState('');
   const [now, setNow] = useState(false);
   const [when, setWhen] = useState(nowLocalInput(10));
   const [uploading, setUploading] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Bitta media — rasm yoki video (ikkalasi emas)
   async function uploadImg(file: File | undefined) {
     if (!file) return;
     setUploading(true);
     try {
       const r = await apiUploadImage(file);
       setImageUrl(r.url);
+      setVideoUrl('');
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
       setUploading(false);
+    }
+  }
+  async function uploadVid(file: File | undefined) {
+    if (!file) return;
+    setUploadingVideo(true);
+    try {
+      const r = await apiUploadVideo(file);
+      setVideoUrl(r.url);
+      setImageUrl('');
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setUploadingVideo(false);
     }
   }
 
@@ -114,6 +132,7 @@ export default function ChannelPostsPage() {
       apiCreateChannelPost({
         text: text.trim(),
         imageUrl: imageUrl || undefined,
+        videoUrl: videoUrl || undefined,
         buyButton,
         buttonText: buttonText.trim() || undefined,
         scheduledAt: new Date(now ? Date.now() : new Date(when).getTime()).toISOString(),
@@ -122,6 +141,7 @@ export default function ChannelPostsPage() {
       qc.invalidateQueries({ queryKey: ['channel-posts'] });
       setText('');
       setImageUrl('');
+      setVideoUrl('');
       setButtonText('');
       toast.success(now ? "E'lon joylandi" : "E'lon rejaga qo'shildi");
     },
@@ -140,7 +160,7 @@ export default function ChannelPostsPage() {
   const channelReady = !!config?.channelId && config.hasBot;
   const scheduledCount = posts?.filter((p) => p.status === 'SCHEDULED').length ?? 0;
   const publishedCount = posts?.filter((p) => p.status === 'PUBLISHED').length ?? 0;
-  const captionLimit = imageUrl ? 1024 : 4096;
+  const captionLimit = imageUrl || videoUrl ? 1024 : 4096;
 
   return (
     <div className="pb-10">
@@ -264,7 +284,7 @@ export default function ChannelPostsPage() {
               </div>
             </Field>
 
-            <Field label="Rasm (ixtiyoriy)">
+            <Field label="Rasm yoki video (ixtiyoriy)">
               {imageUrl ? (
                 <div className="relative inline-block">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -277,23 +297,43 @@ export default function ChannelPostsPage() {
                     <X size={14} />
                   </button>
                 </div>
+              ) : videoUrl ? (
+                <div className="relative inline-block">
+                  <video src={videoUrl} controls className="h-28 rounded-xl object-cover border border-[var(--color-border)] bg-black" />
+                  <button
+                    type="button"
+                    onClick={() => setVideoUrl('')}
+                    className="absolute -top-2 -right-2 h-6 w-6 grid place-items-center rounded-full bg-[var(--color-danger)] text-white"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
               ) : (
-                <label className="flex items-center gap-3 h-14 px-3 rounded-xl border border-dashed border-[var(--color-border)] bg-white cursor-pointer w-fit">
-                  <span className="inline-flex h-9 w-9 rounded-lg bg-[var(--color-bg)] items-center justify-center text-[var(--color-text-muted)]">
-                    <Upload size={18} />
-                  </span>
-                  <span className="text-sm text-[var(--color-text-muted)] pr-2">
-                    {uploading ? 'Yuklanmoqda…' : 'Rasm yuklash'}
-                  </span>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    className="hidden"
-                    onChange={(e) => uploadImg(e.target.files?.[0])}
-                  />
-                </label>
+                <div className="flex gap-2">
+                  <label className="flex items-center gap-2 h-12 px-3 rounded-xl border border-dashed border-[var(--color-border)] bg-white cursor-pointer">
+                    <Upload size={17} className="text-[var(--color-text-muted)]" />
+                    <span className="text-sm text-[var(--color-text-muted)]">{uploading ? 'Yuklanmoqda…' : 'Rasm'}</span>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={(e) => uploadImg(e.target.files?.[0])}
+                    />
+                  </label>
+                  <label className="flex items-center gap-2 h-12 px-3 rounded-xl border border-dashed border-[var(--color-border)] bg-white cursor-pointer">
+                    <Film size={17} className="text-[var(--color-text-muted)]" />
+                    <span className="text-sm text-[var(--color-text-muted)]">{uploadingVideo ? 'Yuklanmoqda…' : 'Video'}</span>
+                    <input
+                      type="file"
+                      accept="video/mp4,video/quicktime,video/webm"
+                      className="hidden"
+                      onChange={(e) => uploadVid(e.target.files?.[0])}
+                    />
+                  </label>
+                </div>
               )}
+              <p className="mt-1.5 text-[11px] text-[var(--color-text-muted)]">Bittasini tanlang. Video ~50MB gacha.</p>
             </Field>
 
             <label className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] px-3 py-2.5 cursor-pointer select-none hover:bg-[var(--color-bg)] transition-colors">
@@ -349,10 +389,12 @@ export default function ChannelPostsPage() {
               </p>
               <div className="rounded-2xl bg-[var(--color-bg)] p-3">
                 <div className="mx-auto max-w-[330px] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white shadow-sm">
-                  {imageUrl && (
+                  {videoUrl ? (
+                    <video src={videoUrl} controls className="max-h-52 w-full bg-black object-cover" />
+                  ) : imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={imageUrl} alt="" className="max-h-52 w-full object-cover" />
-                  )}
+                  ) : null}
                   <div className="p-3">
                     <div className="mb-1.5 flex items-center gap-2">
                       {channelInfo?.photoDataUrl ? (
@@ -425,10 +467,14 @@ export default function ChannelPostsPage() {
                 const s = STATUS[p.status];
                 return (
                   <div key={p.id} className="flex gap-3 rounded-xl border border-[var(--color-border)] p-3">
-                    {p.imageUrl && (
+                    {p.videoUrl ? (
+                      <span className="h-14 w-14 rounded-lg bg-black/80 grid place-items-center shrink-0 text-white">
+                        <Film size={20} />
+                      </span>
+                    ) : p.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.imageUrl} alt="" className="h-14 w-14 rounded-lg object-cover shrink-0" />
-                    )}
+                    ) : null}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${s.cls}`}>

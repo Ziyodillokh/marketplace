@@ -10,6 +10,7 @@ const MAX_SCHEDULED = 10;
 export interface CreatePostInput {
   text: string;
   imageUrl?: string | null;
+  videoUrl?: string | null;
   buyButton?: boolean;
   buttonText?: string | null;
   scheduledAt: string; // ISO
@@ -67,6 +68,7 @@ export class ChannelPostsService {
       id: p.id,
       text: p.text,
       imageUrl: p.imageUrl,
+      videoUrl: p.videoUrl,
       buyButton: p.buyButton,
       buttonText: p.buttonText,
       scheduledAt: p.scheduledAt,
@@ -107,11 +109,16 @@ export class ChannelPostsService {
       );
     }
 
+    // Bitta media — video bo'lsa rasm e'tiborga olinmaydi
+    const videoUrl = input.videoUrl?.trim() || null;
+    const imageUrl = videoUrl ? null : input.imageUrl?.trim() || null;
+
     const post = await this.prisma.channelPost.create({
       data: {
         tenantId,
         text,
-        imageUrl: input.imageUrl?.trim() || null,
+        imageUrl,
+        videoUrl,
         buyButton: !!input.buyButton,
         buttonText: input.buttonText?.trim() || null,
         scheduledAt,
@@ -153,6 +160,7 @@ export class ChannelPostsService {
       const messageId = await this.tenantBot.publishToChannel(post.tenantId, {
         text: post.text,
         imageUrl: post.imageUrl,
+        videoUrl: post.videoUrl,
         buyButton: post.buyButton,
         buttonText: post.buttonText,
       });

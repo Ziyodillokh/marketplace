@@ -75,8 +75,9 @@ export class UploadsService {
   }
 
   /**
-   * Videoni o'zgartirmasdan saqlaydi (mp4/mov/webm). Telegram URL orqali
-   * yuborganda ~20MB chegarasi bor — shu sababli yuklash hajmi cheklangan.
+   * Videoni vaqtincha diskka saqlaydi (mp4/mov/webm). Yuborilgandan keyin
+   * `deleteByUrl` bilan o'chiriladi — fayl Telegram'da file_id orqali qoladi,
+   * bizning diskda joy egallamaydi.
    */
   async saveVideo(buffer: Buffer, mime: string): Promise<UploadedVideo> {
     await this.ensureDir();
@@ -84,5 +85,23 @@ export class UploadsService {
     const filename = `${Date.now()}-${randomUUID()}.${ext}`;
     await fs.writeFile(join(this.dir, filename), buffer);
     return { url: `${this.publicUrl}/${filename}`, size: buffer.length };
+  }
+
+  /**
+   * Public URL'dan disk yo'lini topadi — faqat bizning yuklamalar uchun
+   * (`PUBLIC_UPLOADS_URL` prefiksi). Tashqi URL yoki path-traversal bo'lsa null.
+   */
+  localPathFromUrl(url: string | null | undefined): string | null {
+    if (!url || !url.startsWith(`${this.publicUrl}/`)) return null;
+    const name = url.slice(this.publicUrl.length + 1);
+    if (!name || name.includes('/') || name.includes('\\') || name.includes('..')) return null;
+    return join(this.dir, name);
+  }
+
+  /** Yuklangan faylni o'chiradi (broadcast tugagach — diskda joy egallamasin). */
+  async deleteByUrl(url: string | null | undefined): Promise<void> {
+    const p = this.localPathFromUrl(url);
+    if (!p) return;
+    await fs.unlink(p).catch(() => undefined);
   }
 }
