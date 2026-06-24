@@ -82,9 +82,10 @@ export function KpiCard({
         'hover:shadow-[0_10px_28px_-14px_rgba(15,23,42,0.22)]',
       )}
     >
-      {/* Label + tinted icon chip (Direction B: premium fintech) */}
+      {/* Label + tinted icon chip (premium fintech). Title fully visible — wraps to
+          2 lines and reserves 2-line height so every card's value row aligns. */}
       <div className="flex items-start justify-between gap-2">
-        <span className="min-w-0 truncate text-xs font-medium text-[var(--color-text-muted)]">
+        <span className="block min-h-[2.5em] min-w-0 text-xs font-medium leading-[1.25] text-[var(--color-text-muted)] line-clamp-2">
           {title}
         </span>
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] transition-colors group-hover:bg-[var(--color-primary)]/15">
