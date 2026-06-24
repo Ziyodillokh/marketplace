@@ -4,6 +4,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OrderStatus } from '@prisma/client';
 import { Bot, type Context, InlineKeyboard, InputFile } from 'grammy';
 import { PrismaService } from '@/prisma/prisma.service';
+import { TelegramBotService } from './telegram-bot.service';
 
 /**
  * Sotuvchi ulagan Telegram kanali haqida jonli ma'lumot (e'lonlar sahifasida
@@ -37,15 +38,58 @@ export class TenantBotService implements OnModuleInit {
   private readonly webappUrl: string;
   private readonly appUrl: string;
   private readonly secret: string;
+  private readonly globalBotToken: string;
+  private readonly globalBotUsername: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: EventEmitter2,
+    private readonly globalBot: TelegramBotService,
     config: ConfigService,
   ) {
     this.webappUrl = (config.get<string>('WEBAPP_URL') ?? '').replace(/\/$/, '');
     this.appUrl = (config.get<string>('APP_URL') ?? '').replace(/\/$/, '');
     this.secret = config.get<string>('TELEGRAM_WEBHOOK_SECRET') ?? '';
+    this.globalBotToken = (config.get<string>('TELEGRAM_BOT_TOKEN') ?? '').trim();
+    this.globalBotUsername = (config.get<string>('TELEGRAM_BOT_USERNAME') ?? '').replace(/^@/, '');
+  }
+
+  private channelChatId(channelId: string): string | number {
+    return channelId.startsWith('@') ? channelId : Number(channelId);
+  }
+
+  /**
+   * Kanal operatsiyalari uchun botni tanlaydi. AVVAL global Sellio boti
+   * (@selliostorebot) — sotuvchi uchun qulay, bitta tanish botni admin qiladi.
+   * U kanalga admin bo'lmasa — do'konning o'z botiga qaytamiz. Ikkala usul ham ishlaydi.
+   */
+  private async pickChannelBot(
+    tenantId: string,
+    channelId: string,
+    tenantToken: string | null,
+  ): Promise<{ bot: Bot; token: string } | null> {
+    const chatId = this.channelChatId(channelId);
+    const g = this.globalBot.bot;
+    if (g && this.globalBotToken) {
+      try {
+        await g.api.getChat(chatId);
+        return { bot: g, token: this.globalBotToken };
+      } catch {
+        /* global bot kanalga admin emas — do'kon botini sinaymiz */
+      }
+    }
+    if (tenantToken) {
+      const tb = await this.loadBot(tenantId);
+      if (tb) {
+        try {
+          await tb.api.getChat(chatId);
+          return { bot: tb, token: tenantToken };
+        } catch {
+          /* do'kon boti ham admin emas */
+        }
+      }
+    }
+    return null;
   }
 
   async onModuleInit(): Promise<void> {
@@ -188,15 +232,19 @@ export class TenantBotService implements OnModuleInit {
   ): Promise<number> {
     const t = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { channelId: true, botUsername: true },
+      select: { channelId: true, botUsername: true, botToken: true },
     });
     if (!t?.channelId) throw new Error('Kanal sozlanmagan');
-    const bot = await this.loadBot(tenantId);
-    if (!bot) throw new Error('Bot ulanmagan');
+    // Global Sellio boti yoki do'kon boti — qaysi biri kanalga admin bo'lsa.
+    const picked = await this.pickChannelBot(tenantId, t.channelId, t.botToken);
+    if (!picked) throw new Error('Bot kanalga admin emas — botni kanalga admin qiling');
+    const bot = picked.bot;
+    const chatId = this.channelChatId(t.channelId);
 
     let keyboard: InlineKeyboard | undefined;
     if (post.buyButton && t.botUsername) {
-      // Kanal postida faqat URL tugma ishlaydi — bot ochiladi, u do'konni ochadi
+      // "Sotib olish" tugmasi — qaysi bot post qilishidan qat'i nazar, har doim
+      // DO'KON botiga olib boradi (mijoz o'sha bot orqali do'konni ochadi).
       keyboard = new InlineKeyboard().url(
         post.buttonText?.trim() || '🛍 Sotib olish',
         `https://t.me/${t.botUsername}`,
@@ -207,14 +255,14 @@ export class TenantBotService implements OnModuleInit {
       const abs = post.imageUrl.startsWith('http')
         ? post.imageUrl
         : `${this.appUrl}${post.imageUrl}`;
-      const msg = await bot.api.sendPhoto(t.channelId, abs, {
+      const msg = await bot.api.sendPhoto(chatId, abs, {
         caption: post.text,
         parse_mode: 'HTML',
         reply_markup: keyboard,
       });
       return msg.message_id;
     }
-    const msg = await bot.api.sendMessage(t.channelId, post.text, {
+    const msg = await bot.api.sendMessage(chatId, post.text, {
       parse_mode: 'HTML',
       reply_markup: keyboard,
     });
@@ -231,27 +279,26 @@ export class TenantBotService implements OnModuleInit {
       where: { id: tenantId },
       select: { botToken: true, channelId: true, botUsername: true },
     });
-    if (!t?.botToken) return { connected: false, reason: "Avval do'kon botini ulang" };
+    if (!t) return { connected: false, reason: "Do'kon topilmadi" };
     if (!t.channelId) return { connected: false, reason: 'Avval kanal ID ni kiriting' };
 
-    const bot = await this.loadBot(tenantId);
-    if (!bot) return { connected: false, reason: 'Bot ulanmagan' };
-
-    // Qaysi botni admin qilish kerakligini aniq aytamiz — Sellio global boti emas,
-    // aynan shu do'konning o'z boti kanalga admin bo'lishi shart.
-    const botRef = t.botUsername ? `@${t.botUsername}` : "do'kon botingiz";
-
-    // Telegram chat_id: raqamli id -> number, @username -> string
-    const chatId = t.channelId.startsWith('@') ? t.channelId : Number(t.channelId);
+    const picked = await this.pickChannelBot(tenantId, t.channelId, t.botToken);
+    if (!picked) {
+      const adminRef = this.globalBotUsername ? `@${this.globalBotUsername}` : 'Sellio bot';
+      const own = t.botUsername ? ` (yoki do'kon botingiz @${t.botUsername})` : '';
+      return {
+        connected: false,
+        reason: `Kanalni ko'rib bo'lmadi. ${adminRef} botini${own} kanalga ADMIN qiling va qayta urinib ko'ring.`,
+      };
+    }
+    const { bot, token } = picked;
+    const chatId = this.channelChatId(t.channelId);
 
     let chat;
     try {
       chat = await bot.api.getChat(chatId);
     } catch {
-      return {
-        connected: false,
-        reason: `Bot kanalni ko'ra olmadi. ${botRef} botini (Sellio botini EMAS) kanalga ADMIN qiling va qayta urinib ko'ring.`,
-      };
+      return { connected: false, reason: "Kanalni ko'rib bo'lmadi. Botni kanalga ADMIN qiling." };
     }
 
     // Obunachilar soni — kanalda faqat admin bot o'qiy oladi
@@ -272,7 +319,7 @@ export class TenantBotService implements OnModuleInit {
         const file = await bot.api.getFile(fileId);
         if (file.file_path) {
           const res = await fetch(
-            `https://api.telegram.org/file/bot${t.botToken}/${file.file_path}`,
+            `https://api.telegram.org/file/bot${token}/${file.file_path}`,
           );
           if (res.ok) {
             const buf = Buffer.from(new Uint8Array(await res.arrayBuffer()));
@@ -302,12 +349,14 @@ export class TenantBotService implements OnModuleInit {
   async deleteChannelMessage(tenantId: string, messageId: number): Promise<void> {
     const t = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { channelId: true },
+      select: { channelId: true, botToken: true },
     });
     if (!t?.channelId) return;
-    const bot = await this.loadBot(tenantId);
-    if (!bot) return;
-    await bot.api.deleteMessage(t.channelId, messageId).catch(() => undefined);
+    const picked = await this.pickChannelBot(tenantId, t.channelId, t.botToken);
+    if (!picked) return;
+    await picked.bot.api
+      .deleteMessage(this.channelChatId(t.channelId), messageId)
+      .catch(() => undefined);
   }
 
   /** Kanaldagi tasdiqlash/rad tugmasi bosilganda buyurtma to'lovini hal qiladi. */
