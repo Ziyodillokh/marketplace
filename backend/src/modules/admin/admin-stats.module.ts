@@ -145,10 +145,9 @@ class AdminStatsController {
       ORDER BY day ASC;
     `;
 
-    // UserEvent'da tenantId yo'q — tashriflar faqat platforma egasi uchun hisoblanadi
-    const viewsRows = tenantId
-      ? ([] as Array<{ day: Date; visitors: number }>)
-      : await this.prisma.$queryRaw<Array<{ day: Date; visitors: number }>>`
+    // Tashriflar — endi UserEvent.tenantId bo'yicha per-do'kon hisoblanadi
+    const evTenant = tenantId ? Prisma.sql`AND "tenantId" = ${tenantId}` : Prisma.empty;
+    const viewsRows = await this.prisma.$queryRaw<Array<{ day: Date; visitors: number }>>`
       SELECT
         DATE_TRUNC('day', "createdAt") AS day,
         COUNT(DISTINCT "userId")::int AS visitors
@@ -156,6 +155,7 @@ class AdminStatsController {
       WHERE "createdAt" >= ${from}
         AND "createdAt" < ${to}
         AND type = 'VIEW_HOME'
+        ${evTenant}
       GROUP BY day
       ORDER BY day ASC;
     `;
@@ -227,10 +227,9 @@ class AdminStatsController {
   @RequireFeature('analytics')
   async funnel(@Query() dto: TimeRangeDto, @CurrentAdmin() admin: Admin) {
     const { from, to } = parseRange(dto, 7);
-    // UserEvent'da tenantId yo'q — funnel faqat platforma egasi uchun (sotuvchiga bo'sh)
-    if (admin.tenantId) {
-      return { visits: 0, productViews: 0, cartAdds: 0, checkouts: 0, orders: 0 };
-    }
+    // Endi UserEvent.tenantId bor — funnel per-do'kon hisoblanadi
+    const tenantId = admin.tenantId ?? null;
+    const evTenant = tenantId ? Prisma.sql`AND "tenantId" = ${tenantId}` : Prisma.empty;
     const rows = await this.prisma.$queryRaw<
       Array<{
         visits: number;
@@ -250,6 +249,7 @@ class AdminStatsController {
           MIN(CASE WHEN type = 'ORDER_PLACED' THEN "createdAt" END) AS s5
         FROM "UserEvent"
         WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+          ${evTenant}
         GROUP BY "userId"
       )
       SELECT
