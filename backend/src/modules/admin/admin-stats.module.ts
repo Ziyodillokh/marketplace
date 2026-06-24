@@ -1,7 +1,7 @@
 import { Controller, Get, Module, Query, UseGuards } from '@nestjs/common';
 import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { OrderStatus, type Admin } from '@prisma/client';
+import { OrderStatus, Prisma, type Admin } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
 import { CurrentAdmin, RolesGuard } from '../admin-auth/roles.guard';
@@ -124,8 +124,11 @@ class AdminStatsController {
 
   @Get('timeseries')
   @RequireFeature('analytics')
-  async timeseries(@Query() dto: TimeRangeDto) {
+  async timeseries(@Query() dto: TimeRangeDto, @CurrentAdmin() admin: Admin) {
     const { from, to } = parseRange(dto, 30);
+    // Sotuvchi faqat o'z do'koni buyurtmalarini ko'radi; owner (tenantId yo'q) — hammasini
+    const tenantId = admin.tenantId ?? null;
+    const orderTenant = tenantId ? Prisma.sql`AND "tenantId" = ${tenantId}` : Prisma.empty;
     const rows = await this.prisma.$queryRaw<
       Array<{ day: Date; orders: number; revenue: number }>
     >`
@@ -137,13 +140,15 @@ class AdminStatsController {
       WHERE "createdAt" >= ${from}
         AND "createdAt" < ${to}
         AND status != 'CANCELLED'
+        ${orderTenant}
       GROUP BY day
       ORDER BY day ASC;
     `;
 
-    const viewsRows = await this.prisma.$queryRaw<
-      Array<{ day: Date; visitors: number }>
-    >`
+    // UserEvent'da tenantId yo'q — tashriflar faqat platforma egasi uchun hisoblanadi
+    const viewsRows = tenantId
+      ? ([] as Array<{ day: Date; visitors: number }>)
+      : await this.prisma.$queryRaw<Array<{ day: Date; visitors: number }>>`
       SELECT
         DATE_TRUNC('day', "createdAt") AS day,
         COUNT(DISTINCT "userId")::int AS visitors
@@ -165,12 +170,14 @@ class AdminStatsController {
   }
 
   @Get('top-products')
-  async topProducts(@Query() dto: TopProductsDto) {
+  async topProducts(@Query() dto: TopProductsDto, @CurrentAdmin() admin: Admin) {
     const { from, to } = parseRange(dto, 7);
     const metric = dto.metric ?? 'sales';
     const limit = Math.min(dto.limit ?? 10, 50);
+    const tenantId = admin.tenantId ?? null;
 
     if (metric === 'sales') {
+      const orderTenant = tenantId ? Prisma.sql`AND o."tenantId" = ${tenantId}` : Prisma.empty;
       const rows = await this.prisma.$queryRaw<
         Array<{ productId: string; titleUz: string; quantity: number; revenue: number; imageUrl: string | null }>
       >`
@@ -186,13 +193,15 @@ class AdminStatsController {
         WHERE o."createdAt" >= ${from}
           AND o."createdAt" < ${to}
           AND o.status != 'CANCELLED'
+          ${orderTenant}
         GROUP BY p.id, p."titleUz"
         ORDER BY quantity DESC
         LIMIT ${limit};
       `;
       return rows;
     }
-    // views
+    // views — UserEvent'da tenantId yo'q, lekin mahsulot tenant'iga bog'lab filtrlaymiz
+    const prodTenant = tenantId ? Prisma.sql`AND p."tenantId" = ${tenantId}` : Prisma.empty;
     const rows = await this.prisma.$queryRaw<
       Array<{ productId: string; titleUz: string; views: number; imageUrl: string | null }>
     >`
@@ -206,6 +215,7 @@ class AdminStatsController {
       WHERE ue.type = 'VIEW_PRODUCT'
         AND ue."createdAt" >= ${from}
         AND ue."createdAt" < ${to}
+        ${prodTenant}
       GROUP BY p.id, p."titleUz"
       ORDER BY views DESC
       LIMIT ${limit};
@@ -215,8 +225,12 @@ class AdminStatsController {
 
   @Get('funnel')
   @RequireFeature('analytics')
-  async funnel(@Query() dto: TimeRangeDto) {
+  async funnel(@Query() dto: TimeRangeDto, @CurrentAdmin() admin: Admin) {
     const { from, to } = parseRange(dto, 7);
+    // UserEvent'da tenantId yo'q — funnel faqat platforma egasi uchun (sotuvchiga bo'sh)
+    if (admin.tenantId) {
+      return { visits: 0, productViews: 0, cartAdds: 0, checkouts: 0, orders: 0 };
+    }
     const rows = await this.prisma.$queryRaw<
       Array<{
         visits: number;
@@ -251,8 +265,11 @@ class AdminStatsController {
 
   @Get('top-categories')
   @RequireFeature('analytics')
-  async topCategories(@Query() dto: TimeRangeDto) {
+  async topCategories(@Query() dto: TimeRangeDto, @CurrentAdmin() admin: Admin) {
     const { from, to } = parseRange(dto, 7);
+    const tenantId = admin.tenantId ?? null;
+    const revTenant = tenantId ? Prisma.sql`AND oo."tenantId" = ${tenantId}` : Prisma.empty;
+    const prodTenant = tenantId ? Prisma.sql`AND p."tenantId" = ${tenantId}` : Prisma.empty;
     const rows = await this.prisma.$queryRaw<
       Array<{ categoryId: string; titleUz: string; interactions: number; revenue: number }>
     >`
@@ -268,11 +285,13 @@ class AdminStatsController {
           WHERE pp."categoryId" = c.id
             AND oo."createdAt" >= ${from} AND oo."createdAt" < ${to}
             AND oo.status != 'CANCELLED'
+            ${revTenant}
         ), 0)::float AS revenue
       FROM "UserEvent" ue
       JOIN "Product" p ON p.id = ue."productId"
       JOIN "Category" c ON c.id = p."categoryId"
       WHERE ue."createdAt" >= ${from} AND ue."createdAt" < ${to}
+        ${prodTenant}
       GROUP BY c.id, c."titleUz"
       ORDER BY interactions DESC
       LIMIT 10;
@@ -282,8 +301,10 @@ class AdminStatsController {
 
   @Get('cart-abandonment')
   @RequireFeature('analytics')
-  async cartAbandonment(@Query() dto: TimeRangeDto) {
+  async cartAbandonment(@Query() dto: TimeRangeDto, @CurrentAdmin() admin: Admin) {
     const { from, to } = parseRange(dto, 14);
+    const tenantId = admin.tenantId ?? null;
+    const prodTenant = tenantId ? Prisma.sql`AND p."tenantId" = ${tenantId}` : Prisma.empty;
     const rows = await this.prisma.$queryRaw<
       Array<{ productId: string; titleUz: string; abandonedCount: number; imageUrl: string | null }>
     >`
@@ -296,6 +317,7 @@ class AdminStatsController {
       JOIN "Product" p ON p.id = ue."productId"
       WHERE ue.type = 'CART_ADD'
         AND ue."createdAt" >= ${from} AND ue."createdAt" < ${to}
+        ${prodTenant}
         AND NOT EXISTS (
           SELECT 1 FROM "Order" o
           JOIN "OrderItem" oi ON oi."orderId" = o.id
