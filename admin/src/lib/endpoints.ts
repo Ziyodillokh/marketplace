@@ -44,6 +44,8 @@ export interface StoreBrief {
   tariffPlan: string;
   logoUrl: string | null;
   isCurrent: boolean;
+  /** Pulli tarif tugashiga necha kun qolgani (FREE da null). Manfiy = muddati o'tgan. */
+  tariffDaysLeft?: number | null;
 }
 export interface MyStores {
   stores: StoreBrief[];

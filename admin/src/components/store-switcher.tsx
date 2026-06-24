@@ -14,10 +14,42 @@ import { setAccessToken } from '@/lib/api';
 import { toast } from '@/stores/toast-store';
 import { Field, Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/cn';
 
 const PLAN_LABEL: Record<string, string> = {
   FREE: 'Free', STANDARD: 'Standart', PRO: 'Pro', PREMIUM: 'Premium',
 };
+
+/** Tarif tugashiga qolgan kunlar — jonli (pulslanadigan) nuqta bilan. */
+function DaysLeftBadge({ days }: { days: number }) {
+  const expired = days < 0;
+  const urgent = days >= 0 && days <= 3; // bugun/yaqin — qizil
+  const soon = days > 3 && days <= 7; // sariq
+  const label = expired ? 'Muddati tugagan' : days === 0 ? 'Bugun tugaydi' : `${days} kun qoldi`;
+  const tone = cn(
+    expired || urgent
+      ? 'bg-[var(--color-danger)]/10 text-[var(--color-danger)]'
+      : soon
+        ? 'bg-[var(--color-warning)]/10 text-[var(--color-warning)]'
+        : 'bg-[var(--color-success)]/10 text-[var(--color-success)]',
+  );
+  const dot = cn(
+    expired || urgent
+      ? 'bg-[var(--color-danger)]'
+      : soon
+        ? 'bg-[var(--color-warning)]'
+        : 'bg-[var(--color-success)]',
+  );
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap', tone)}>
+      <span className="relative flex h-1.5 w-1.5">
+        <span className={cn('absolute inline-flex h-full w-full animate-ping rounded-full opacity-75', dot)} />
+        <span className={cn('relative inline-flex h-1.5 w-1.5 rounded-full', dot)} />
+      </span>
+      {label}
+    </span>
+  );
+}
 
 export function StoreSwitcher({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
   const [open, setOpen] = useState(false);
@@ -56,8 +88,9 @@ export function StoreSwitcher({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
         <span className="min-w-0">
           <span className={`block ${nameText} truncate leading-tight`}>{current?.shopName ?? 'Do\'kon'}</span>
           {lg && current && (
-            <span className="block text-[11px] text-[var(--color-text-muted)] leading-tight">
-              {PLAN_LABEL[current.tariffPlan] ?? current.tariffPlan} tarif
+            <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] leading-tight text-[var(--color-text-muted)]">
+              <span>{PLAN_LABEL[current.tariffPlan] ?? current.tariffPlan} tarif</span>
+              {current.tariffDaysLeft != null && <DaysLeftBadge days={current.tariffDaysLeft} />}
             </span>
           )}
         </span>
@@ -107,6 +140,8 @@ export function StoreSwitcher({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
                       <span className="block text-sm font-medium truncate">{s.shopName}</span>
                       <span className="block text-[11px] text-[var(--color-text-muted)]">
                         {PLAN_LABEL[s.tariffPlan] ?? s.tariffPlan}
+                        {s.tariffDaysLeft != null &&
+                          ` · ${s.tariffDaysLeft < 0 ? 'muddati tugagan' : s.tariffDaysLeft + ' kun qoldi'}`}
                       </span>
                     </span>
                     {s.isCurrent && <Check size={16} className="text-[var(--color-primary)] shrink-0" />}

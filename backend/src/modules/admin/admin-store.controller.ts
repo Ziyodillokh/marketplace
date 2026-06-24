@@ -235,8 +235,14 @@ export class AdminStoreController {
     const rows = await this.prisma.admin.findMany({
       where: { telegramId: admin.telegramId, isActive: true, tenantId: { not: null } },
       orderBy: { createdAt: 'asc' },
-      select: { role: true, tenant: { select: { id: true, shopName: true, slug: true, tariffPlan: true, logoUrl: true, ownerTelegramId: true } } },
+      select: { role: true, tenant: { select: { id: true, shopName: true, slug: true, tariffPlan: true, logoUrl: true, ownerTelegramId: true, tariffExpiresAt: true, tariffStartedAt: true } } },
     });
+    // Pulli tarif muddati: aniq tariffExpiresAt, bo'lmasa tariffStartedAt + 30 kun.
+    const daysLeft = (plan: string, exp: Date | null, started: Date): number | null => {
+      if (plan === 'FREE') return null;
+      const end = exp ?? new Date(started.getTime() + 30 * 24 * 60 * 60 * 1000);
+      return Math.ceil((end.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+    };
     const stores = rows
       .filter((r) => r.tenant)
       .map((r) => ({
@@ -248,6 +254,7 @@ export class AdminStoreController {
         role: r.role,
         isOwner: r.tenant!.ownerTelegramId === admin.telegramId,
         isCurrent: r.tenant!.id === admin.tenantId,
+        tariffDaysLeft: daysLeft(r.tenant!.tariffPlan, r.tenant!.tariffExpiresAt, r.tenant!.tariffStartedAt),
       }));
     // Yangi do'kon ochish — faqat o'zi EGASI bo'lgan do'konlar bo'yicha hisoblanadi
     // va faqat BOSS (egasi/super) roli yangi do'kon ocha oladi (POST /new gate'iga mos).
