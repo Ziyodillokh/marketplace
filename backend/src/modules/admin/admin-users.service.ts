@@ -36,6 +36,9 @@ export class AdminUsersService {
 
     const where: Prisma.UserWhereInput = {
       ...blockFilter,
+      // Sotuvchi faqat O'Z do'koniga buyurtma bergan mijozlarni ko'radi.
+      // (User global model — tenant filtri orders orqali qo'yiladi.)
+      ...(tenantId ? { orders: { some: { tenantId } } } : {}),
       ...(params.q
         ? {
             OR: [
@@ -82,6 +85,15 @@ export class AdminUsersService {
   }
 
   async getById(id: string, tenantId?: string | null) {
+    // Sotuvchi faqat o'z mijozini ko'ra oladi — boshqa do'kon mijozi bo'lsa 404.
+    if (tenantId) {
+      const isCustomer = await this.prisma.order.findFirst({
+        where: { userId: id, tenantId },
+        select: { id: true },
+      });
+      if (!isCustomer) throw new NotFoundException("User not found");
+    }
+
     const u = await this.prisma.user.findUnique({
       where: { id },
       include: {
@@ -102,8 +114,9 @@ export class AdminUsersService {
       isBlocked = !!blk;
     }
 
+    // Statistika faqat shu do'kon buyurtmalari bo'yicha (cross-tenant leak'ning oldini olish)
     const totals = await this.prisma.order.aggregate({
-      where: { userId: id, status: { not: "CANCELLED" } },
+      where: { userId: id, status: { not: "CANCELLED" }, ...(tenantId ? { tenantId } : {}) },
       _sum: { total: true },
       _count: true,
       _avg: { total: true },
@@ -164,11 +177,23 @@ export class AdminUsersService {
       cursor?: string;
       limit?: number;
     },
+    tenantId?: string | null,
   ): Promise<CursorPage<unknown>> {
     const limit = Math.min(Math.max(params.limit ?? 50, 1), 200);
     const take = limit + 1;
+    // Sotuvchi faqat o'z mijozining shu do'konga oid faolligini ko'radi.
+    // UserEvent'da tenantId yo'q — mahsulotga bog'liq hodisalarni shu do'kon
+    // mahsuloti orqali filtrlaymiz (mahsulotsiz generic hodisalar ko'rsatilmaydi).
+    if (tenantId) {
+      const isCustomer = await this.prisma.order.findFirst({
+        where: { userId, tenantId },
+        select: { id: true },
+      });
+      if (!isCustomer) throw new NotFoundException("User not found");
+    }
     const where: Prisma.UserEventWhereInput = {
       userId,
+      ...(tenantId ? { product: { tenantId } } : {}),
       ...(params.type ? { type: params.type } : {}),
       ...(params.from || params.to
         ? {
@@ -212,7 +237,16 @@ export class AdminUsersService {
     return buildCursorPage(items, limit);
   }
 
-  async interests(userId: string) {
+  async interests(userId: string, tenantId?: string | null) {
+    // Sotuvchi faqat o'z mijozining qiziqishlarini ko'radi (shu do'kon mahsulotlari bo'yicha)
+    if (tenantId) {
+      const isCustomer = await this.prisma.order.findFirst({
+        where: { userId, tenantId },
+        select: { id: true },
+      });
+      if (!isCustomer) throw new NotFoundException("User not found");
+    }
+    const prodTenant = tenantId ? Prisma.sql`AND p."tenantId" = ${tenantId}` : Prisma.empty;
     // Top categories by weighted score
     const categoryRows = await this.prisma.$queryRaw<
       Array<{
@@ -239,10 +273,11 @@ export class AdminUsersService {
         SUM(CASE WHEN ue.type = 'FAVORITE_ADD' THEN 1 ELSE 0 END)::int AS favorites,
         SUM(CASE WHEN ue.type = 'ORDER_PLACED' THEN 1 ELSE 0 END)::int AS orders
       FROM "UserEvent" ue
-      LEFT JOIN "Product" p ON ue."productId" = p.id
+      JOIN "Product" p ON ue."productId" = p.id
       JOIN "Category" c ON p."categoryId" = c.id
       WHERE ue."userId" = ${userId}
         AND ue."createdAt" >= NOW() - INTERVAL '90 days'
+        ${prodTenant}
       GROUP BY c.id, c."titleUz", c."titleRu"
       HAVING SUM(CASE WHEN ue.type IN ('VIEW_PRODUCT','FAVORITE_ADD','CART_ADD','ORDER_PLACED') THEN 1 ELSE 0 END) > 0
       ORDER BY score DESC
@@ -266,7 +301,7 @@ export class AdminUsersService {
       .map((v) => v.productId)
       .filter((id): id is string => Boolean(id));
     const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds } },
+      where: { id: { in: productIds }, ...(tenantId ? { tenantId } : {}) },
       include: { images: { orderBy: { position: "asc" }, take: 1 } },
     });
     const productMap = new Map(products.map((p) => [p.id, p]));
@@ -300,6 +335,7 @@ export class AdminUsersService {
       WHERE ue."userId" = ${userId}
         AND ue.type = 'CART_ADD'
         AND ue."createdAt" >= NOW() - INTERVAL '30 days'
+        ${prodTenant}
         AND NOT EXISTS (
           SELECT 1 FROM "Order" o
           JOIN "OrderItem" oi ON oi."orderId" = o.id
@@ -326,11 +362,13 @@ export class AdminUsersService {
   async orders(
     userId: string,
     params: { cursor?: string; limit?: number },
+    tenantId?: string | null,
   ): Promise<CursorPage<unknown>> {
     const limit = Math.min(Math.max(params.limit ?? 20, 1), 100);
     const take = limit + 1;
     const rows = await this.prisma.order.findMany({
-      where: { userId },
+      // Sotuvchi faqat o'z do'koniga berilgan buyurtmalarni ko'radi
+      where: { userId, ...(tenantId ? { tenantId } : {}) },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take,
       ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),

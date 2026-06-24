@@ -56,17 +56,17 @@ export class AdminUsersController {
   }
 
   @Get(':id/timeline')
-  timeline(@Param('id') id: string, @Query() q: TimelineDto) {
-    return this.users.timeline(id, q);
+  timeline(@Param('id') id: string, @Query() q: TimelineDto, @CurrentAdmin() admin: Admin) {
+    return this.users.timeline(id, q, admin.tenantId);
   }
 
   @Get(':id/interests')
-  interests(@Param('id') id: string) {
-    return this.users.interests(id);
+  interests(@Param('id') id: string, @CurrentAdmin() admin: Admin) {
+    return this.users.interests(id, admin.tenantId);
   }
 
   @Get(':id/orders')
-  orders(@Param('id') id: string, @Query() q: PaginationDto) {
-    return this.users.orders(id, q);
+  orders(@Param('id') id: string, @Query() q: PaginationDto, @CurrentAdmin() admin: Admin) {
+    return this.users.orders(id, q, admin.tenantId);
   }
 }
