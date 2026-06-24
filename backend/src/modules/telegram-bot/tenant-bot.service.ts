@@ -229,13 +229,17 @@ export class TenantBotService implements OnModuleInit {
   async getChannelInfo(tenantId: string): Promise<ChannelInfo> {
     const t = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { botToken: true, channelId: true },
+      select: { botToken: true, channelId: true, botUsername: true },
     });
     if (!t?.botToken) return { connected: false, reason: "Avval do'kon botini ulang" };
     if (!t.channelId) return { connected: false, reason: 'Avval kanal ID ni kiriting' };
 
     const bot = await this.loadBot(tenantId);
     if (!bot) return { connected: false, reason: 'Bot ulanmagan' };
+
+    // Qaysi botni admin qilish kerakligini aniq aytamiz — Sellio global boti emas,
+    // aynan shu do'konning o'z boti kanalga admin bo'lishi shart.
+    const botRef = t.botUsername ? `@${t.botUsername}` : "do'kon botingiz";
 
     // Telegram chat_id: raqamli id -> number, @username -> string
     const chatId = t.channelId.startsWith('@') ? t.channelId : Number(t.channelId);
@@ -246,7 +250,7 @@ export class TenantBotService implements OnModuleInit {
     } catch {
       return {
         connected: false,
-        reason: "Bot kanalni ko'ra olmadi. Botni kanalga ADMIN qiling va qayta urinib ko'ring.",
+        reason: `Bot kanalni ko'ra olmadi. ${botRef} botini (Sellio botini EMAS) kanalga ADMIN qiling va qayta urinib ko'ring.`,
       };
     }
 
