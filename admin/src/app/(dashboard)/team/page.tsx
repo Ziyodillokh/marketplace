@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Crown, Pencil, Eye, Trash2, UserPlus, Info, ShieldCheck, Loader2, CheckCircle2 } from 'lucide-react';
+import { Crown, Pencil, Eye, Trash2, UserPlus, Info, ShieldCheck, Loader2, CheckCircle2, User, Hash } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input, Select } from '@/components/ui/input';
@@ -230,7 +230,7 @@ export default function TeamPage() {
               team?.map((m) => {
                 const info = ROLE_INFO[m.role] ?? ROLE_INFO.MODERATOR;
                 return (
-                  <div key={m.id} className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] p-3">
+                  <div key={m.id} className="flex items-start gap-3 rounded-xl border border-[var(--color-border)] p-3">
                     <span className="relative shrink-0">
                       {m.photoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -240,30 +240,45 @@ export default function TeamPage() {
                           className="h-11 w-11 rounded-full object-cover ring-1 ring-[var(--color-border)]"
                         />
                       ) : (
-                        <span className={`inline-flex h-11 w-11 rounded-full items-center justify-center font-semibold ${info.cls}`}>
-                          {m.fullName.trim().slice(0, 1).toUpperCase() || '?'}
+                        <span className="inline-flex h-11 w-11 rounded-full items-center justify-center bg-[var(--color-bg)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]">
+                          <User size={22} />
                         </span>
                       )}
                       <span className={`absolute -bottom-0.5 -right-0.5 inline-flex h-5 w-5 rounded-full items-center justify-center ring-2 ring-white ${info.cls}`}>
                         <info.Icon size={11} />
                       </span>
                     </span>
+
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {m.fullName} {m.isSelf && <span className="text-[var(--color-text-muted)]">(siz)</span>}
+                      {/* Ism — to'liq ko'rinadi (kerak bo'lsa 2 qatorga o'tadi) */}
+                      <p className="text-sm font-semibold leading-snug break-words">
+                        {m.fullName}
+                        {m.isSelf && <span className="font-normal text-[var(--color-text-muted)]"> (siz)</span>}
                       </p>
-                      <p className="text-[11px] text-[var(--color-text-muted)]">
-                        {info.label} · ID {m.telegramId ?? '—'}
+                      {/* Rol */}
+                      <span
+                        className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${info.cls}`}
+                      >
+                        <info.Icon size={11} />
+                        {info.label}
+                      </span>
+                      {/* ID — pastda, oldida belgi bilan */}
+                      <p className="mt-1 flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]">
+                        <Hash size={11} className="shrink-0" />
+                        ID: <span className="font-medium text-[var(--color-text)]">{m.telegramId ?? '—'}</span>
                       </p>
                     </div>
+
                     {m.isOwner ? (
-                      <span className="text-[11px] font-semibold text-amber-600 shrink-0">Egasi</span>
+                      <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-600">
+                        Egasi
+                      </span>
                     ) : (
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
                         <select
                           value={m.role === 'MODERATOR' ? 'MODERATOR' : 'CREATOR'}
                           onChange={(e) => changeRole.mutate({ id: m.id, r: e.target.value as 'CREATOR' | 'MODERATOR' })}
-                          className="h-8 rounded-lg border border-[var(--color-border)] text-xs px-1.5 bg-white"
+                          className="h-8 rounded-lg border border-[var(--color-border)] text-xs px-2 bg-white"
                         >
                           <option value="CREATOR">Creator</option>
                           <option value="MODERATOR">Moderator</option>
