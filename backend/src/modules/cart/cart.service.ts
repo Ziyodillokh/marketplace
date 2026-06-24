@@ -108,11 +108,12 @@ export class CartService {
     if (!product || !product.isActive) throw new NotFoundException('Product not available');
 
     let variantId: string | null = input.variantId ?? null;
+    let variantStock: number | null = null;
     if (product.variants.length > 0) {
       if (!variantId) throw new BadRequestException('Variant required');
       const variant = product.variants.find((v) => v.id === variantId);
       if (!variant) throw new NotFoundException('Variant not found');
-      if (variant.stock < quantity) throw new BadRequestException('Not enough stock');
+      variantStock = variant.stock;
     } else {
       variantId = null;
     }
@@ -120,6 +121,18 @@ export class CartService {
     const existing = await this.prisma.cartItem.findFirst({
       where: { userId, productId: input.productId, variantId },
     });
+
+    // Kumulyativ tekshiruv: savatda turgan + yangi miqdor zaxiradan oshmasin
+    // (aks holda 5 ta (zaxira 5) qo'shib, yana 5 ta qo'shib savatda 10 bo'lib qolardi)
+    if (variantStock !== null) {
+      const resultingQty = (existing?.quantity ?? 0) + quantity;
+      if (resultingQty > variantStock) {
+        throw new BadRequestException(
+          `Omborda faqat ${variantStock} dona bor` +
+            (existing ? ` (savatingizda allaqachon ${existing.quantity} dona)` : ''),
+        );
+      }
+    }
 
     let item;
     if (existing) {

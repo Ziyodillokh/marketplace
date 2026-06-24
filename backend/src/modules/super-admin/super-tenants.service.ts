@@ -189,8 +189,38 @@ export class SuperTenantsService {
     });
   }
 
+  /**
+   * Do'kon va unга tegishli BARCHA ma'lumotni xavfsiz tartibda o'chiradi.
+   * Order/Product/Banner/PromoCode'da Tenant'ga FK yo'q (faqat tenantId ustun) —
+   * shuning uchun ular alohida o'chiriladi, aks holda orphan qoladi.
+   * Invoice FK = RESTRICT — tenant'dan oldin o'chirilishi shart.
+   * Tenant o'chgach: Admin/Subscription/AICreditUsage/ResourceStat/
+   * ChannelPost/TenantBlockedUser cascade orqali o'chadi.
+   */
+  private async purgeTenant(id: string): Promise<void> {
+    await this.prisma.$transaction([
+      // Buyurtmalar → OrderItem/OrderEvent/PaymentTransaction(orderId) cascade
+      this.prisma.order.deleteMany({ where: { tenantId: id } }),
+      // Mahsulotga bog'liq RESTRICT FK'lar (cart/event) — mahsulotdan oldin
+      this.prisma.cartItem.deleteMany({ where: { product: { tenantId: id } } }),
+      this.prisma.userEvent.deleteMany({ where: { product: { tenantId: id } } }),
+      // Mahsulotlar → image/variant/spec/favorite/relatedRule(product) cascade
+      this.prisma.product.deleteMany({ where: { tenantId: id } }),
+      // Kategoriyalar → relatedRule(category) cascade
+      this.prisma.category.deleteMany({ where: { tenantId: id } }),
+      this.prisma.banner.deleteMany({ where: { tenantId: id } }),
+      this.prisma.promoCode.deleteMany({ where: { tenantId: id } }), // → PromoCodeUsage cascade
+      this.prisma.paymentTransaction.deleteMany({ where: { tenantId: id } }),
+      this.prisma.invoice.deleteMany({ where: { tenantId: id } }), // FK RESTRICT
+      // Va nihoyat do'konning o'zi (qolgan relations cascade)
+      this.prisma.tenant.delete({ where: { id } }),
+    ]);
+  }
+
   async delete(id: string): Promise<{ ok: true }> {
-    await this.prisma.tenant.delete({ where: { id } });
+    const t = await this.prisma.tenant.findUnique({ where: { id }, select: { id: true } });
+    if (!t) throw new NotFoundException('Tenant not found');
+    await this.purgeTenant(id);
     return { ok: true };
   }
 
@@ -200,10 +230,16 @@ export class SuperTenantsService {
     reason?: string,
   ): Promise<{ updated: number }> {
     if (action === 'delete') {
-      const result = await this.prisma.tenant.deleteMany({
-        where: { id: { in: ids } },
-      });
-      return { updated: result.count };
+      let updated = 0;
+      for (const id of ids) {
+        try {
+          await this.purgeTenant(id);
+          updated += 1;
+        } catch {
+          // bittasi xato bo'lsa qolganlarini davom ettiramiz
+        }
+      }
+      return { updated };
     }
     const result = await this.prisma.tenant.updateMany({
       where: { id: { in: ids } },
