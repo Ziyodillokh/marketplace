@@ -393,8 +393,10 @@ export class AdminProductsService {
       });
       for (const v of input.variants) {
         if (v.id) {
-          await this.prisma.productVariant.update({
-            where: { id: v.id },
+          // updateMany + productId — faqat SHU mahsulotning variantini o'zgartiramiz
+          // (boshqa mahsulot/do'kon variantini id orqali o'zgartirib bo'lmaydi)
+          await this.prisma.productVariant.updateMany({
+            where: { id: v.id, productId: id },
             data: {
               color: v.color,
               size: v.size,
@@ -456,7 +458,20 @@ export class AdminProductsService {
 
   async hardDelete(id: string, tenantId?: TenantId) {
     await this.assertOwnProduct(id, tenantId);
+    // OrderItem/CartItem.productId FK = ON DELETE RESTRICT — sotilган yoki
+    // savatda turgan mahsulotni hard-delete qilib bo'lmaydi (aks holda 500).
+    // Bunday holda soft-delete (isActive=false) ga tushamiz.
+    const [orderItems, cartItems] = await Promise.all([
+      this.prisma.orderItem.count({ where: { productId: id } }),
+      this.prisma.cartItem.count({ where: { productId: id } }),
+    ]);
+    if (orderItems > 0 || cartItems > 0) {
+      await this.prisma.product.update({ where: { id }, data: { isActive: false } });
+      this.events.emit('product.updated', { productId: id });
+      return { ok: true, softDeleted: true };
+    }
     await this.prisma.product.delete({ where: { id } });
+    this.events.emit('product.deleted', { productId: id });
     return { ok: true };
   }
 

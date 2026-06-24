@@ -163,6 +163,22 @@ export class AdminCategoriesService {
       const c = await this.prisma.category.findUnique({ where: { id }, select: { tenantId: true } });
       if (!c || c.tenantId !== tenantId) throw new NotFoundException('Category not found');
     }
+    // Product.categoryId FK = ON DELETE RESTRICT — mahsuloti bor kategoriyani
+    // o'chirib bo'lmaydi (aks holda 500). Aniq xato beramiz.
+    const [productCount, childCount] = await Promise.all([
+      this.prisma.product.count({ where: { categoryId: id } }),
+      this.prisma.category.count({ where: { parentId: id } }),
+    ]);
+    if (productCount > 0) {
+      throw new BadRequestException(
+        `Bu kategoriyada ${productCount} ta mahsulot bor. Avval ularni boshqa kategoriyaga ko'chiring yoki o'chiring.`,
+      );
+    }
+    if (childCount > 0) {
+      throw new BadRequestException(
+        `Bu kategoriyada ${childCount} ta ichki kategoriya bor. Avval ularni o'chiring.`,
+      );
+    }
     await this.prisma.category.delete({ where: { id } });
     this.invalidate();
     return { ok: true };
