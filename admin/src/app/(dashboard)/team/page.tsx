@@ -8,7 +8,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input, Select } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { apiTeam, apiAddMember, apiUpdateMemberRole, apiRemoveMember, apiLookupMember } from '@/lib/endpoints';
+import { apiTeam, apiAddMember, apiUpdateMemberRole, apiRemoveMember, apiLookupMember, apiMyStore } from '@/lib/endpoints';
 import { toast } from '@/stores/toast-store';
 
 const ROLE_INFO: Record<string, { label: string; desc: string; cls: string; Icon: typeof Crown }> = {
@@ -24,6 +24,22 @@ const LEGEND_ROLES = ['ADMIN', 'CREATOR', 'MODERATOR'] as const;
 export default function TeamPage() {
   const qc = useQueryClient();
   const { data: team, isLoading } = useQuery({ queryKey: ['team'], queryFn: apiTeam });
+  const { data: store } = useQuery({ queryKey: ['my-store'], queryFn: apiMyStore });
+
+  // Tarif bo'yicha jamoa limiti. Yuklanmaguncha -1 (cheksiz) deb olamiz —
+  // shunda "limit to'ldi" xabari noto'g'ri chaqnamaydi.
+  const limits = store?.limits;
+  const maxMod = limits?.maxModerators ?? -1;
+  const maxCre = limits?.maxCreators ?? -1;
+  const usedMod = team?.filter((m) => m.role === 'MODERATOR').length ?? 0;
+  const usedCre = team?.filter((m) => m.role === 'CREATOR').length ?? 0;
+  const fmtMax = (n: number) => (n === -1 ? '∞' : String(n));
+  const roleFull = (r: 'CREATOR' | 'MODERATOR') => {
+    const max = r === 'MODERATOR' ? maxMod : maxCre;
+    const used = r === 'MODERATOR' ? usedMod : usedCre;
+    return max !== -1 && used >= max;
+  };
+  const noTeam = maxMod === 0 && maxCre === 0; // FREE — jamoa qo'shib bo'lmaydi
 
   const [telegramId, setTelegramId] = useState('');
   const [fullName, setFullName] = useState('');
@@ -141,6 +157,24 @@ export default function TeamPage() {
         <Card>
           <CardHeader title="Xodim qo'shish" />
           <CardBody className="space-y-3">
+            {limits && (
+              <div className="flex items-center justify-between rounded-xl bg-[var(--color-bg)] px-3 py-2 text-xs">
+                <span className="inline-flex items-center gap-1.5">
+                  <Pencil size={13} className="text-blue-500" />
+                  <span className="font-medium">Creator</span>
+                  <span className={roleFull('CREATOR') ? 'font-semibold text-[var(--color-danger)]' : 'text-[var(--color-text-muted)]'}>
+                    {usedCre}/{fmtMax(maxCre)}
+                  </span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Eye size={13} className="text-emerald-500" />
+                  <span className="font-medium">Moderator</span>
+                  <span className={roleFull('MODERATOR') ? 'font-semibold text-[var(--color-danger)]' : 'text-[var(--color-text-muted)]'}>
+                    {usedMod}/{fmtMax(maxMod)}
+                  </span>
+                </span>
+              </div>
+            )}
             <div className="flex gap-2 rounded-xl bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20 px-3 py-2.5 text-xs">
               <Info size={16} className="text-[var(--color-primary)] shrink-0 mt-0.5" />
               <p className="text-[var(--color-text-muted)]">
@@ -206,17 +240,24 @@ export default function TeamPage() {
             </Field>
             <Field label="Rol">
               <Select value={role} onChange={(e) => setRole(e.target.value as 'CREATOR' | 'MODERATOR')}>
-                <option value="CREATOR">Creator — tovar qo&apos;shadi</option>
-                <option value="MODERATOR">Moderator — kuzatadi</option>
+                <option value="CREATOR">Creator — tovar qo&apos;shadi{roleFull('CREATOR') ? " (to'ldi)" : ''}</option>
+                <option value="MODERATOR">Moderator — kuzatadi{roleFull('MODERATOR') ? " (to'ldi)" : ''}</option>
               </Select>
             </Field>
             <Button
               loading={add.isPending}
-              disabled={telegramId.trim().length < 5 || fullName.trim().length < 2}
+              disabled={telegramId.trim().length < 5 || fullName.trim().length < 2 || roleFull(role)}
               onClick={() => add.mutate()}
             >
               <UserPlus size={16} /> Qo&apos;shish
             </Button>
+            {roleFull(role) && (
+              <p className="text-center text-[12px] font-medium text-[var(--color-danger)]">
+                {noTeam
+                  ? "Jamoa a'zolari Standart tarifdan boshlanadi — tarifni yangilang."
+                  : `Bu rol uchun limit to'ldi (${role === 'MODERATOR' ? maxMod : maxCre} ta). Ko'proq uchun tarifni yangilang.`}
+              </p>
+            )}
           </CardBody>
         </Card>
 

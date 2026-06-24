@@ -35,6 +35,15 @@ import { PAYMENT_INFO } from '../public/payment-info';
 import { buildPaymentCaption } from '../public/payment-caption';
 import { ReferralService } from '../referral/referral.service';
 
+/** Tarif jamoa limiti to'lganda ko'rsatiladigan xabar (rol + limit bo'yicha). */
+function teamLimitMessage(role: AdminRole, limit: number): string {
+  const label = role === AdminRole.MODERATOR ? 'moderator' : 'kontent yaratuvchi';
+  if (limit === 0) {
+    return "Joriy tarifda jamoaga a'zo qo'shib bo'lmaydi. Ko'proq imkoniyat uchun tarifni yangilang.";
+  }
+  return `Joriy tarifda ${limit} ta ${label} qo'shish mumkin (limit to'ldi). Ko'proq uchun tarifni yangilang.`;
+}
+
 class BotTokenDto {
   @IsString()
   @MaxLength(100)
@@ -353,7 +362,7 @@ export class AdminStoreController {
 
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: admin.tenantId },
-      select: { slug: true },
+      select: { slug: true, tariffPlan: true },
     });
     if (!tenant) throw new BadRequestException("Do'kon topilmadi");
 
@@ -361,6 +370,16 @@ export class AdminStoreController {
       where: { tenantId: admin.tenantId, telegramId },
     });
     if (exists) throw new ConflictException('Bu foydalanuvchi allaqachon jamoada');
+
+    // Tarif bo'yicha jamoa limiti (rol bo'yicha alohida hisoblanadi)
+    const limits = limitsFor(tenant.tariffPlan);
+    const roleLimit = role === AdminRole.MODERATOR ? limits.maxModerators : limits.maxCreators;
+    if (roleLimit !== -1) {
+      const used = await this.prisma.admin.count({ where: { tenantId: admin.tenantId, role } });
+      if (used >= roleLimit) {
+        throw new BadRequestException(teamLimitMessage(role, roleLimit));
+      }
+    }
 
     // Profil rasmi — faqat o'zimiz yuklagan uploads URL qabul qilinadi (lookup qaytargan)
     const photoUrl = dto.photoUrl && /\/uploads\//.test(dto.photoUrl) ? dto.photoUrl : null;
@@ -393,10 +412,21 @@ export class AdminStoreController {
     if (member.id === admin.id) throw new BadRequestException("O'z rolingizni o'zgartira olmaysiz");
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: admin.tenantId },
-      select: { ownerTelegramId: true },
+      select: { ownerTelegramId: true, tariffPlan: true },
     });
     if (tenant?.ownerTelegramId && member.telegramId === tenant.ownerTelegramId) {
       throw new BadRequestException("Do'kon egasining rolini o'zgartirib bo'lmaydi");
+    }
+    // Yangi rol bo'yicha tarif limiti (rol o'zgarganda)
+    if (member.role !== dto.role) {
+      const limits = limitsFor(tenant?.tariffPlan ?? 'FREE');
+      const roleLimit = dto.role === AdminRole.MODERATOR ? limits.maxModerators : limits.maxCreators;
+      if (roleLimit !== -1) {
+        const used = await this.prisma.admin.count({
+          where: { tenantId: admin.tenantId, role: dto.role, id: { not: id } },
+        });
+        if (used >= roleLimit) throw new BadRequestException(teamLimitMessage(dto.role, roleLimit));
+      }
     }
     await this.prisma.admin.update({ where: { id }, data: { role: dto.role } });
     return { ok: true };

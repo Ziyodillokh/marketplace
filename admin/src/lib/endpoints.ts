@@ -181,6 +181,8 @@ export interface TariffLimits {
   branding: boolean;
   prioritySupport: boolean;
   maxStores: number;
+  maxModerators: number;
+  maxCreators: number;
 }
 export interface MyStore {
   tenant: null | {

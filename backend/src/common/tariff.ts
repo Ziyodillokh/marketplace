@@ -14,6 +14,10 @@ export interface TariffLimits {
   branding: boolean;
   prioritySupport: boolean;
   maxStores: number;
+  /** Jamoa: qo'shsa bo'ladigan moderatorlar soni (-1 = cheksiz, 0 = mumkin emas). */
+  maxModerators: number;
+  /** Jamoa: qo'shsa bo'ladigan kontent-yaratuvchilar (CREATOR) soni (-1 = cheksiz). */
+  maxCreators: number;
 }
 
 export type TariffFeature = 'analytics' | 'onlinePayment' | 'branding' | 'prioritySupport';
@@ -32,6 +36,8 @@ export const TARIFF_LIMITS: Record<TariffPlan, TariffLimits> = {
     branding: false,
     prioritySupport: false,
     maxStores: 1,
+    maxModerators: 0,
+    maxCreators: 0,
   },
   STANDARD: {
     maxCategories: 50,
@@ -46,6 +52,8 @@ export const TARIFF_LIMITS: Record<TariffPlan, TariffLimits> = {
     branding: true,
     prioritySupport: true,
     maxStores: 1,
+    maxModerators: 1,
+    maxCreators: 1,
   },
   PRO: {
     maxCategories: 100,
@@ -60,6 +68,8 @@ export const TARIFF_LIMITS: Record<TariffPlan, TariffLimits> = {
     branding: true,
     prioritySupport: true,
     maxStores: 1,
+    maxModerators: 3,
+    maxCreators: 3,
   },
   PREMIUM: {
     maxCategories: -1,
@@ -74,6 +84,8 @@ export const TARIFF_LIMITS: Record<TariffPlan, TariffLimits> = {
     branding: true,
     prioritySupport: true,
     maxStores: 2,
+    maxModerators: -1,
+    maxCreators: -1,
   },
 };
 
