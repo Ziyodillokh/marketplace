@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CreditCard, Lock, Info } from 'lucide-react';
+import { CreditCard, Lock, Info, Radio } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,50 @@ function detectCardScheme(s: string): { label: string; cls: string } | null {
   if (/^4/.test(d)) return { label: 'VISA', cls: 'bg-indigo-100 text-indigo-700' };
   if (/^(5[1-5]|2[2-7])/.test(d)) return { label: 'MASTERCARD', cls: 'bg-orange-100 text-orange-700' };
   return null;
+}
+
+// Karta turiga mos gradient (vizual karta uchun)
+const CARD_THEMES: Record<string, string> = {
+  HUMO: 'from-teal-500 via-teal-600 to-emerald-700',
+  UZCARD: 'from-sky-500 via-blue-600 to-blue-800',
+  VISA: 'from-indigo-600 via-blue-700 to-slate-900',
+  MASTERCARD: 'from-orange-500 via-orange-600 to-red-700',
+};
+
+/** Vizual to'lov kartasi — turi ranglarida, raqam/egasi + ulangan kanal bilan. */
+function CardPreview({ number, holder, channelId }: { number: string; holder: string; channelId: string }) {
+  const scheme = detectCardScheme(number);
+  const gradient = (scheme && CARD_THEMES[scheme.label]) || 'from-slate-600 via-slate-700 to-slate-900';
+  const digits = number.replace(/\D/g, '');
+  const display = (digits + '•'.repeat(Math.max(0, 16 - digits.length)))
+    .slice(0, 16)
+    .replace(/(.{4})/g, '$1 ')
+    .trim();
+  return (
+    <div className="space-y-2">
+      <div
+        className={`relative aspect-[1.586/1] w-full max-w-[340px] overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-5 text-white shadow-lg`}
+      >
+        <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-white/10" />
+        <div className="pointer-events-none absolute -left-6 -bottom-8 h-28 w-28 rounded-full bg-white/5" />
+        <div className="relative flex items-start justify-between">
+          {/* chip */}
+          <div className="h-9 w-12 rounded-md bg-gradient-to-br from-yellow-200 to-amber-400 shadow-inner" />
+          <span className="text-lg font-extrabold italic tracking-wider drop-shadow-sm">{scheme?.label ?? 'KARTA'}</span>
+        </div>
+        <p className="relative mt-6 font-mono text-lg tracking-[0.18em] drop-shadow-sm">{display}</p>
+        <div className="relative mt-4">
+          <p className="text-[10px] uppercase tracking-wide opacity-70">Karta egasi</p>
+          <p className="truncate text-sm font-semibold uppercase">{holder.trim() || '—'}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs">
+        <Radio size={14} className="shrink-0 text-[var(--color-primary)]" />
+        <span className="text-[var(--color-text-muted)]">Tasdiqlash kanali</span>
+        <span className="ml-auto truncate font-mono font-medium">{channelId.trim() || 'ulanmagan'}</span>
+      </div>
+    </div>
+  );
 }
 
 export default function PaymentsSettingsPage() {
@@ -110,7 +154,7 @@ export default function PaymentsSettingsPage() {
     mutationFn: () => apiUpdateStoreCardPayment(card),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-store'] });
-      toast.success("Karta to'lovi saqlandi");
+      toast.success("Karta qo'shildi");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -246,6 +290,10 @@ export default function PaymentsSettingsPage() {
                   tasdiqlaganingizda buyurtma tasdiqlanadi.
                 </p>
               </div>
+
+              {/* Jonli vizual karta — yozayotganingizda turi/rangi o'zgaradi */}
+              <CardPreview number={card.cardNumber} holder={card.cardHolder} channelId={card.channelId} />
+
               <Field label="Karta raqami">
                 <div className="relative">
                   <Input
