@@ -23,8 +23,8 @@ const PLAN_LABEL: Record<string, string> = {
 /** Tarif tugashiga qolgan kunlar — jonli (pulslanadigan) nuqta bilan. */
 function DaysLeftBadge({ days }: { days: number }) {
   const expired = days < 0;
-  const urgent = days >= 0 && days <= 3; // bugun/yaqin — qizil
-  const soon = days > 3 && days <= 7; // sariq
+  const urgent = days >= 0 && days <= 5; // ≤5 kun — qizil
+  const soon = days > 5 && days <= 15; // ≤15 kun — sariq
   const label = expired ? 'Muddati tugagan' : days === 0 ? 'Bugun tugaydi' : `${days} kun qoldi`;
   const tone = cn(
     expired || urgent
