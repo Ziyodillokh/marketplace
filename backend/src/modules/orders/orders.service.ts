@@ -181,13 +181,20 @@ export class OrdersService {
         },
       });
 
-      // Decrement variant stock and product sold count
+      // Decrement variant stock and product sold count.
+      // ATOMIK: shartli updateMany (stock >= quantity) — ikki bir vaqtdagi
+      // buyurtma bir variantni manfiyga tushira olmaydi (oversell oldini oladi).
       for (const i of cartItems) {
         if (i.variantId) {
-          await tx.productVariant.update({
-            where: { id: i.variantId },
+          const dec = await tx.productVariant.updateMany({
+            where: { id: i.variantId, stock: { gte: i.quantity } },
             data: { stock: { decrement: i.quantity } },
           });
+          if (dec.count === 0) {
+            throw new BadRequestException(
+              `"${i.product.titleUz}" — yetarli zaxira yo'q (omborda qoldi tugadi)`,
+            );
+          }
         }
         await tx.product.update({
           where: { id: i.productId },
@@ -196,10 +203,26 @@ export class OrdersService {
       }
 
       if (promoId) {
-        await tx.promoCode.update({
+        // ATOMIK: global limitni tx ichida qayta tekshiramiz. Prisma updateMany
+        // ustun-ustun solishtira olmaydi, shuning uchun raw SQL ishlatamiz.
+        const affected = await tx.$executeRaw`
+          UPDATE "PromoCode"
+          SET "usageCount" = "usageCount" + 1
+          WHERE id = ${promoId}
+            AND ("usageLimit" IS NULL OR "usageCount" < "usageLimit")
+        `;
+        if (affected === 0) {
+          throw new BadRequestException('Promokod limiti tugagan');
+        }
+        // Per-user limitni tx ichida tekshiramiz (race oynasi juda kichik)
+        const used = await tx.promoCodeUsage.count({ where: { promoCodeId: promoId, userId } });
+        const promoRow = await tx.promoCode.findUnique({
           where: { id: promoId },
-          data: { usageCount: { increment: 1 } },
+          select: { perUserLimit: true },
         });
+        if (promoRow && used >= promoRow.perUserLimit) {
+          throw new BadRequestException('Bu promokoddan foydalanish limiti tugagan');
+        }
         await tx.promoCodeUsage.create({
           data: { promoCodeId: promoId, userId, orderId: order.id },
         });
