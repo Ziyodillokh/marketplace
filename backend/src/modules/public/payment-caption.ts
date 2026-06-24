@@ -15,7 +15,10 @@ export function buildPaymentCaption(t: Tenant, title: string): string {
   const username = t.ownerUsername ? `@${t.ownerUsername}` : '—';
   const biz = t.businessType ? BUSINESS_TYPE_LABELS[t.businessType] : '—';
   const date = t.createdAt.toLocaleDateString('ru-RU');
-  const priceStr = tariff ? ` (${tariff.priceMonthly.toLocaleString('ru-RU')} so'm/oy)` : '';
+  const yearly = t.pendingBillingPeriod === 'yearly';
+  const amount = tariff ? (yearly ? tariff.priceYearly : tariff.priceMonthly) : 0;
+  const periodLabel = yearly ? 'yillik' : 'oylik';
+  const priceStr = tariff ? ` (${amount.toLocaleString('ru-RU')} so'm · ${periodLabel})` : '';
 
   return (
     `💳 <b>${title}</b>\n\n` +

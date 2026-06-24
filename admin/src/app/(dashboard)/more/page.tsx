@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import {
   BarChart3,
   ChevronRight,
+  Gift,
   Image as ImageIcon,
   Layers,
   Link2,
@@ -46,6 +47,7 @@ const ITEMS: Item[] = [
   { href: '/broadcasts', icon: Megaphone, label: 'Xabarnomalar', roles: BOSS },
   { href: '/related-rules', icon: Link2, label: 'Related rules', roles: CATALOG },
   { href: '/team', icon: UsersRound, label: 'Jamoa', roles: BOSS },
+  { href: '/referral', icon: Gift, label: 'Referal', roles: BOSS },
   { href: '/settings', icon: Settings, label: 'Sozlamalar', roles: BOSS },
   { href: '/admins', icon: ShieldCheck, label: 'Adminlar', superadminOnly: true },
 ];

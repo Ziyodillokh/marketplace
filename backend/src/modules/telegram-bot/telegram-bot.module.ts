@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ReferralModule } from '../referral/referral.module';
 import { TelegramBotService } from './telegram-bot.service';
 import { TelegramWebhookController } from './telegram-webhook.controller';
 import { TelegramOrdersListener } from './telegram-orders.listener';
@@ -8,6 +9,7 @@ import { TenantBotService } from './tenant-bot.service';
 import { TenantWebhookController } from './tenant-webhook.controller';
 
 @Module({
+  imports: [ReferralModule],
   controllers: [TelegramWebhookController, TenantWebhookController],
   providers: [
     TelegramBotService,

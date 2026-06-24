@@ -5,6 +5,10 @@ export interface TariffOption {
   label: string;
   /** So'mda, oylik. FREE = 0. */
   priceMonthly: number;
+  /** So'mda, yillik. FREE = 0. */
+  priceYearly: number;
+  /** Yillik chegirma foizi (oylik×12 ga nisbatan). */
+  yearlyDiscount: number;
   tagline: string;
   popular?: boolean;
   /** Sinov muddati (kun). FREE da 0. */
@@ -17,6 +21,8 @@ export const TARIFFS: TariffOption[] = [
     value: 'FREE',
     label: 'Free',
     priceMonthly: 0,
+    priceYearly: 0,
+    yearlyDiscount: 0,
     tagline: 'Yangi boshlaganlar uchun',
     trialDays: 0,
     features: [
@@ -37,6 +43,8 @@ export const TARIFFS: TariffOption[] = [
     value: 'STANDARD',
     label: 'Standart',
     priceMonthly: 199_000,
+    priceYearly: 1_910_400,
+    yearlyDiscount: 20,
     tagline: "O'suvchi do'konlar uchun",
     trialDays: 0,
     features: [
@@ -61,6 +69,8 @@ export const TARIFFS: TariffOption[] = [
     value: 'PRO',
     label: 'Pro',
     priceMonthly: 499_000,
+    priceYearly: 4_790_400,
+    yearlyDiscount: 20,
     tagline: 'Professional sotuvchilar uchun',
     popular: true,
     trialDays: 0,
@@ -85,7 +95,9 @@ export const TARIFFS: TariffOption[] = [
   {
     value: 'PREMIUM',
     label: 'Premium',
-    priceMonthly: 790_000,
+    priceMonthly: 999_000,
+    priceYearly: 8_991_000,
+    yearlyDiscount: 25,
     tagline: 'Katta bizneslar uchun',
     trialDays: 0,
     features: [

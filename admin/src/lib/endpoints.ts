@@ -121,6 +121,8 @@ export interface TariffOption {
   value: string;
   label: string;
   priceMonthly: number;
+  priceYearly: number;
+  yearlyDiscount: number;
   tagline: string;
   popular?: boolean;
   trialDays: number;
@@ -249,6 +251,40 @@ export interface PrepaymentInput {
 export const apiUpdateStorePrepayment = (data: PrepaymentInput) =>
   api<{ ok: boolean }>('/admin/store/prepayment', { method: 'PUT', body: data });
 
+// ───── Referal tizimi ─────
+export interface ReferralEarning {
+  id: string;
+  shopName: string;
+  plan: string;
+  amount: number;
+  percent: number;
+  createdAt: string;
+}
+export interface ReferralWithdrawal {
+  id: string;
+  amount: number;
+  status: string;
+  cardNumber: string;
+  createdAt: string;
+  processedAt: string | null;
+}
+export interface ReferralSummary {
+  code: string;
+  link: string;
+  balance: number;
+  earnedTotal: number;
+  referralsCount: number;
+  commissionPercent: number;
+  minWithdrawal: number;
+  canWithdraw: boolean;
+  hasPendingWithdrawal: boolean;
+  earnings: ReferralEarning[];
+  withdrawals: ReferralWithdrawal[];
+}
+export const apiReferral = () => api<ReferralSummary>('/admin/referral');
+export const apiReferralWithdraw = (data: { cardNumber: string; cardHolder?: string }) =>
+  api<{ ok: boolean; amount: number }>('/admin/referral/withdraw', { method: 'POST', body: data });
+
 // ───── Kanal e'lonlari (channel posts) ─────
 export interface ChannelConfig {
   channelId: string;
@@ -306,10 +342,10 @@ export interface StoreInfoInput {
 }
 export const apiUpdateStoreInfo = (data: StoreInfoInput) =>
   api<{ ok: boolean }>('/admin/store/info', { method: 'PUT', body: data });
-export const apiUpgradeTariff = (tariffPlan: string) =>
+export const apiUpgradeTariff = (tariffPlan: string, billingPeriod: 'monthly' | 'yearly' = 'monthly') =>
   api<{ ok: boolean; payment: PaymentInfo }>('/admin/store/upgrade', {
     method: 'POST',
-    body: { tariffPlan },
+    body: { tariffPlan, billingPeriod },
   });
 export const apiUploadUpgradeReceipt = (file: File) => {
   const fd = new FormData();

@@ -680,6 +680,10 @@ model Tenant {
   // Tarif
   tariffPlan      TariffPlan   @default(FREE)
   pendingTariff   TariffPlan?  // To'lov kutilayotgan pulli tarif (tasdiqlanguncha FREE ishlaydi)
+  // To'lov kutilayotgan davr: 'monthly' | 'yearly'. Tasdiqlanganda tariffExpiresAt shunga qarab o'rnatiladi.
+  pendingBillingPeriod String?
+  // Joriy faol tarif davri (tasdiqlanganda yoziladi) — UI/hisob uchun.
+  billingPeriod   String?
   tariffStartedAt DateTime     @default(now())
   tariffExpiresAt DateTime?
   isOnTrial       Boolean      @default(false)
@@ -712,6 +716,13 @@ model Tenant {
   // Oldindan to'lov (chek orqali) — to'liq yoki qisman (foiz). Faqat CARD_TRANSFER.
   prepaymentEnabled      Boolean      @default(false)
   prepaymentPercent      Int          @default(100) // 1–100; 100 = to'liq oldindan
+
+  // Referal tizimi — o'z taklif kodi/linki, kim taklif qilgani va balans.
+  referralCode          String?  @unique // taklif link kodi (?ref=KOD)
+  referredById          String?          // kim taklif qilgan (Tenant id; plain — relation yo'q)
+  referralBalance       Decimal  @default(0) @db.Decimal(12, 2) // yechiladigan/ishlatiladigan balans
+  referralEarnedTotal   Decimal  @default(0) @db.Decimal(12, 2) // umrbod jami daromad (ko'rsatish)
+  pendingBalanceApplied Decimal  @default(0) @db.Decimal(12, 2) // pending upgrade'ga ushlangan balans
 
   // Brendlash
   logoUrl            String?
@@ -752,6 +763,7 @@ model Tenant {
   @@index([ownerEmail])
   @@index([ownerTelegramId])
   @@index([lastActivityAt])
+  @@index([referredById])
 }
 
 /// Sotuvchi o'z do'konida bloklagan mijozlar (per-tenant).
@@ -989,4 +1001,37 @@ model PlatformSettings {
   category  String   @default("general")
   updatedBy String?
   updatedAt DateTime @updatedAt
+}
+
+/// Referal komissiya yozuvi — taklif qilingan do'kon pulli tarif to'laganda
+/// referrerга (taklif qilgan do'konga) komissiya hisoblanadi (har to'lovda).
+model ReferralEarning {
+  id          String     @id @default(cuid())
+  referrerId  String     // taklif qilgan Tenant (kimga tushadi)
+  referredId  String     // to'lov qilgan Tenant (kim to'ladi)
+  plan        TariffPlan
+  basisAmount Decimal    @db.Decimal(12, 2) // tarif narxi — komissiya bazasi
+  percent     Int        // o'sha paytdagi komissiya foizi
+  amount      Decimal    @db.Decimal(12, 2) // komissiya summasi
+  createdAt   DateTime   @default(now())
+
+  @@index([referrerId, createdAt])
+  @@index([referredId])
+}
+
+/// Referal balansni kartaga yechish so'rovi (super-admin tasdiqlaydi/to'laydi).
+model WithdrawalRequest {
+  id          String    @id @default(cuid())
+  tenantId    String    // so'rovchi do'kon
+  amount      Decimal   @db.Decimal(12, 2)
+  cardNumber  String
+  cardHolder  String?
+  status      String    @default("PENDING") // PENDING | PAID | REJECTED
+  note        String?
+  processedBy String?   // PlatformAdmin id
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([status, createdAt])
 }

@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { TariffPlan } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
+import { ReferralService } from '../referral/referral.service';
 import { TelegramBotService } from './telegram-bot.service';
 
 const TARIFF_LABEL: Record<TariffPlan, string> = {
@@ -31,6 +32,7 @@ export class TelegramPaymentsListener implements OnModuleInit {
     private readonly bot: TelegramBotService,
     private readonly prisma: PrismaService,
     private readonly events: EventEmitter2,
+    private readonly referral: ReferralService,
   ) {}
 
   onModuleInit(): void {
@@ -52,10 +54,46 @@ export class TelegramPaymentsListener implements OnModuleInit {
 
     if (action === 'approve') {
       if (plan) {
+        // Tarif faollashadi; davr (oylik/yillik) bo'yicha muddat o'rnatiladi.
+        const period = tenant.pendingBillingPeriod === 'yearly' ? 'yearly' : 'monthly';
+        const now = new Date();
+        const expires = new Date(
+          now.getTime() + (period === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000,
+        );
+        // o'z balansidan ushlangan summa (agar bo'lsa) iste'mol qilinadi
         await this.prisma.tenant.update({
           where: { id: tenantId },
-          data: { tariffPlan: plan, pendingTariff: null, tariffStartedAt: new Date() },
+          data: {
+            tariffPlan: plan,
+            pendingTariff: null,
+            pendingBillingPeriod: null,
+            billingPeriod: period,
+            tariffStartedAt: now,
+            tariffExpiresAt: expires,
+            pendingBalanceApplied: 0,
+          },
         });
+        // Referal komissiya (har to'lovда) — taklif qilingan do'kon to'ladi → referrerга.
+        // Komissiya bazasi — aynan to'langan davr narxi (oylik/yillik).
+        try {
+          const price = await this.referral.planPrice(plan, period);
+          const credited = await this.referral.creditCommission(tenantId, plan, price);
+          if (credited) {
+            const ref = await this.prisma.tenant.findUnique({
+              where: { id: credited.referrerId },
+              select: { ownerTelegramId: true },
+            });
+            if (ref?.ownerTelegramId) {
+              const amt = credited.amount.toLocaleString('ru-RU').replace(/,/g, ' ');
+              await this.bot.sendDirectMessage(
+                ref.ownerTelegramId,
+                `🎉 <b>Referal bonus: ${amt} so'm!</b>\n\nSiz taklif qilgan do'kon tarif to'lovini amalga oshirdi. Bonus referal balansingizga qo'shildi.`,
+              );
+            }
+          }
+        } catch (err) {
+          this.logger.warn(`Referral commission failed: ${(err as Error).message}`);
+        }
       }
       if (tenant.ownerTelegramId) {
         await this.bot.sendDirectMessage(
@@ -64,9 +102,16 @@ export class TelegramPaymentsListener implements OnModuleInit {
         );
       }
     } else {
+      // Rad — pending va ushlangan o'z balansni qaytaramiz
+      const applied = Number(tenant.pendingBalanceApplied);
       await this.prisma.tenant.update({
         where: { id: tenantId },
-        data: { pendingTariff: null },
+        data: {
+          pendingTariff: null,
+          ...(applied > 0
+            ? { referralBalance: { increment: tenant.pendingBalanceApplied }, pendingBalanceApplied: 0 }
+            : {}),
+        },
       });
       if (tenant.ownerTelegramId) {
         await this.bot.sendDirectMessage(

@@ -46,6 +46,7 @@ import { SuperAdminModule } from './modules/super-admin/super-admin.module';
 import { PublicModule } from './modules/public/public.module';
 import { AiModule } from './modules/ai/ai.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { AdminReferralModule } from './modules/referral/admin-referral.module';
 
 @Module({
   imports: [
@@ -113,6 +114,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
     PublicModule,
     AiModule,
     PaymentsModule,
+    AdminReferralModule,
   ],
 })
 export class AppModule {}

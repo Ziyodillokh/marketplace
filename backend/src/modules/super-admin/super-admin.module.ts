@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { ReferralModule } from '../referral/referral.module';
+import { TelegramBotModule } from '../telegram-bot/telegram-bot.module';
+import { SuperReferralController } from '../referral/super-referral.controller';
 import { SuperJwtService } from './super-jwt.service';
 import { SuperAuthService } from './super-auth.service';
 import { SuperAuditService } from './super-audit.service';
@@ -26,7 +29,9 @@ import { SuperDevController } from './super-dev.controller';
 import { SuperJwtGuard, PlatformRolesGuard } from './super-jwt.guard';
 
 @Module({
+  imports: [ReferralModule, TelegramBotModule],
   controllers: [
+    SuperReferralController,
     SuperAuthController,
     SuperDashboardController,
     SuperTenantsController,

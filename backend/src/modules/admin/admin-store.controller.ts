@@ -17,7 +17,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { randomBytes } from 'crypto';
 import { AdminRole, BusinessType, TariffPlan, type Admin } from '@prisma/client';
 import { InlineKeyboard } from 'grammy';
@@ -33,6 +33,7 @@ import { TenantBotService } from '../telegram-bot/tenant-bot.service';
 import { TenantScopeService } from '@/common/tenant-scope/tenant-scope.service';
 import { PAYMENT_INFO } from '../public/payment-info';
 import { buildPaymentCaption } from '../public/payment-caption';
+import { ReferralService } from '../referral/referral.service';
 
 class BotTokenDto {
   @IsString()
@@ -43,6 +44,9 @@ class BotTokenDto {
 class UpgradeDto {
   @IsEnum(TariffPlan)
   tariffPlan!: TariffPlan;
+  @IsOptional() @IsIn(['monthly', 'yearly']) billingPeriod?: 'monthly' | 'yearly';
+  // Referal balansni shu to'lovga ishlatish (to'liq qoplasa — darrov faollashadi)
+  @IsOptional() @IsBoolean() useBalance?: boolean;
 }
 
 class StoreInfoDto {
@@ -121,6 +125,7 @@ export class AdminStoreController {
     private readonly tenantBot: TenantBotService,
     private readonly tenantScope: TenantScopeService,
     private readonly uploads: UploadsService,
+    private readonly referral: ReferralService,
   ) {}
 
   /**
@@ -772,11 +777,48 @@ export class AdminStoreController {
   async upgrade(@CurrentAdmin() admin: Admin, @Body() dto: UpgradeDto) {
     if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
     if (dto.tariffPlan === 'FREE') throw new BadRequestException("Free tarif uchun to'lov shart emas");
+    const period = dto.billingPeriod === 'yearly' ? 'yearly' : 'monthly';
+
+    const t = await this.prisma.tenant.findUnique({
+      where: { id: admin.tenantId },
+      select: { referralBalance: true, pendingBalanceApplied: true },
+    });
+    // Avvalgi pending upgrade'ga ushlangan balansni qaytarib, qaytadan hisoblaymiz
+    const effectiveBalance = Number(t?.referralBalance ?? 0) + Number(t?.pendingBalanceApplied ?? 0);
+    const price = await this.referral.planPrice(dto.tariffPlan, period);
+    const applied = dto.useBalance && price > 0 ? Math.min(effectiveBalance, price) : 0;
+
+    // Referal balans summani to'liq qoplasa — chek shart emas, tarif darrov faollashadi
+    if (applied >= price && applied > 0) {
+      const now = new Date();
+      const expires = new Date(now.getTime() + (period === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000);
+      await this.prisma.tenant.update({
+        where: { id: admin.tenantId },
+        data: {
+          tariffPlan: dto.tariffPlan,
+          pendingTariff: null,
+          pendingBillingPeriod: null,
+          billingPeriod: period,
+          tariffStartedAt: now,
+          tariffExpiresAt: expires,
+          referralBalance: effectiveBalance - applied,
+          pendingBalanceApplied: 0,
+        },
+      });
+      return { ok: true, fullyCovered: true, applied };
+    }
+
+    // Qisman yoki balanssiz — balans ushlanadi, qolgani chek orqali to'lanadi
     await this.prisma.tenant.update({
       where: { id: admin.tenantId },
-      data: { pendingTariff: dto.tariffPlan },
+      data: {
+        pendingTariff: dto.tariffPlan,
+        pendingBillingPeriod: period,
+        referralBalance: effectiveBalance - applied,
+        pendingBalanceApplied: applied,
+      },
     });
-    return { ok: true, payment: PAYMENT_INFO };
+    return { ok: true, payment: PAYMENT_INFO, applied, remaining: price - applied };
   }
 
   /** To'lov chekini yuklab, admin chatiga tasdiqlash xabarini yuboradi. */

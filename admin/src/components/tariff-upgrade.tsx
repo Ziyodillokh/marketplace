@@ -14,8 +14,9 @@ import {
   type TariffOption,
 } from '@/lib/endpoints';
 
-function fmt(v: number): string {
-  return v === 0 ? 'Bepul' : `${v.toLocaleString('ru-RU')} so'm/oy`;
+function fmt(v: number, period: 'monthly' | 'yearly'): string {
+  if (v === 0) return 'Bepul';
+  return `${v.toLocaleString('ru-RU')} so'm/${period === 'yearly' ? 'yil' : 'oy'}`;
 }
 
 export function TariffUpgrade({
@@ -27,6 +28,7 @@ export function TariffUpgrade({
 }) {
   const { data: tariffs } = useQuery({ queryKey: ['tariffs'], queryFn: apiSellerTariffs });
   const [step, setStep] = useState<'choose' | 'pay'>('choose');
+  const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [plan, setPlan] = useState<TariffOption | null>(null);
   const [payment, setPayment] = useState<PaymentInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -39,7 +41,7 @@ export function TariffUpgrade({
     if (t.value === 'FREE') return;
     setBusy(true);
     try {
-      const res = await apiUpgradeTariff(t.value);
+      const res = await apiUpgradeTariff(t.value, period);
       setPlan(t);
       setPayment(res.payment);
       setStep('pay');
@@ -79,16 +81,50 @@ export function TariffUpgrade({
   if (step === 'choose') {
     return (
       <div className="space-y-2.5">
+        {/* Oylik / Yillik tanlovi */}
+        <div className="flex rounded-xl bg-[var(--color-bg)] p-1 text-sm font-medium">
+          <button
+            type="button"
+            onClick={() => setPeriod('monthly')}
+            className={cn(
+              'flex-1 rounded-lg py-1.5 transition',
+              period === 'monthly' ? 'bg-white text-[var(--color-text)] shadow-sm' : 'text-[var(--color-text-muted)]',
+            )}
+          >
+            Oylik
+          </button>
+          <button
+            type="button"
+            onClick={() => setPeriod('yearly')}
+            className={cn(
+              'flex-1 inline-flex items-center justify-center gap-1 rounded-lg py-1.5 transition',
+              period === 'yearly' ? 'bg-white text-[var(--color-text)] shadow-sm' : 'text-[var(--color-text-muted)]',
+            )}
+          >
+            Yillik
+            <span className="rounded-full bg-[var(--color-success)]/15 px-1.5 text-[10px] font-bold text-[var(--color-success)]">
+              arzon
+            </span>
+          </button>
+        </div>
         {all.map((t) => {
           const isCurrent = t.value === currentPlan;
           const isFree = t.value === 'FREE';
+          const price = isFree ? 0 : period === 'yearly' ? t.priceYearly : t.priceMonthly;
           return (
             <div key={t.value} className="rounded-2xl border border-[var(--color-border)] p-4">
-              <div className="flex items-center justify-between mb-1">
+              <div className="mb-1 flex items-start justify-between gap-2">
                 <span className="font-bold">
                   {t.label} {t.popular && <span className="text-xs text-[var(--color-primary)]">· Mashhur</span>}
                 </span>
-                <span className="font-extrabold">{fmt(t.priceMonthly)}</span>
+                <span className="text-right">
+                  <span className="block font-extrabold">{fmt(price, period)}</span>
+                  {!isFree && period === 'yearly' && (
+                    <span className="block text-[10px] font-medium text-[var(--color-success)]">
+                      −{t.yearlyDiscount}% · oyiga ~{Math.round(t.priceYearly / 12).toLocaleString('ru-RU')}
+                    </span>
+                  )}
+                </span>
               </div>
               <ul className="mt-2 space-y-1 mb-3">
                 {t.features.map((f) => (
@@ -139,7 +175,12 @@ export function TariffUpgrade({
       <div className="rounded-2xl bg-[var(--color-primary)]/[0.05] border border-[var(--color-primary)]/20 p-4">
         <p className="text-xs text-[var(--color-text-muted)]">Tanlangan tarif</p>
         <p className="font-bold">{plan?.label}</p>
-        <p className="text-xl font-extrabold">{plan ? fmt(plan.priceMonthly) : ''}</p>
+        <p className="text-xl font-extrabold">
+          {plan ? fmt(period === 'yearly' ? plan.priceYearly : plan.priceMonthly, period) : ''}
+        </p>
+        {plan && period === 'yearly' && (
+          <p className="text-xs font-medium text-[var(--color-success)]">−{plan.yearlyDiscount}% yillik chegirma</p>
+        )}
       </div>
 
       <div className="space-y-2">

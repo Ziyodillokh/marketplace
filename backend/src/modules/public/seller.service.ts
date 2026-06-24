@@ -19,6 +19,7 @@ import { PAYMENT_INFO } from './payment-info';
 import { buildPaymentCaption } from './payment-caption';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { TenantBotService } from '../telegram-bot/tenant-bot.service';
+import { ReferralService } from '../referral/referral.service';
 import { checkBotToken } from '@/common/helpers/telegram-bot-token';
 
 export interface OnboardInput {
@@ -29,6 +30,8 @@ export interface OnboardInput {
   tariffPlan: TariffPlan;
   logoUrl?: string;
   botToken?: string;
+  /** Referal kod (?ref=KOD) — kim taklif qilgani */
+  ref?: string;
 }
 
 export interface BotCheckResult {
@@ -62,6 +65,7 @@ export class SellerOnboardingService {
     private readonly prisma: PrismaService,
     private readonly tgbot: TelegramBotService,
     private readonly tenantBot: TenantBotService,
+    private readonly referral: ReferralService,
     config: ConfigService,
   ) {
     this.botToken = config.get<string>('TELEGRAM_BOT_TOKEN') ?? '';
@@ -106,8 +110,19 @@ export class SellerOnboardingService {
     return BUSINESS_TYPE_OPTIONS;
   }
 
-  tariffs() {
-    return TARIFFS;
+  /** Tarif ro'yxati — narxlar bazadagi TariffConfig'dan (super-admin sozlaydi), oylik + yillik. */
+  async tariffs() {
+    const configs = await this.prisma.tariffConfig.findMany();
+    const byPlan = new Map(configs.map((c) => [c.plan, c]));
+    return TARIFFS.map((t) => {
+      const c = byPlan.get(t.value);
+      return {
+        ...t,
+        priceMonthly: c ? Number(c.monthlyPrice) : t.priceMonthly,
+        priceYearly: c ? Number(c.yearlyPrice) : t.priceYearly,
+        yearlyDiscount: c ? c.yearlyDiscount : t.yearlyDiscount,
+      };
+    });
   }
 
   paymentInfo() {
@@ -192,6 +207,19 @@ export class SellerOnboardingService {
       }
     }
 
+    // Referal — kim taklif qilgani (?ref=KOD). O'zini taklif qila olmaydi.
+    let referredById: string | null = null;
+    if (dto.ref) {
+      const refId = await this.referral.resolveReferrer(dto.ref);
+      if (refId) {
+        const refOwner = await this.prisma.tenant.findUnique({
+          where: { id: refId },
+          select: { ownerTelegramId: true },
+        });
+        if (refOwner && refOwner.ownerTelegramId !== telegramId) referredById = refId;
+      }
+    }
+
     // Pulli tarif tanlansa — faol tarif FREE bo'lib turadi, so'ralgan tarif
     // to'lov tasdiqlanguncha pendingTariff sifatida saqlanadi.
     const isPaid = dto.tariffPlan !== 'FREE';
@@ -212,6 +240,7 @@ export class SellerOnboardingService {
           botToken,
           botUsername,
           status: 'ACTIVE',
+          referredById,
         },
       });
 

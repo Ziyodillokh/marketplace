@@ -58,6 +58,12 @@ class OnboardDto {
   @IsString()
   @MaxLength(100)
   botToken?: string;
+
+  // Referal kod (?ref=KOD) — kim taklif qilgani
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  ref?: string;
 }
 
 class BotTokenDto {
@@ -119,6 +125,7 @@ export class SellerController {
       tariffPlan: dto.tariffPlan,
       logoUrl: dto.logoUrl,
       botToken: dto.botToken,
+      ref: dto.ref,
     });
   }
 

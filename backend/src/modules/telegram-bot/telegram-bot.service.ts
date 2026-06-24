@@ -143,8 +143,14 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.command('start', async (ctx) => {
-      const url = this.adminPanelUrl;
-      this.logger.log(`/start from user ${ctx.from?.id} (@${ctx.from?.username ?? '-'}) → Admin URL: ${url}`);
+      // Referal deep-link: /start ref<KOD> → admin Mini App URL'iga ?ref=<KOD> qo'shamiz
+      const payload = (ctx.match ?? '').toString().trim();
+      const ref = payload.startsWith('ref') ? payload.slice(3) : '';
+      let url = this.adminPanelUrl;
+      if (ref && url.startsWith('https://')) {
+        url += (url.includes('?') ? '&' : '?') + 'ref=' + encodeURIComponent(ref);
+      }
+      this.logger.log(`/start from user ${ctx.from?.id} (@${ctx.from?.username ?? '-'})${ref ? ` ref=${ref}` : ''} → Admin URL: ${url}`);
       const text = `👋 Assalomu alaykum, ${ctx.from?.first_name ?? 'mehmon'}!\n\nSellio'ga xush kelibsiz — Telegramda o'z onlayn do'koningizni oching. Quyidagi tugmadan boshlang:`;
       const isHttps = url.startsWith('https://');
       try {
