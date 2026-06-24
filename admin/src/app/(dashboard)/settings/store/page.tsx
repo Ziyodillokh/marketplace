@@ -7,6 +7,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input, Textarea } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ColorPicker } from '@/components/ui/color-picker';
 import {
   apiUpdateStoreInfo,
   apiSetStoreBot,
@@ -263,11 +264,9 @@ export default function StoreSettingsPage() {
                 <>
                   <Field label="Asosiy rang" hint="Do'koningiz tugma va urg'u ranglari">
                     <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        value={/^#[0-9a-fA-F]{6}$/.test(brand.primaryColor) ? brand.primaryColor : '#2F6BFF'}
-                        onChange={(e) => setBrand({ ...brand, primaryColor: e.target.value })}
-                        className="h-11 w-14 rounded-lg border border-[var(--color-border)] cursor-pointer bg-white p-1"
+                      <ColorPicker
+                        value={brand.primaryColor}
+                        onChange={(c) => setBrand({ ...brand, primaryColor: c })}
                       />
                       <Input
                         value={brand.primaryColor}
@@ -325,14 +324,12 @@ export default function StoreSettingsPage() {
 
                       {/* Fon rangi */}
                       <div className="flex items-center gap-3">
-                        <input
-                          type="color"
-                          value={/^#[0-9a-fA-F]{6}$/.test(brand.backgroundColor) ? brand.backgroundColor : '#f4f6fa'}
-                          onChange={(e) =>
-                            setBrand({ ...brand, backgroundColor: e.target.value, backgroundImageUrl: '' })
+                        <ColorPicker
+                          value={brand.backgroundColor}
+                          fallback="#f4f6fa"
+                          onChange={(c) =>
+                            setBrand({ ...brand, backgroundColor: c, backgroundImageUrl: '' })
                           }
-                          className="h-11 w-14 rounded-lg border border-[var(--color-border)] cursor-pointer bg-white p-1 shrink-0"
-                          title="Fon rangi"
                         />
                         <Input
                           value={brand.backgroundColor}
