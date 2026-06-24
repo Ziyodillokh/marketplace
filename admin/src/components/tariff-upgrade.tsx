@@ -36,7 +36,13 @@ export function TariffUpgrade({
   const [sent, setSent] = useState(false);
 
   const all = tariffs ?? [];
-  const maxDiscount = Math.max(0, ...all.filter((t) => t.value !== 'FREE').map((t) => t.yearlyDiscount));
+  // Chegirmani haqiqiy narxlardan hisoblaymiz (oylik×12 ga nisbatan yillik) —
+  // shunda super-admin narxni o'zgartirsa, badge o'zi to'g'ri foizni ko'rsatadi.
+  const discountPct = (t: TariffOption) =>
+    t.priceMonthly > 0 && t.priceYearly > 0
+      ? Math.round((1 - t.priceYearly / (t.priceMonthly * 12)) * 100)
+      : 0;
+  const maxDiscount = Math.max(0, ...all.filter((t) => t.value !== 'FREE').map(discountPct));
 
   async function choose(t: TariffOption) {
     if (t.value === 'FREE') return;
@@ -182,7 +188,7 @@ export function TariffUpgrade({
           {plan ? fmt(period === 'yearly' ? plan.priceYearly : plan.priceMonthly, period) : ''}
         </p>
         {plan && period === 'yearly' && (
-          <p className="text-xs font-medium text-[var(--color-success)]">−{plan.yearlyDiscount}% yillik chegirma</p>
+          <p className="text-xs font-medium text-[var(--color-success)]">−{discountPct(plan)}% yillik chegirma</p>
         )}
       </div>
 
