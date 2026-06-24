@@ -23,24 +23,35 @@ export function BannerCarousel() {
   });
   const [active, setActive] = useState(0);
   const trackRef = useRef<HTMLDivElement>(null);
-  const userInteracted = useRef(false);
+  // Dasturiy (auto-slide) scroll'ni user swipe'idan ajratish uchun.
+  const programmatic = useRef(false);
+  // User qo'l bilan surgach — shu vaqtgacha auto-slide pauza (keyin o'zi davom etadi).
+  const pausedUntil = useRef(0);
 
-  // Auto-slide har 5 sek
+  // Auto-slide har SLIDE_INTERVAL — user yaqinda qo'l bilan surgan bo'lsa o'tkazib yuboramiz
   useEffect(() => {
     if (banners.length <= 1) return;
     const id = setInterval(() => {
-      if (userInteracted.current) return;
+      if (Date.now() < pausedUntil.current) return;
       setActive((a) => (a + 1) % banners.length);
     }, SLIDE_INTERVAL);
     return () => clearInterval(id);
   }, [banners.length]);
 
-  // active o'zgarganda smooth scroll
+  // active o'zgarganda smooth scroll. Dasturiy ekanini belgilaymiz — aks holda bu
+  // scroll onScroll'ni ishga tushirib, o'zini "user surdi" deb hisoblar va auto-slide
+  // birinchi slayddan keyin to'xtab qolardi (eski xato).
   useEffect(() => {
-    if (!trackRef.current) return;
-    const el = trackRef.current.children[active] as HTMLElement | undefined;
+    const trackEl = trackRef.current;
+    if (!trackEl) return;
+    const el = trackEl.children[active] as HTMLElement | undefined;
     if (!el) return;
-    trackRef.current.scrollTo({ left: el.offsetLeft, behavior: 'smooth' });
+    programmatic.current = true;
+    trackEl.scrollTo({ left: el.offsetLeft, behavior: 'smooth' });
+    const t = setTimeout(() => {
+      programmatic.current = false;
+    }, 700);
+    return () => clearTimeout(t);
   }, [active]);
 
   if (isLoading) {
@@ -56,9 +67,13 @@ export function BannerCarousel() {
         // Brauzer touch-action'ni o'zi to'g'ri boshqaradi (vertikal = scroll, horizontal = snap).
         // Hech qanday onTouch handlerlari yo'q — minimal aralashish.
         onScroll={(e) => {
-          userInteracted.current = true;
           const el = e.currentTarget;
           const idx = Math.round(el.scrollLeft / el.clientWidth);
+          // Faqat user qo'l bilan surganda auto-slide'ni vaqtincha to'xtatamiz
+          // (dasturiy auto-slide scroll'i bu yerga tushmasligi uchun programmatic flag).
+          if (!programmatic.current) {
+            pausedUntil.current = Date.now() + SLIDE_INTERVAL * 2;
+          }
           if (idx !== active) setActive(idx);
         }}
       >
