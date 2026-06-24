@@ -2,8 +2,9 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { Lock, Unlock } from 'lucide-react';
+import type { AdminUserDetail, AdminUserListItem, CursorPage } from '@/lib/types';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,9 +34,30 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
   const block = useMutation({
     mutationFn: (isBlocked: boolean) => apiUpdateUser(id, { isBlocked }),
-    onSuccess: () => {
+    onSuccess: (_data, isBlocked) => {
+      // Profil sahifasini darhol yangilaymiz
+      qc.setQueryData<AdminUserDetail>(['admin-user', id], (old) =>
+        old ? { ...old, isBlocked } : old,
+      );
+      // Ro'yxat keshidagi shu userni ham darhol yangilaymiz (barcha filtrlar bo'yicha),
+      // shunda "Userlar" ro'yxatiga qaytganda eski (bloklangan) holat ko'rinib qolmaydi.
+      qc.setQueriesData<InfiniteData<CursorPage<AdminUserListItem>>>(
+        { queryKey: ['admin-users'] },
+        (old) =>
+          old
+            ? {
+                ...old,
+                pages: old.pages.map((page) => ({
+                  ...page,
+                  items: page.items.map((it) => (it.id === id ? { ...it, isBlocked } : it)),
+                })),
+              }
+            : old,
+      );
+      // Serverdan aniq holatni qayta olamiz (filtr a'zoligini ham to'g'rilaydi)
       qc.invalidateQueries({ queryKey: ['admin-user', id] });
-      toast.success('Yangilandi');
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+      toast.success(isBlocked ? 'Bloklandi' : 'Blokdan chiqarildi');
     },
   });
 
