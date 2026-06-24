@@ -213,6 +213,20 @@ export default function RegisterPage() {
         }
       }
 
+      // Referal kod — URL ?ref= yoki Telegram start_param (ref<KOD>)
+      const ref = (() => {
+        try {
+          const fromUrl = new URLSearchParams(window.location.search).get('ref') ?? '';
+          const sp =
+            (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { start_param?: string } } } })
+              .Telegram?.WebApp?.initDataUnsafe?.start_param ?? '';
+          const fromStart = sp.startsWith('ref') ? sp.slice(3) : '';
+          return fromUrl || fromStart || undefined;
+        } catch {
+          return undefined;
+        }
+      })();
+
       await apiSellerOnboard({
         initData,
         shopName: shopName.trim(),
@@ -222,6 +236,7 @@ export default function RegisterPage() {
         tariffPlan: tariff,
         logoUrl,
         botToken: token,
+        ref,
       });
       const res = await apiTelegramLogin(initData);
       setAccessToken(res.accessToken);

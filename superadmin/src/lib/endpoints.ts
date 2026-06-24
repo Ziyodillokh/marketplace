@@ -361,3 +361,40 @@ export function apiRunSqlSelect(
 ): Promise<{ rows?: unknown[]; rowCount?: number; error?: string }> {
   return api('/super-admin/dev/sql/select', { method: 'POST', body: { query } });
 }
+
+// ─── Referal tizimi ──────────────────────────────────────
+export interface ReferralConfigDto {
+  commissionPercent: number;
+  minWithdrawal: number;
+}
+export interface WithdrawalDto {
+  id: string;
+  tenantId: string;
+  shopName: string;
+  ownerName: string;
+  ownerPhone: string | null;
+  ownerUsername: string | null;
+  amount: number;
+  cardNumber: string;
+  cardHolder: string | null;
+  status: string;
+  note: string | null;
+  createdAt: string;
+  processedAt: string | null;
+}
+export function apiReferralConfig(): Promise<ReferralConfigDto> {
+  return api('/super-admin/referral/config');
+}
+export function apiSetReferralConfig(body: Partial<ReferralConfigDto>): Promise<ReferralConfigDto> {
+  return api('/super-admin/referral/config', { method: 'PUT', body });
+}
+export function apiReferralWithdrawals(status?: string): Promise<WithdrawalDto[]> {
+  return api('/super-admin/referral/withdrawals', { query: status ? { status } : undefined });
+}
+export function apiProcessWithdrawal(
+  id: string,
+  action: 'paid' | 'reject',
+  note?: string,
+): Promise<{ ok: boolean }> {
+  return api(`/super-admin/referral/withdrawals/${id}/${action}`, { method: 'POST', body: { note } });
+}

@@ -16,6 +16,7 @@ import {
   Users,
   ScrollText,
   Tags,
+  Gift,
   Settings,
   Wrench,
   LogOut,
@@ -69,6 +70,7 @@ const NAV: NavGroup[] = [
     label: 'Konfiguratsiya',
     items: [
       { href: '/tariffs', label: 'Tariflar', icon: Tags, roles: ['FINANCE'] },
+      { href: '/referral', label: 'Referal', icon: Gift, roles: ['FINANCE'] },
       { href: '/team', label: 'Komanda', icon: Users },
       { href: '/audit', label: 'Audit log', icon: ScrollText, roles: ['DEVOPS', 'FINANCE'] },
       { href: '/settings', label: 'Sozlamalar', icon: Settings, roles: ['DEVOPS'] },

@@ -157,6 +157,7 @@ export const apiSellerOnboard = (body: {
   tariffPlan: string;
   logoUrl?: string;
   botToken?: string;
+  ref?: string;
 }) => api<SellerProfile>('/public/seller/onboard', { method: 'POST', body });
 export const apiSellerUploadLogo = (file: File) => {
   const fd = new FormData();
