@@ -103,6 +103,7 @@ export function LiveActivity() {
     'support-new-ticket': () => {
       toast.info('Yangi support tiket');
       qc.invalidateQueries({ queryKey: ['support-tickets'] });
+      qc.invalidateQueries({ queryKey: ['support', 'open-count'] });
     },
     connected: () => {
       // ok

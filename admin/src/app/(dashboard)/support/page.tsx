@@ -38,6 +38,7 @@ export default function SupportPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['support-ticket', selectedId] });
       qc.invalidateQueries({ queryKey: ['support-tickets'] });
+      qc.invalidateQueries({ queryKey: ['support', 'open-count'] });
       setResponse('');
       toast.success('Yuborildi');
     },
@@ -49,6 +50,7 @@ export default function SupportPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['support-tickets'] });
       qc.invalidateQueries({ queryKey: ['support-ticket', selectedId] });
+      qc.invalidateQueries({ queryKey: ['support', 'open-count'] });
       toast.success('Yopildi');
     },
   });
