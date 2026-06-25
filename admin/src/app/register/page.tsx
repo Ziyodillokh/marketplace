@@ -21,6 +21,7 @@ import {
   apiSellerValidateBot,
   apiTelegramLogin,
   type BusinessTypeOption,
+  type LoginMode,
   type PaymentInfo,
   type TariffOption,
 } from '@/lib/endpoints';
@@ -136,20 +137,27 @@ export default function RegisterPage() {
       apiSellerTariffs().then((t) => !cancelled && setTariffs(t)).catch(() => undefined);
       apiSellerPaymentInfo().then((p) => !cancelled && setPaymentInfo(p)).catch(() => undefined);
 
+      // Bot rejimi: /start → owner, /creator → creator, /moderator → moderator.
+      const m = new URLSearchParams(window.location.search).get('mode');
+      const mode: LoginMode | undefined =
+        m === 'creator' || m === 'moderator' || m === 'owner' ? m : undefined;
+      const teamMode = mode === 'creator' || mode === 'moderator';
+
       // Avval to'g'ridan-to'g'ri login — EGASI yoki JAMOA a'zosi (creator/moderator/
       // manager) bo'lsa shu yerda kiradi. Faqat yangi foydalanuvchi onboarding'ga tushadi.
       try {
-        const res = await apiTelegramLogin(id);
+        const res = await apiTelegramLogin(id, mode);
         if (cancelled) return;
         setAccessToken(res.accessToken);
         setAdmin(res.admin);
-        router.replace('/');
+        // Creator faqat mahsulot+kategoriya bilan ishlaydi — dashboard'ga emas.
+        router.replace(res.admin.role === 'CREATOR' ? '/products' : '/');
         return;
       } catch (e) {
         if (cancelled) return;
         const msg = (e as Error).message ?? '';
-        // Jamoa a'zosi, lekin do'kon tarifi faol emas — wizard'ga tushirmaymiz.
-        if (/tarif|faol emas/i.test(msg)) {
+        // Jamoa rejimida (creator/moderator) yoki tarif faol bo'lmasa — wizard ko'rsatmaymiz.
+        if (teamMode || /tarif|faol emas/i.test(msg)) {
           setBlockedMsg(msg);
           setPhase('blocked');
           return;

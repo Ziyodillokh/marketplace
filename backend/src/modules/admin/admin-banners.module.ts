@@ -15,7 +15,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IsBoolean, IsInt, IsOptional, IsString } from 'class-validator';
 import { type Admin } from '@prisma/client';
-import { CATALOG_ROLES } from '@/common/role-groups';
+import { BOSS_ROLES } from '@/common/role-groups';
 import { PrismaService } from '@/prisma/prisma.service';
 import { limitsFor } from '@/common/tariff';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
@@ -36,7 +36,7 @@ class UpsertBannerDto {
 
 @Controller('admin/banners')
 @UseGuards(AdminJwtGuard, RolesGuard)
-@Roles(...CATALOG_ROLES)
+@Roles(...BOSS_ROLES)
 class AdminBannersController {
   constructor(private readonly prisma: PrismaService, private readonly events: EventEmitter2) {}
 

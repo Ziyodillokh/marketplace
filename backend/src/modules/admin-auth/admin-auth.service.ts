@@ -12,6 +12,14 @@ export interface AuthTokens {
   expiresAt: Date;
 }
 
+/**
+ * Panelga kirish "rejimi" — bot qaysi buyruq orqali ochilganini bildiradi:
+ * - 'owner'     → /start: faqat o'z do'konlari (egasi/boss)
+ * - 'creator'   → /creator: faqat creator bo'lgan do'konlari
+ * - 'moderator' → /moderator: faqat moderator bo'lgan do'konlari
+ */
+export type LoginMode = 'owner' | 'creator' | 'moderator';
+
 /** loginWithTelegram/switchStore'da kira-olish tekshiruvi uchun kerakli do'kon maydonlari. */
 type TenantAccessFields = {
   ownerTelegramId: bigint | null;
@@ -73,11 +81,16 @@ export class AdminAuthService {
 
   /**
    * Telegram ID bo'yicha login (parolsiz). Egasi/boss har doim kiradi; jamoa a'zosi
-   * (creator/moderator/manager) faqat do'kon tarifi FAOL bo'lsa. Egasi/boss yozuvi
-   * afzal ko'riladi (bir nechta do'kon bo'lsa), aks holda eng eski kira-olinadigan.
+   * (creator/moderator/manager) faqat do'kon tarifi FAOL bo'lsa.
+   *
+   * `mode` bot buyrug'iga mos yozuvni tanlaydi:
+   * - 'creator'/'moderator' → aynan shu roldagi (kira olinadigan) yozuv; topilmasa
+   *   tushunarli xato (umuman a'zo emas / tarifi faol emas).
+   * - 'owner'/undefined → egasi/boss afzal, aks holda eng eski kira-olinadigan.
    */
   async loginWithTelegram(
     telegramId: bigint,
+    mode?: LoginMode,
     photoUrl?: string | null,
   ): Promise<{ admin: Admin; tokens: AuthTokens }> {
     // Profil rasmini yangilaymiz (shu telegramId ning barcha do'kon yozuvlarida)
@@ -95,6 +108,25 @@ export class AdminAuthService {
       throw new UnauthorizedException("Ro'yxatdan o'tilmagan");
     }
     const accessible = admins.filter((a) => this.canAccess(a, telegramId));
+
+    // Jamoa rejimi (creator/moderator) — aynan shu roldagi yozuvni tanlaymiz.
+    if (mode === 'creator' || mode === 'moderator') {
+      const wantRole = mode === 'creator' ? AdminRole.CREATOR : AdminRole.MODERATOR;
+      const match = accessible.find((a) => a.role === wantRole);
+      if (!match) {
+        // Shu roldagi yozuvi bor, lekin hammasi tarifi faol emasmi?
+        const hasRoleButInactive = admins.some((a) => a.role === wantRole);
+        throw new UnauthorizedException(
+          hasRoleButInactive
+            ? "Do'kon tarifi faol emas. Egasi tarifni yangilagach kira olasiz."
+            : `Siz hech qaysi do'konda ${mode} sifatida qo'shilmagansiz.`,
+        );
+      }
+      const tokens = await this.issueTokens(match);
+      return { admin: match, tokens };
+    }
+
+    // Egasi/boss rejimi.
     if (accessible.length === 0) {
       // Jamoa a'zosi, lekin barcha do'konlari tarifi faol emas.
       throw new UnauthorizedException(
@@ -123,6 +155,16 @@ export class AdminAuthService {
       include: { tenant: { select: TENANT_ACCESS_SELECT } },
     })) as AdminWithTenant | null;
     if (!target) throw new UnauthorizedException("Do'kon topilmadi");
+    // Rejim chegarasi: creator/moderator sessiyasi faqat O'SHA roldagi do'konga o'ta oladi
+    // (egasi/boss bemalol). Aks holda /creator orqali kirib, o'zi egasi bo'lgan do'konga
+    // "sakrab" o'tib, rejim cheklovini chetlab o'tish mumkin bo'lardi. Mavjudligini
+    // oshkor qilmaslik uchun 404-ga teng xabar.
+    if (
+      (currentAdmin.role === AdminRole.CREATOR || currentAdmin.role === AdminRole.MODERATOR) &&
+      target.role !== currentAdmin.role
+    ) {
+      throw new UnauthorizedException("Do'kon topilmadi");
+    }
     // Jamoa a'zosi bo'lsa — faqat tarif faol do'konga o'ta oladi (egasi/boss har doim).
     if (!this.canAccess(target, currentAdmin.telegramId)) {
       throw new UnauthorizedException(

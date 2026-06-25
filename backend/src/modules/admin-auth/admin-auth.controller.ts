@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import type { Request, Response } from 'express';
 import type { Admin } from '@prisma/client';
 import {
@@ -28,6 +28,8 @@ class LoginDto {
 
 class TelegramLoginDto {
   @IsString() @MaxLength(4096) initData!: string;
+  /** Bot rejimi: /start → owner, /creator → creator, /moderator → moderator. */
+  @IsOptional() @IsIn(['owner', 'creator', 'moderator']) mode?: 'owner' | 'creator' | 'moderator';
 }
 
 class SwitchStoreDto {
@@ -100,6 +102,7 @@ export class AdminAuthController {
     }
     const { admin, tokens } = await this.auth.loginWithTelegram(
       BigInt(parsed.user.id),
+      dto.mode,
       parsed.user.photo_url ?? null,
     );
     this.setCookies(res, tokens.accessToken, tokens.refreshToken, tokens.expiresAt);

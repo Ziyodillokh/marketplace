@@ -30,10 +30,11 @@ export const apiLogin = (email: string, password: string) =>
   });
 export const apiMe = () => api<AdminDto>('/admin/auth/me');
 export const apiLogout = () => api<{ ok: boolean }>('/admin/auth/logout', { method: 'POST' });
-export const apiTelegramLogin = (initData: string) =>
+export type LoginMode = 'owner' | 'creator' | 'moderator';
+export const apiTelegramLogin = (initData: string, mode?: LoginMode) =>
   api<{ admin: AdminDto; accessToken: string }>('/admin/auth/telegram', {
     method: 'POST',
-    body: { initData },
+    body: mode ? { initData, mode } : { initData },
   });
 
 // ───── Multi-store (bir egada bir nechta do'kon) ─────

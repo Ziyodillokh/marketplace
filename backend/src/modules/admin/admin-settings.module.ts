@@ -4,6 +4,7 @@ import { AdminRole, Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
 import { Roles, RolesGuard } from '../admin-auth/roles.guard';
+import { BOSS_ROLES } from '@/common/role-groups';
 import { AdminAuthModule } from '../admin-auth/admin-auth.module';
 
 // Admin UI orqali tahrirlanishi mumkin bo'lgan kalitlar.
@@ -21,6 +22,8 @@ class UpsertSettingDto {
 
 @Controller('admin/settings')
 @UseGuards(AdminJwtGuard, RolesGuard)
+// Do'kon sozlamalari (o'qish + yozish) — faqat boss (egasi/ADMIN). CREATOR kira olmaydi.
+@Roles(...BOSS_ROLES)
 class AdminSettingsController {
   constructor(private readonly prisma: PrismaService) {}
 

@@ -4,7 +4,8 @@ import { Type } from 'class-transformer';
 import { OrderStatus, Prisma, type Admin } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
-import { CurrentAdmin, RolesGuard } from '../admin-auth/roles.guard';
+import { CurrentAdmin, Roles, RolesGuard } from '../admin-auth/roles.guard';
+import { VIEW_ROLES } from '@/common/role-groups';
 import { RequireFeature, TariffFeatureGuard } from '../admin-auth/tariff-feature.guard';
 import { AdminAuthModule } from '../admin-auth/admin-auth.module';
 
@@ -34,6 +35,8 @@ function parseRange(dto: TimeRangeDto, defaultDays = 7): { from: Date; to: Date 
 
 @Controller('admin/stats')
 @UseGuards(AdminJwtGuard, RolesGuard, TariffFeatureGuard)
+// Statistika/analitika — boss + manager + moderator. CREATOR kira olmaydi.
+@Roles(...VIEW_ROLES)
 class AdminStatsController {
   constructor(private readonly prisma: PrismaService) {}
 

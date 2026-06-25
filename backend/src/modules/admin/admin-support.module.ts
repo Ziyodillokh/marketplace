@@ -8,7 +8,8 @@ import { buildCursorPage } from '@/common/helpers/pagination';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { TenantBotService } from '../telegram-bot/tenant-bot.service';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
-import { RolesGuard, CurrentAdmin } from '../admin-auth/roles.guard';
+import { Roles, RolesGuard, CurrentAdmin } from '../admin-auth/roles.guard';
+import { VIEW_ROLES } from '@/common/role-groups';
 import { AdminAuthModule } from '../admin-auth/admin-auth.module';
 import { TelegramBotModule } from '../telegram-bot/telegram-bot.module';
 
@@ -28,6 +29,8 @@ class StatusDto {
 
 @Controller('admin/support/tickets')
 @UseGuards(AdminJwtGuard, RolesGuard)
+// Support tiketlar (o'qish + javob + status) — boss + manager + moderator. CREATOR kira olmaydi.
+@Roles(...VIEW_ROLES)
 class AdminSupportController {
   constructor(
     private readonly prisma: PrismaService,

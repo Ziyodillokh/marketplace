@@ -63,6 +63,8 @@ export default function MorePage() {
     },
   });
   const visible = ITEMS.filter((i) => {
+    // Creator faqat mahsulot+kategoriya bilan ishlaydi — "Boshqa"da faqat Kategoriyalar.
+    if (admin?.role === 'CREATOR') return i.href === '/categories';
     if (i.superadminOnly && admin?.role !== 'SUPERADMIN') return false;
     if (i.roles && !(admin && i.roles.includes(admin.role))) return false;
     return true;

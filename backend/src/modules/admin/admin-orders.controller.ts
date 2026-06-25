@@ -27,6 +27,8 @@ class MessageDto {
 
 @Controller('admin/orders')
 @UseGuards(AdminJwtGuard, RolesGuard)
+// Buyurtmalar (o'qish ham) — boss + manager + moderator. CREATOR kira olmaydi.
+@Roles(...ORDERS_ROLES)
 export class AdminOrdersController {
   constructor(private readonly orders: AdminOrdersService) {}
 

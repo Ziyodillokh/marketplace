@@ -1,20 +1,40 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import { MobileBottomNav, MobileTopBar, Sidebar } from '@/components/layout/sidebar';
 import { TelegramBackButton } from '@/components/telegram-back-button';
 
+// Creator faqat shu bo'limlarga kira oladi (mahsulot+kategoriya + "Boshqa" menyu).
+const CREATOR_ALLOWED = ['/products', '/categories', '/more'];
+
+// Aniq yo'l yoki uning subpath'i (".../new", ".../[id]"). startsWith bilan prefiks
+// to'qnashuvi bo'lmasin (masalan kelajakdagi "/products-archive" noto'g'ri ochilmasin).
+function isCreatorAllowed(pathname: string): boolean {
+  return CREATOR_ALLOWED.some((p) => pathname === p || pathname.startsWith(p + '/'));
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { admin, initialized } = useAuthStore();
 
   useEffect(() => {
-    if (initialized && !admin) router.replace('/login');
-  }, [initialized, admin, router]);
+    if (!initialized) return;
+    if (!admin) {
+      router.replace('/login');
+      return;
+    }
+    // Creator ruxsat etilmagan sahifaga kirsa — mahsulotlarga qaytaramiz.
+    if (admin.role === 'CREATOR' && !isCreatorAllowed(pathname)) {
+      router.replace('/products');
+    }
+  }, [initialized, admin, pathname, router]);
 
   if (!admin) return null;
+  // Creator ruxsatsiz route'da — redirect kutilmoqda, kontentni ko'rsatmaymiz (flash bo'lmasin).
+  if (admin.role === 'CREATOR' && !isCreatorAllowed(pathname)) return null;
 
   return (
     <div className="min-h-dvh flex">

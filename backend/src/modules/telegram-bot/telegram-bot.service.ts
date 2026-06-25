@@ -303,7 +303,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
         );
         return;
       }
-      const url = this.adminPanelUrl;
+      const base = this.adminPanelUrl;
+      // Panel shu rejimda ochiladi → switcher faqat shu roldagi do'konlarni ko'rsatadi
+      // va creator faqat mahsulot+kategoriya bilan cheklanadi.
+      const url = base + (base.includes('?') ? '&' : '?') + 'mode=' + label;
       const shops = active.map((r) => r.tenant!.shopName).join(', ');
       const text =
         `✅ Xush kelibsiz! Siz <b>${shops}</b> do'koni(lar)да <b>${label}</b>siz.\n\n` +
@@ -382,8 +385,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
 
   async sendToSupportChat(text: string, replyMarkup?: InlineKeyboard): Promise<void> {
     if (!this.bot) return;
-    // Support chat berilmasa — to'lov/admin kanaliga yuboramiz (har doim sozlangan)
-    const chatId = this.config.get<string>('TELEGRAM_SUPPORT_CHAT_ID') || this.paymentsChatId;
+    // Support tiketlar faqat admin panelda ko'rinadi (DB'da saqlanadi). Telegram'ga
+    // forward qilish IXTIYORIY — faqat alohida support kanali sozlangan bo'lsa.
+    // To'lov/orders kanaliga (paymentsChatId) HECH QACHON tushmasligi kerak.
+    const chatId = this.config.get<string>('TELEGRAM_SUPPORT_CHAT_ID');
     if (!chatId) return;
     try {
       await this.bot.api.sendMessage(chatId, text, { parse_mode: 'HTML', reply_markup: replyMarkup });

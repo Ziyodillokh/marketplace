@@ -262,7 +262,7 @@ export class AdminStoreController {
       const end = exp ?? new Date(started.getTime() + 30 * 24 * 60 * 60 * 1000);
       return Math.ceil((end.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
     };
-    const stores = rows
+    const allStores = rows
       .filter((r) => r.tenant)
       .map((r) => ({
         id: r.tenant!.id,
@@ -275,6 +275,25 @@ export class AdminStoreController {
         isCurrent: r.tenant!.id === admin.tenantId,
         tariffDaysLeft: daysLeft(r.tenant!.tariffPlan, r.tenant!.tariffExpiresAt, r.tenant!.tariffStartedAt),
       }));
+    // Rejim = joriy yozuv roli: switcher faqat shu rejimdagi do'konlarni ko'rsatadi.
+    // - CREATOR  → creator bo'lgan do'konlar
+    // - MODERATOR→ moderator bo'lgan do'konlar
+    // - boshqa (egasi/boss) → o'z do'konlari (egasi yoki ADMIN/SUPERADMIN)
+    const stores =
+      admin.role === AdminRole.CREATOR
+        ? allStores.filter((s) => s.role === AdminRole.CREATOR)
+        : admin.role === AdminRole.MODERATOR
+          ? allStores.filter((s) => s.role === AdminRole.MODERATOR)
+          : // start/owner rejimi: o'z do'konlari (egasi/boss/manager). `isCurrent` har doim
+            // qo'shiladi — joriy do'kon hech qachon ro'yxatdan tushib qolmasin (bo'sh switcher).
+            allStores.filter(
+              (s) =>
+                s.isCurrent ||
+                s.isOwner ||
+                s.role === AdminRole.ADMIN ||
+                s.role === AdminRole.SUPERADMIN ||
+                s.role === AdminRole.MANAGER,
+            );
     // Yangi do'kon ochish — faqat o'zi EGASI bo'lgan do'konlar bo'yicha hisoblanadi
     // va faqat BOSS (egasi/super) roli yangi do'kon ocha oladi (POST /new gate'iga mos).
     const owned = stores.filter((s) => s.isOwner);

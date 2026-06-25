@@ -3,10 +3,15 @@ import { AdminRole } from '@prisma/client';
 /**
  * Rol guruhlari — controllerlardagi @Roles(...) uchun.
  *
- * - BOSS    = do'kon egasi (+ platforma superadmini): hamma narsa, sozlamalar, jamoa, to'lov.
- * - CATALOG = katalog boshqaruvi (mahsulot/kategoriya/banner/promo/kanal e'lon) — Creator ham.
- * - ORDERS  = buyurtmalarni ko'rish/holatini o'zgartirish — barcha xodimlar.
- * - VIEW    = ko'rish (dashboard, statistika, ro'yxatlar) — barcha xodimlar.
+ * - BOSS    = do'kon egasi (+ platforma superadmini): hamma narsa, sozlamalar, jamoa,
+ *             to'lov, banner/promo/kanal e'lon (marketing).
+ * - CATALOG = FAQAT mahsulot va kategoriya boshqaruvi. Creator shu bilan cheklanadi —
+ *             boshqa funksiyalarga kira olmaydi.
+ * - ORDERS  = buyurtmalarni ko'rish/holatini o'zgartirish (boss + manager + moderator).
+ * - VIEW    = ko'rish (dashboard, statistika, ro'yxatlar) (boss + manager + moderator).
+ *
+ * ⚠️ CREATOR ataylab faqat CATALOG_ROLES'da. ORDERS/VIEW/BOSS'ga qo'shmang —
+ *    creator faqat mahsulot+kategoriya yaratishi kerak.
  */
 export const BOSS_ROLES = [AdminRole.SUPERADMIN, AdminRole.ADMIN] as const;
 
@@ -21,13 +26,11 @@ export const ORDERS_ROLES = [
   AdminRole.ADMIN,
   AdminRole.MANAGER,
   AdminRole.MODERATOR,
-  AdminRole.CREATOR,
 ] as const;
 
 export const VIEW_ROLES = [
   AdminRole.SUPERADMIN,
   AdminRole.ADMIN,
-  AdminRole.CREATOR,
   AdminRole.MANAGER,
   AdminRole.MODERATOR,
 ] as const;

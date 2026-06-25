@@ -4,6 +4,7 @@ import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min } from 'class-valid
 import { AdminRole, EventType, type Admin } from '@prisma/client';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
 import { CurrentAdmin, Roles, RolesGuard } from '../admin-auth/roles.guard';
+import { VIEW_ROLES } from '@/common/role-groups';
 import { AdminUsersService } from './admin-users.service';
 
 class ListUsersDto {
@@ -35,6 +36,9 @@ class PaginationDto {
 
 @Controller('admin/users')
 @UseGuards(AdminJwtGuard, RolesGuard)
+// Mijozlar (PII) — boss + manager + moderator. CREATOR kira olmaydi.
+// (@Patch block — pastda qat'iyroq ADMIN/SUPERADMIN bilan override qilingan.)
+@Roles(...VIEW_ROLES)
 export class AdminUsersController {
   constructor(private readonly users: AdminUsersService) {}
 

@@ -42,6 +42,15 @@ const BOSS = ['SUPERADMIN', 'ADMIN'];
 const CATALOG = ['SUPERADMIN', 'ADMIN', 'CREATOR'];
 const VIEWER = ['SUPERADMIN', 'ADMIN', 'MODERATOR'];
 
+// Creator faqat shu sahifalarni ko'radi — boshqa hamma narsa yashiriladi.
+const CREATOR_ROUTES = ['/products', '/categories', '/more'];
+function navVisible(role: string | undefined, it: { href: string; superadminOnly?: boolean; roles?: string[] }): boolean {
+  if (role === 'CREATOR') return CREATOR_ROUTES.includes(it.href);
+  if (it.superadminOnly && role !== 'SUPERADMIN') return false;
+  if (it.roles && !(role && it.roles.includes(role))) return false;
+  return true;
+}
+
 const NAV: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/orders', label: 'Buyurtmalar', icon: ShoppingCart },
@@ -82,11 +91,7 @@ export function Sidebar() {
     },
   });
 
-  const visibleNav = NAV.filter((it) => {
-    if (it.superadminOnly && admin?.role !== 'SUPERADMIN') return false;
-    if (it.roles && !(admin && it.roles.includes(admin.role))) return false;
-    return true;
-  });
+  const visibleNav = NAV.filter((it) => navVisible(admin?.role, it));
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r border-[var(--color-border)] bg-white shrink-0 h-dvh sticky top-0">
@@ -174,10 +179,15 @@ const BOTTOM_NAV: NavItem[] = [
 export function MobileBottomNav() {
   const pathname = usePathname();
   const openTickets = useOpenTicketCount();
+  const admin = useAuthStore((s) => s.admin);
+  const items = BOTTOM_NAV.filter((it) => navVisible(admin?.role, it));
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-[var(--color-border)] pb-[env(safe-area-inset-bottom)]">
-      <ul className="grid grid-cols-5 px-1 pt-1">
-        {BOTTOM_NAV.map((it) => {
+      <ul
+        className="grid px-1 pt-1"
+        style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+      >
+        {items.map((it) => {
           const active = it.href === '/' ? pathname === '/' : pathname.startsWith(it.href);
           return (
             <li key={it.href}>

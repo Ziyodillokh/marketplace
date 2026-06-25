@@ -15,7 +15,7 @@ import {
 import { Type } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { PromoType, type Admin } from '@prisma/client';
-import { CATALOG_ROLES } from '@/common/role-groups';
+import { BOSS_ROLES } from '@/common/role-groups';
 import { PrismaService } from '@/prisma/prisma.service';
 import { buildCursorPage } from '@/common/helpers/pagination';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
@@ -46,7 +46,7 @@ class ListPromoDto {
 
 @Controller('admin/promo-codes')
 @UseGuards(AdminJwtGuard, RolesGuard)
-@Roles(...CATALOG_ROLES)
+@Roles(...BOSS_ROLES)
 class AdminPromoController {
   constructor(private readonly prisma: PrismaService) {}
 

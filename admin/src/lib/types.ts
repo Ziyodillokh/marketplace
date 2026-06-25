@@ -1,4 +1,4 @@
-export type AdminRole = 'SUPERADMIN' | 'ADMIN' | 'MANAGER';
+export type AdminRole = 'SUPERADMIN' | 'ADMIN' | 'MANAGER' | 'CREATOR' | 'MODERATOR';
 
 export interface AdminDto {
   id: string;
