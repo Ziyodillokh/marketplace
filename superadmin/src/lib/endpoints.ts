@@ -88,7 +88,8 @@ export interface CreateTenantBody {
   slug: string;
   shopName: string;
   ownerName: string;
-  ownerEmail: string;
+  ownerEmail?: string;
+  ownerTelegramId?: string;
   ownerPhone?: string;
   tariffPlan?: TariffPlan;
   isOnTrial?: boolean;

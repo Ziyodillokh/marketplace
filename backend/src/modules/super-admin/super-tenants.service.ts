@@ -168,25 +168,34 @@ export class SuperTenantsService {
     slug: string;
     shopName: string;
     ownerName: string;
-    ownerEmail: string;
+    ownerEmail?: string;
     ownerPhone?: string;
+    ownerTelegramId?: string;
     tariffPlan?: TariffPlan;
     isOnTrial?: boolean;
     trialDays?: number;
   }): Promise<Tenant> {
     const slug = data.slug.toLowerCase().trim();
-    const email = data.ownerEmail.toLowerCase().trim();
+    const email = data.ownerEmail?.toLowerCase().trim() || null;
+    const telegramId = data.ownerTelegramId?.trim()
+      ? BigInt(data.ownerTelegramId.trim())
+      : null;
 
-    const exists = await this.prisma.tenant.findFirst({
-      where: { OR: [{ slug }, { ownerEmail: email }] },
-    });
+    // Slug har doim, email/Telegram ID berilgan bo'lsa ular bo'yicha ham dublikat tekshiriladi.
+    const dupOr: Prisma.TenantWhereInput[] = [{ slug }];
+    if (email) dupOr.push({ ownerEmail: email });
+    if (telegramId !== null) dupOr.push({ ownerTelegramId: telegramId });
+    const exists = await this.prisma.tenant.findFirst({ where: { OR: dupOr } });
     if (exists) {
-      throw new ConflictException('Slug yoki email allaqachon ishlatilgan');
+      throw new ConflictException(
+        'Slug, email yoki Telegram ID allaqachon ishlatilgan',
+      );
     }
 
-    const trialEndsAt = data.isOnTrial && data.trialDays
-      ? new Date(Date.now() + data.trialDays * 24 * 60 * 60 * 1000)
-      : null;
+    const trialEndsAt =
+      data.isOnTrial && data.trialDays
+        ? new Date(Date.now() + data.trialDays * 24 * 60 * 60 * 1000)
+        : null;
 
     return this.prisma.tenant.create({
       data: {
@@ -195,6 +204,7 @@ export class SuperTenantsService {
         ownerName: data.ownerName.trim(),
         ownerEmail: email,
         ownerPhone: data.ownerPhone?.trim() ?? null,
+        ownerTelegramId: telegramId,
         tariffPlan: data.tariffPlan ?? 'FREE',
         status: 'ACTIVE',
         isOnTrial: data.isOnTrial ?? false,

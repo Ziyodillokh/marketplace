@@ -16,6 +16,7 @@ import {
   IsEmail,
   IsEnum,
   IsInt,
+  IsNumberString,
   IsOptional,
   IsString,
   Max,
@@ -55,7 +56,10 @@ class CreateTenantDto {
   @IsString() slug!: string;
   @IsString() shopName!: string;
   @IsString() ownerName!: string;
-  @IsEmail() ownerEmail!: string;
+  // Telegram orqali kirish asosiy bo'lgani uchun email ixtiyoriy.
+  @IsOptional() @IsEmail() ownerEmail?: string;
+  // Sotuvchining Telegram ID si (BigInt) — string sifatida uzatiladi.
+  @IsOptional() @IsNumberString() ownerTelegramId?: string;
   @IsOptional() @IsString() ownerPhone?: string;
   @IsOptional() @IsEnum(TariffPlan) tariffPlan?: TariffPlan;
   @IsOptional() @IsBoolean() isOnTrial?: boolean;
