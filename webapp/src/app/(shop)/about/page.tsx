@@ -34,7 +34,7 @@ import { getWebApp } from '@/lib/telegram';
 
 /** Yuksalish Development — ishlab chiquvchi jamoa kontaktlari. */
 const DEV = {
-  channel: 'https://t.me/Yuksalishdev_ITjobs',
+  channel: 'https://t.me/yuksalish_dev',
   dm: 'https://t.me/Yuksalish_development',
   phone: '+998 33 015 26 01',
   phoneHref: 'tel:+998330152601',
@@ -261,7 +261,7 @@ export default function AboutPage() {
                   <ContactBtn
                     icon={Send}
                     title={ru ? 'Telegram-канал' : 'Telegram kanal'}
-                    sub="@Yuksalishdev_ITjobs"
+                    sub="@yuksalish_dev"
                     onClick={() => openTg(DEV.channel)}
                     primary
                   />
