@@ -85,97 +85,82 @@ export default function AboutPage() {
           </div>
         ) : (
           <>
-            {/* ───────── 01 · DO'KON HAQIDA ───────── */}
+            {/* ───────── 01 · DO'KON ───────── */}
             <SectionLabel index="01" text={ru ? 'Магазин' : "Do'kon"} />
-            <section className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-white shadow-sm">
-              {/* brendlangan banner */}
-              <div className="relative h-24" style={{ background: brand }}>
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background:
-                      'radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,.28), transparent 55%)',
-                  }}
-                />
-                <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur">
-                  <ShieldCheck size={11} />
-                  {ru ? 'Официальный магазин' : 'Rasmiy do’kon'}
-                </span>
+            <section className="rounded-3xl border border-[var(--color-border)] bg-white p-5 shadow-sm">
+              {/* sarlavha: logo + nom + tasdiq */}
+              <div className="flex items-center gap-3.5">
+                {store?.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={store.logoUrl}
+                    alt=""
+                    className="h-16 w-16 shrink-0 rounded-2xl border-2 object-cover"
+                    style={{ borderColor: brand }}
+                  />
+                ) : (
+                  <span
+                    className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-white"
+                    style={{ background: brand }}
+                  >
+                    <ShoppingBag size={26} />
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <h2 className="truncate text-[19px] font-extrabold leading-tight text-[var(--color-text)]">
+                    {store?.name || (ru ? 'Магазин' : "Do'kon")}
+                  </h2>
+                  <span
+                    className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    style={{ backgroundColor: `${brand}1a`, color: brand }}
+                  >
+                    <ShieldCheck size={11} />
+                    {ru ? 'Официальный магазин' : 'Rasmiy do‘kon'}
+                  </span>
+                </div>
               </div>
 
-              <div className="px-5 pb-5">
-                {/* logotip banner ustida */}
-                <div className="-mt-9 mb-3 flex items-end gap-3">
-                  {store?.logoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={store.logoUrl}
-                      alt=""
-                      className="h-[68px] w-[68px] rounded-2xl border-4 border-white object-cover shadow-md"
-                    />
-                  ) : (
+              {/* tavsif */}
+              <p className="mt-4 whitespace-pre-line text-[13.5px] leading-relaxed text-[var(--color-text)]/80">
+                {store?.about ||
+                  (ru
+                    ? 'Качественные товары, честные цены и быстрая доставка. Заказывайте прямо в Telegram.'
+                    : "Sifatli mahsulotlar, halol narxlar va tezkor yetkazib berish. To'g'ridan-to'g'ri Telegram orqali buyurtma bering.")}
+              </p>
+
+              {/* ma'lumotlar — telefon birinchi (asosiy aloqa) */}
+              <div className="mt-4 space-y-2">
+                {store?.phone && (
+                  <a
+                    href={`tel:${store.phone}`}
+                    className="flex items-center gap-3 rounded-2xl px-3 py-3 transition-opacity active:opacity-80"
+                    style={{ backgroundColor: `${brand}12` }}
+                  >
                     <span
-                      className="grid h-[68px] w-[68px] place-items-center rounded-2xl border-4 border-white text-white shadow-md"
+                      className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white"
                       style={{ background: brand }}
                     >
-                      <ShoppingBag size={28} />
+                      <Phone size={17} />
                     </span>
-                  )}
-                </div>
-
-                <h2 className="text-xl font-extrabold leading-tight text-[var(--color-text)]">
-                  {store?.name || (ru ? 'Магазин' : "Do'kon")}
-                </h2>
-                <p className="mt-0.5 text-[12px] font-medium text-[var(--color-text-muted)]">
-                  {ru ? 'Добро пожаловать в наш магазин' : "Do'konimizga xush kelibsiz"}
-                </p>
-
-                {store?.about ? (
-                  <p className="mt-3 whitespace-pre-line text-[13.5px] leading-relaxed text-[var(--color-text)]/80">
-                    {store.about}
-                  </p>
-                ) : (
-                  <p className="mt-3 text-[13.5px] leading-relaxed text-[var(--color-text-muted)]">
-                    {ru
-                      ? 'Качественные товары, честные цены и быстрая доставка. Заказывайте прямо в Telegram — удобно и без лишних шагов.'
-                      : "Sifatli mahsulotlar, halol narxlar va tezkor yetkazib berish. To'g'ridan-to'g'ri Telegram orqali buyurtma bering — qulay va ortiqcha qadamsiz."}
-                  </p>
+                    <span className="min-w-0">
+                      <span className="block text-[11px] text-[var(--color-text-muted)]">
+                        {ru ? 'Телефон' : 'Telefon'}
+                      </span>
+                      <span className="block text-[15px] font-bold" style={{ color: brand }}>
+                        {store.phone}
+                      </span>
+                    </span>
+                  </a>
                 )}
-
-                {(store?.address || store?.workingHours || store?.phone) && (
-                  <div className="mt-4 space-y-2">
-                    {store?.address && (
-                      <InfoRow icon={MapPin} label={ru ? 'Адрес' : 'Manzil'} value={store.address} />
-                    )}
-                    {store?.workingHours && (
-                      <InfoRow
-                        icon={Clock}
-                        label={ru ? 'Часы работы' : 'Ish vaqti'}
-                        value={store.workingHours}
-                      />
-                    )}
-                    {store?.phone && (
-                      <a
-                        href={`tel:${store.phone}`}
-                        className="flex items-center gap-3 rounded-xl bg-[var(--color-bg)] px-3 py-2.5 transition-colors active:bg-[var(--color-border)]/40"
-                      >
-                        <span
-                          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white"
-                          style={{ background: brand }}
-                        >
-                          <Phone size={16} />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-[11px] text-[var(--color-text-muted)]">
-                            {ru ? 'Телефон' : 'Telefon'}
-                          </span>
-                          <span className="block text-[14px] font-bold text-[var(--color-text)]">
-                            {store.phone}
-                          </span>
-                        </span>
-                      </a>
-                    )}
-                  </div>
+                {store?.address && (
+                  <InfoRow icon={MapPin} label={ru ? 'Адрес' : 'Manzil'} value={store.address} />
+                )}
+                {store?.workingHours && (
+                  <InfoRow
+                    icon={Clock}
+                    label={ru ? 'Часы работы' : 'Ish vaqti'}
+                    value={store.workingHours}
+                  />
                 )}
               </div>
             </section>
