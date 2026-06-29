@@ -157,7 +157,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   </a>
                 </p>
               )}
-              <div className="pt-2 flex flex-wrap gap-2">
+              <a
+                href={`/users/${order.user.id}`}
+                className="block mt-3 text-xs text-[var(--color-primary)] font-medium"
+              >
+                Foydalanuvchini ko&apos;rish →
+              </a>
+              <div className="pt-2">
+                <OrderStatusBadge status={order.status} />
+              </div>
+              <div className="flex flex-wrap gap-2 pt-3 mt-3 border-t border-[var(--color-border)]">
                 <Button size="sm" variant="secondary" onClick={() => setMsgOpen(true)}>
                   <MessageSquare size={14} /> Mijozga yozish
                 </Button>
@@ -173,15 +182,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     <Send size={14} /> Telegram
                   </Button>
                 )}
-              </div>
-              <a
-                href={`/users/${order.user.id}`}
-                className="block mt-3 text-xs text-[var(--color-primary)] font-medium"
-              >
-                Foydalanuvchini ko&apos;rish →
-              </a>
-              <div className="pt-2">
-                <OrderStatusBadge status={order.status} />
               </div>
             </div>
           </Card>
