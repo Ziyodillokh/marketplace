@@ -16,7 +16,12 @@ export interface CursorPage<T> {
 }
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'ON_THE_WAY' | 'DELIVERED' | 'CANCELLED';
-export type PaymentMethod = 'CASH_ON_DELIVERY' | 'CARD_ON_DELIVERY';
+export type PaymentMethod =
+  | 'CASH_ON_DELIVERY'
+  | 'CARD_ON_DELIVERY'
+  | 'PAYME'
+  | 'CLICK'
+  | 'CARD_TRANSFER';
 
 export interface AdminProductListItem {
   id: string;

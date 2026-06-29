@@ -3,7 +3,7 @@
 import { use, useState } from 'react';
 import Image from 'next/image';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MessageSquare, User } from 'lucide-react';
+import { MessageSquare, Send, User } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,17 @@ import { OrderStatusChanger } from '@/components/orders/status-changer';
 import { LocationPreview } from '@/components/orders/location-preview';
 import { apiGetAdminOrder, apiSendOrderMessage } from '@/lib/endpoints';
 import { formatDateTime, formatMoney } from '@/lib/format';
+import type { PaymentMethod } from '@/lib/types';
 import { toast } from '@/stores/toast-store';
 import { useAuthStore } from '@/stores/auth-store';
+
+const PAYMENT_LABEL: Record<PaymentMethod, string> = {
+  CASH_ON_DELIVERY: 'Naqd (yetkazganda)',
+  CARD_ON_DELIVERY: 'Karta (yetkazganda)',
+  PAYME: 'Payme (onlayn)',
+  CLICK: 'Click (onlayn)',
+  CARD_TRANSFER: "Karta orqali (o'tkazma)",
+};
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -148,6 +157,23 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   </a>
                 </p>
               )}
+              <div className="pt-2 flex flex-wrap gap-2">
+                <Button size="sm" variant="secondary" onClick={() => setMsgOpen(true)}>
+                  <MessageSquare size={14} /> Mijozga yozish
+                </Button>
+                {order.user.username && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      order.user.username &&
+                      window.open(`https://t.me/${order.user.username}`, '_blank')
+                    }
+                  >
+                    <Send size={14} /> Telegram
+                  </Button>
+                )}
+              </div>
               <a
                 href={`/users/${order.user.id}`}
                 className="block mt-3 text-xs text-[var(--color-primary)] font-medium"
@@ -187,7 +213,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <Row label="Jami" value={formatMoney(order.total)} className="text-base font-bold text-[var(--color-primary)]" />
               </div>
               <p className="text-xs text-[var(--color-text-muted)] pt-2">
-                To&apos;lov: {order.paymentMethod === 'CARD_ON_DELIVERY' ? 'Karta (yetkazganda)' : 'Naqd (yetkazganda)'}
+                To&apos;lov: {PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}
               </p>
             </div>
           </Card>
