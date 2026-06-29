@@ -675,6 +675,8 @@ model Tenant {
 
   // Do'kon ma'lumotlari (admin settings sahifasidan tahrirlanadi)
   address         String?
+  latitude        Float?
+  longitude       Float?
   workingHours    String?
   about           String?
 

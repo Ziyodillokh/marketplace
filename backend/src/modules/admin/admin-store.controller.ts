@@ -62,6 +62,8 @@ class StoreInfoDto {
   @IsOptional() @IsString() @MaxLength(120) name?: string;
   @IsOptional() @IsString() @MaxLength(40)  phone?: string;
   @IsOptional() @IsString() @MaxLength(300) address?: string;
+  @IsOptional() @IsNumber() latitude?: number;
+  @IsOptional() @IsNumber() longitude?: number;
   @IsOptional() @IsString() @MaxLength(120) workingHours?: string;
   @IsOptional() @IsString() @MaxLength(2000) about?: string;
 }
@@ -208,6 +210,8 @@ export class AdminStoreController {
         hasBotToken: !!t.botToken,
         phone: t.ownerPhone,
         address: t.address,
+        latitude: t.latitude,
+        longitude: t.longitude,
         workingHours: t.workingHours,
         about: t.about,
         customersCount: customers,
@@ -573,10 +577,12 @@ export class AdminStoreController {
   @HttpCode(200)
   async updateInfo(@CurrentAdmin() admin: Admin, @Body() dto: StoreInfoDto) {
     if (!admin.tenantId) throw new BadRequestException("Do'kon topilmadi");
-    const data: Record<string, string | null> = {};
+    const data: Record<string, string | number | null> = {};
     if (dto.name !== undefined) data.shopName = dto.name.trim();
     if (dto.phone !== undefined) data.ownerPhone = dto.phone.trim() || null;
     if (dto.address !== undefined) data.address = dto.address.trim() || null;
+    if (dto.latitude !== undefined) data.latitude = dto.latitude;
+    if (dto.longitude !== undefined) data.longitude = dto.longitude;
     if (dto.workingHours !== undefined) data.workingHours = dto.workingHours.trim() || null;
     if (dto.about !== undefined) data.about = dto.about.trim() || null;
     if (data.shopName === '') throw new BadRequestException("Do'kon nomi bo'sh bo'lmasin");

@@ -202,6 +202,8 @@ export interface MyStore {
     hasBotToken: boolean;
     phone: string | null;
     address: string | null;
+    latitude: number | null;
+    longitude: number | null;
     workingHours: string | null;
     about: string | null;
     customersCount: number;
@@ -343,6 +345,8 @@ export interface StoreInfoInput {
   name?: string;
   phone?: string;
   address?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   workingHours?: string;
   about?: string;
 }
