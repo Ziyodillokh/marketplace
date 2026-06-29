@@ -8,7 +8,6 @@ import {
   Phone,
   Send,
   MessageCircle,
-  Code2,
   ArrowRight,
   Zap,
   Sparkles,
@@ -170,8 +169,9 @@ export default function AboutPage() {
             <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0A6CFF] to-[#0A2E8C] text-white shadow-md">
               <div className="p-5">
                 <div className="flex items-center gap-3">
-                  <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white/15 backdrop-blur">
-                    <Sparkles size={24} />
+                  <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-white/15 backdrop-blur">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/logo.png" alt="Sellio" className="h-9 w-9 object-contain" />
                   </span>
                   <div className="min-w-0">
                     <p className="text-[22px] font-extrabold leading-none tracking-tight">Sellio</p>
@@ -225,8 +225,9 @@ export default function AboutPage() {
             <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B1220] to-[#1E293B] text-white shadow-md">
               <div className="p-5">
                 <div className="flex items-center gap-3">
-                  <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10 text-[#60A5FA] backdrop-blur">
-                    <Code2 size={24} />
+                  <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-white/10 backdrop-blur">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/Yuksalish.png" alt="Yuksalish Development" className="h-9 w-9 object-contain" />
                   </span>
                   <div className="min-w-0">
                     <p className="text-[18px] font-extrabold leading-tight">Yuksalish Development</p>
