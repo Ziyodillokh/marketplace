@@ -1,9 +1,10 @@
 'use client';
 
 import { use, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MessageSquare, Send, User } from 'lucide-react';
+import { MessageSquare, Send, User, type LucideIcon } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ const PAYMENT_LABEL: Record<PaymentMethod, string> = {
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const admin = useAuthStore((s) => s.admin);
+  const router = useRouter();
   const [msgOpen, setMsgOpen] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -59,6 +61,23 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   const canEdit = admin?.role === 'SUPERADMIN' || admin?.role === 'ADMIN' || admin?.role === 'MANAGER';
+
+  const userActions: { key: string; icon: LucideIcon; label: string; onClick: () => void }[] = [
+    { key: 'msg', icon: MessageSquare, label: 'Yozish', onClick: () => setMsgOpen(true) },
+    ...(order.user.username
+      ? [
+          {
+            key: 'tg',
+            icon: Send,
+            label: 'Telegram',
+            onClick: () =>
+              order.user.username &&
+              window.open(`https://t.me/${order.user.username}`, '_blank'),
+          },
+        ]
+      : []),
+    { key: 'profile', icon: User, label: 'Profil', onClick: () => router.push(`/users/${order.user.id}`) },
+  ];
 
   return (
     <div>
@@ -157,31 +176,26 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   </a>
                 </p>
               )}
-              <a
-                href={`/users/${order.user.id}`}
-                className="block mt-3 text-xs text-[var(--color-primary)] font-medium"
-              >
-                Foydalanuvchini ko&apos;rish →
-              </a>
               <div className="pt-2">
                 <OrderStatusBadge status={order.status} />
               </div>
-              <div className="flex flex-wrap gap-2 pt-3 mt-3 border-t border-[var(--color-border)]">
-                <Button size="sm" variant="secondary" onClick={() => setMsgOpen(true)}>
-                  <MessageSquare size={14} /> Mijozga yozish
-                </Button>
-                {order.user.username && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      order.user.username &&
-                      window.open(`https://t.me/${order.user.username}`, '_blank')
-                    }
-                  >
-                    <Send size={14} /> Telegram
-                  </Button>
-                )}
+              <div
+                className={`grid ${userActions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'} gap-2 pt-3 mt-3 border-t border-[var(--color-border)]`}
+              >
+                {userActions.map((a) => {
+                  const Icon = a.icon;
+                  return (
+                    <button
+                      key={a.key}
+                      type="button"
+                      onClick={a.onClick}
+                      className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] py-2.5 text-xs font-medium text-[var(--color-text)] transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 hover:text-[var(--color-primary)]"
+                    >
+                      <Icon size={18} />
+                      {a.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </Card>
