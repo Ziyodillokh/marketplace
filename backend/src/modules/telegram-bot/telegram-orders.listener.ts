@@ -31,6 +31,16 @@ export class TelegramOrdersListener implements OnModuleInit {
     if (!sent) await this.bot.sendDirectMessage(telegramId, text);
   }
 
+  /** Do'kon egasining Telegram ID si — buyurtmani egasiga DM qilish uchun. */
+  private async getOwnerTelegramId(tenantId: string | null): Promise<bigint | null> {
+    if (!tenantId) return null;
+    const t = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { ownerTelegramId: true },
+    });
+    return t?.ownerTelegramId ?? null;
+  }
+
   onModuleInit(): void {
     this.bot.setCallbackEmitter(this.events);
     this.events.on(
@@ -80,7 +90,18 @@ export class TelegramOrdersListener implements OnModuleInit {
   }
 
   private formatPaymentMethod(pm: PaymentMethod): string {
-    return pm === PaymentMethod.CARD_ON_DELIVERY ? 'Karta (yetkazganda)' : 'Naqd (yetkazganda)';
+    switch (pm) {
+      case PaymentMethod.CARD_ON_DELIVERY:
+        return 'Karta (yetkazganda)';
+      case PaymentMethod.PAYME:
+        return 'Payme (onlayn)';
+      case PaymentMethod.CLICK:
+        return 'Click (onlayn)';
+      case PaymentMethod.CARD_TRANSFER:
+        return "Karta orqali (o'tkazma)";
+      default:
+        return 'Naqd (yetkazganda)';
+    }
   }
 
   private formatMoney(n: number | string): string {
@@ -184,13 +205,18 @@ export class TelegramOrdersListener implements OnModuleInit {
       })),
     });
     try {
-      const { messageId } = await this.bot.sendToOrdersChannel(text, keyboard);
+      // Buyurtma — do'kon EGASIGA DM (Sellio bot orqali). Egasi (ownerTelegramId)
+      // yo'q bo'lsa — global kanalga fallback (buyurtma yo'qolmasin).
+      const ownerTgId = await this.getOwnerTelegramId(order.tenantId);
+      const { messageId } = ownerTgId
+        ? await this.bot.sendOrderDM(ownerTgId, text, keyboard)
+        : await this.bot.sendToOrdersChannel(text, keyboard);
       await this.prisma.order.update({
         where: { id: order.id },
         data: { channelMessageId: messageId },
       });
     } catch (err) {
-      this.logger.error(`Failed to post order to channel: ${(err as Error).message}`);
+      this.logger.error(`Failed to post order: ${(err as Error).message}`);
     }
 
     // Notify user (do'kon boti orqali)
@@ -222,7 +248,13 @@ export class TelegramOrdersListener implements OnModuleInit {
         lineTotal: Number(i.lineTotal),
       })),
     });
-    await this.bot.editOrdersChannelMessage(order.channelMessageId, text, keyboard);
+    // Status o'zgarsa — egasining DM xabarini tahrirlaymiz (yoki kanalникini).
+    const ownerTgId = await this.getOwnerTelegramId(order.tenantId);
+    if (ownerTgId) {
+      await this.bot.editOrderDM(ownerTgId, order.channelMessageId, text, keyboard);
+    } else {
+      await this.bot.editOrdersChannelMessage(order.channelMessageId, text, keyboard);
+    }
 
     const userMessages: Record<OrderStatus, string | null> = {
       PENDING: null,
