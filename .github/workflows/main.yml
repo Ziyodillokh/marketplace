@@ -11,9 +11,10 @@
 
 name: Deploy to production (GCP)
 
+# 2026-09-28: production endi 62.171.184.14 (shared Contabo) — server kodni O'ZI
+# tortadi (sellio-autodeploy.timer, deploy/SERVER-62.171.184.14.md). Bu push-deploy
+# eski /opt/marketplace serveri uchun edi; faqat qo'lda ishga tushiriladi.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       force:
