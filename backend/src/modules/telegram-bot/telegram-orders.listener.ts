@@ -31,13 +31,24 @@ export class TelegramOrdersListener implements OnModuleInit {
     if (!sent) await this.bot.sendDirectMessage(telegramId, text);
   }
 
+  /** Do'kon egasining Telegram ID si — buyurtmani egasiga DM qilish uchun. */
+  private async getOwnerTelegramId(tenantId: string | null): Promise<bigint | null> {
+    if (!tenantId) return null;
+    const t = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { ownerTelegramId: true },
+    });
+    return t?.ownerTelegramId ?? null;
+  }
+
   onModuleInit(): void {
     this.bot.setCallbackEmitter(this.events);
     this.events.on(
       'callback',
       async (payload: { action: string; orderId: string; ctx: unknown }) => {
         try {
-          await this.handleCallback(payload.action, payload.orderId);
+          const from = (payload.ctx as { from?: { id?: number } } | undefined)?.from?.id;
+          await this.handleCallback(payload.action, payload.orderId, from);
         } catch (err) {
           this.logger.error(`Callback handling failed: ${(err as Error).message}`);
         }
@@ -80,7 +91,18 @@ export class TelegramOrdersListener implements OnModuleInit {
   }
 
   private formatPaymentMethod(pm: PaymentMethod): string {
-    return pm === PaymentMethod.CARD_ON_DELIVERY ? 'Karta (yetkazganda)' : 'Naqd (yetkazganda)';
+    switch (pm) {
+      case PaymentMethod.CARD_ON_DELIVERY:
+        return 'Karta (yetkazganda)';
+      case PaymentMethod.PAYME:
+        return 'Payme (onlayn)';
+      case PaymentMethod.CLICK:
+        return 'Click (onlayn)';
+      case PaymentMethod.CARD_TRANSFER:
+        return "Karta orqali (o'tkazma)";
+      default:
+        return 'Naqd (yetkazganda)';
+    }
   }
 
   private formatMoney(n: number | string): string {
@@ -184,13 +206,18 @@ export class TelegramOrdersListener implements OnModuleInit {
       })),
     });
     try {
-      const { messageId } = await this.bot.sendToOrdersChannel(text, keyboard);
+      // Buyurtma — do'kon EGASIGA DM (Sellio bot orqali). Egasi (ownerTelegramId)
+      // yo'q bo'lsa — global kanalga fallback (buyurtma yo'qolmasin).
+      const ownerTgId = await this.getOwnerTelegramId(order.tenantId);
+      const { messageId } = ownerTgId
+        ? await this.bot.sendOrderDM(ownerTgId, text, keyboard)
+        : await this.bot.sendToOrdersChannel(text, keyboard);
       await this.prisma.order.update({
         where: { id: order.id },
         data: { channelMessageId: messageId },
       });
     } catch (err) {
-      this.logger.error(`Failed to post order to channel: ${(err as Error).message}`);
+      this.logger.error(`Failed to post order: ${(err as Error).message}`);
     }
 
     // Notify user (do'kon boti orqali)
@@ -222,7 +249,13 @@ export class TelegramOrdersListener implements OnModuleInit {
         lineTotal: Number(i.lineTotal),
       })),
     });
-    await this.bot.editOrdersChannelMessage(order.channelMessageId, text, keyboard);
+    // Status o'zgarsa — egasining DM xabarini tahrirlaymiz (yoki kanalникini).
+    const ownerTgId = await this.getOwnerTelegramId(order.tenantId);
+    if (ownerTgId) {
+      await this.bot.editOrderDM(ownerTgId, order.channelMessageId, text, keyboard);
+    } else {
+      await this.bot.editOrdersChannelMessage(order.channelMessageId, text, keyboard);
+    }
 
     const userMessages: Record<OrderStatus, string | null> = {
       PENDING: null,
@@ -235,7 +268,50 @@ export class TelegramOrdersListener implements OnModuleInit {
     if (msg) await this.notifyCustomer(order.tenantId, order.user.telegramId, msg);
   }
 
-  private async handleCallback(action: string, orderId: string): Promise<void> {
+  /**
+   * Onlayn to'lov (Payme/Click) muvaffaqiyatli o'tdi → buyurtma tasdiqlanadi,
+   * mijozga xabar, admin/WebApp real-time. Qo'lda karta o'tkazmasini tasdiqlash
+   * yo'li (tenant-bot `paycfm:approve`) bilan bir xil natija.
+   */
+  @OnEvent('order.paid')
+  async onOrderPaid(payload: { orderId: string; provider?: string }): Promise<void> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: payload.orderId },
+      include: { user: true },
+    });
+    if (!order) return;
+    // Bekor qilingan/yetkazilgan buyurtmani orqaga qaytarmaymiz; PENDING → CONFIRMED.
+    if (order.status !== OrderStatus.PENDING) return;
+
+    await this.prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status: OrderStatus.CONFIRMED,
+        paidAt: order.paidAt ?? new Date(),
+        events: {
+          create: {
+            status: OrderStatus.CONFIRMED,
+            comment: `Onlayn to'lov qabul qilindi (${payload.provider ?? 'online'})`,
+          },
+        },
+      },
+    });
+    this.events.emit('order.status_changed', { orderId: order.id, status: OrderStatus.CONFIRMED });
+    this.events.emit('user.order.status_changed', {
+      userId: order.userId,
+      orderId: order.id,
+      status: OrderStatus.CONFIRMED,
+      orderNumber: order.orderNumber,
+    });
+    const total = new Intl.NumberFormat('uz-UZ').format(Number(order.total));
+    await this.notifyCustomer(
+      order.tenantId,
+      order.user.telegramId,
+      `✅ To'lovingiz qabul qilindi!\n\nBuyurtma #${order.orderNumber} (${total} so'm) tasdiqlandi va tayyorlanmoqda.`,
+    ).catch((err) => this.logger.warn(`order.paid notify failed: ${(err as Error).message}`));
+  }
+
+  private async handleCallback(action: string, orderId: string, actorTelegramId?: number): Promise<void> {
     const map: Record<string, OrderStatus> = {
       confirm: OrderStatus.CONFIRMED,
       onway: OrderStatus.ON_THE_WAY,
@@ -244,6 +320,27 @@ export class TelegramOrdersListener implements OnModuleInit {
     };
     const newStatus = map[action];
     if (!newStatus) return;
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, status: true, tenantId: true },
+    });
+    if (!order) return;
+    // Do'kon buyurtmasi bo'lsa — tugmani FAQAT do'kon egasi bosa oladi.
+    // (Buyurtma DM qilinadi, lekin xabar forward qilinsa ham begona odam
+    //  statusni o'zgartira olmasin.) Tenantsiz (platforma kanali) buyurtmada
+    // kanal adminlari — tekshiruv yo'q.
+    if (order.tenantId) {
+      const owner = await this.getOwnerTelegramId(order.tenantId);
+      if (!owner || actorTelegramId === undefined || BigInt(actorTelegramId) !== owner) {
+        this.logger.warn(`Order ${orderId}: callback from non-owner ${actorTelegramId ?? '?'} ignored`);
+        return;
+      }
+    }
+    // Tugma ikki marta bosilsa (yoki allaqachon o'sha holatda) — hech narsa
+    // qilmaymiz; aks holda "bekor qilish" zaxirani ikki marta qaytarardi.
+    if (order.status === newStatus) return;
+    if (order.status === OrderStatus.CANCELLED || order.status === OrderStatus.DELIVERED) return;
 
     await this.prisma.$transaction(async (tx) => {
       await tx.order.update({

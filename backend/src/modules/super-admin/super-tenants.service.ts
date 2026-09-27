@@ -2,6 +2,28 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { PrismaService } from '@/prisma/prisma.service';
 import type { TariffPlan, Tenant, TenantStatus, Prisma } from '@prisma/client';
 import { ReferralService } from '../referral/referral.service';
+import { TenantScopeService } from '@/common/tenant-scope/tenant-scope.service';
+
+/**
+ * Do'konning maxfiy maydonlari (bot tokeni, Payme/Click kalitlari, karta raqami)
+ * super-admin API'dan HECH QACHON qaytmasligi kerak — ular faqat do'kon egasi
+ * uchun (admin paneli). Bu yerda ro'yxat/eksport/tafsilotdan olib tashlanadi.
+ */
+const TENANT_SECRET_KEYS = [
+  'botToken',
+  'paymeKey',
+  'clickSecretKey',
+  'clickMerchantUserId',
+  'manualCardNumber',
+] as const;
+type TenantSecretKey = (typeof TENANT_SECRET_KEYS)[number];
+export type PublicTenant = Omit<Tenant, TenantSecretKey> & { hasBotToken: boolean };
+
+export function publicTenant(t: Tenant): PublicTenant {
+  const copy: Record<string, unknown> = { ...t, hasBotToken: Boolean(t.botToken) };
+  for (const k of TENANT_SECRET_KEYS) delete copy[k];
+  return copy as PublicTenant;
+}
 
 export interface TenantListParams {
   page?: number;
@@ -18,7 +40,19 @@ export class SuperTenantsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly referral: ReferralService,
+    private readonly tenantScope: TenantScopeService,
   ) {}
+
+  /** Status o'zgarganda TenantScopeService keshini tozalaymiz — aks holda
+   *  to'xtatilgan do'kon API qayta ishga tushguncha ishlayveradi. */
+  private async invalidateScope(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const rows = await this.prisma.tenant.findMany({
+      where: { id: { in: ids } },
+      select: { slug: true },
+    });
+    for (const r of rows) this.tenantScope.invalidate(r.slug);
+  }
 
   private orderBy(sort?: string, order: 'asc' | 'desc' = 'desc'): Prisma.TenantOrderByWithRelationInput {
     switch (sort) {
@@ -97,7 +131,7 @@ export class SuperTenantsService {
     }
 
     return tenants.map((t) => ({
-      ...t,
+      ...publicTenant(t),
       totalRevenue: t.totalRevenue.toString(),
       productsCount: productMap.get(t.id) ?? 0,
       storageMb: storageMap.get(t.id) ?? 0,
@@ -111,8 +145,8 @@ export class SuperTenantsService {
     return enriched;
   }
 
-  async suspend(id: string, reason: string): Promise<Tenant> {
-    return this.prisma.tenant.update({
+  async suspend(id: string, reason: string): Promise<PublicTenant> {
+    const t = await this.prisma.tenant.update({
       where: { id },
       data: {
         status: 'SUSPENDED',
@@ -120,10 +154,12 @@ export class SuperTenantsService {
         suspendedAt: new Date(),
       },
     });
+    this.tenantScope.invalidate(t.slug);
+    return publicTenant(t);
   }
 
-  async resume(id: string): Promise<Tenant> {
-    return this.prisma.tenant.update({
+  async resume(id: string): Promise<PublicTenant> {
+    const t = await this.prisma.tenant.update({
       where: { id },
       data: {
         status: 'ACTIVE',
@@ -131,9 +167,11 @@ export class SuperTenantsService {
         suspendedAt: null,
       },
     });
+    this.tenantScope.invalidate(t.slug);
+    return publicTenant(t);
   }
 
-  async changeTariff(id: string, plan: TariffPlan): Promise<Tenant> {
+  async changeTariff(id: string, plan: TariffPlan): Promise<PublicTenant> {
     const updated = await this.prisma.tenant.update({
       where: { id },
       data: {
@@ -150,18 +188,19 @@ export class SuperTenantsService {
         // komissiya xatosi tarif o'zgartirishni buzmasligi kerak
       }
     }
-    return updated;
+    return publicTenant(updated);
   }
 
-  async extendTrial(id: string, days: number): Promise<Tenant> {
+  async extendTrial(id: string, days: number): Promise<PublicTenant> {
     const tenant = await this.prisma.tenant.findUnique({ where: { id } });
     if (!tenant) throw new NotFoundException('Tenant not found');
     const base = tenant.trialEndsAt ?? new Date();
     const trialEndsAt = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
-    return this.prisma.tenant.update({
+    const t = await this.prisma.tenant.update({
       where: { id },
       data: { isOnTrial: true, trialEndsAt },
     });
+    return publicTenant(t);
   }
 
   async create(data: {
@@ -242,9 +281,10 @@ export class SuperTenantsService {
   }
 
   async delete(id: string): Promise<{ ok: true }> {
-    const t = await this.prisma.tenant.findUnique({ where: { id }, select: { id: true } });
+    const t = await this.prisma.tenant.findUnique({ where: { id }, select: { id: true, slug: true } });
     if (!t) throw new NotFoundException('Tenant not found');
     await this.purgeTenant(id);
+    this.tenantScope.invalidate(t.slug);
     return { ok: true };
   }
 
@@ -254,6 +294,7 @@ export class SuperTenantsService {
     reason?: string,
   ): Promise<{ updated: number }> {
     if (action === 'delete') {
+      await this.invalidateScope(ids);
       let updated = 0;
       for (const id of ids) {
         try {
@@ -272,12 +313,14 @@ export class SuperTenantsService {
           ? { status: 'SUSPENDED', suspendedReason: reason ?? 'Bulk action', suspendedAt: new Date() }
           : { status: 'ACTIVE', suspendedReason: null, suspendedAt: null },
     });
+    await this.invalidateScope(ids);
     return { updated: result.count };
   }
 
-  async exportAll(): Promise<Tenant[]> {
-    return this.prisma.tenant.findMany({
+  async exportAll(): Promise<PublicTenant[]> {
+    const rows = await this.prisma.tenant.findMany({
       orderBy: { createdAt: 'desc' },
     });
+    return rows.map(publicTenant);
   }
 }

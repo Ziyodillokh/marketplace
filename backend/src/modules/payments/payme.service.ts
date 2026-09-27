@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@/prisma/prisma.service';
@@ -53,14 +54,18 @@ export class PaymeService {
         case 'CancelTransaction':
           return { result: await this.cancelTransaction(tenant.id, params), id };
         case 'CheckTransaction':
-          return { result: await this.checkTransaction(params), id };
+          return { result: await this.checkTransaction(tenant.id, params), id };
         case 'GetStatement':
           return { result: await this.getStatement(tenant.id, params), id };
         default:
           return { error: PaymeError.MethodNotFound, id };
       }
     } catch (err) {
-      if (err && typeof err === 'object' && 'code' in err) return { error: err, id };
+      // Faqat Payme xatolari (raqamli code) provayderga qaytadi; Prisma
+      // xatolarida code satr ("P2002") — ular ichki, oshkor qilinmaydi.
+      if (err && typeof err === 'object' && typeof (err as { code?: unknown }).code === 'number') {
+        return { error: err, id };
+      }
       this.logger.error(`Payme error: ${(err as Error).message}`);
       return { error: PaymeError.CantPerform, id };
     }
@@ -71,7 +76,9 @@ export class PaymeService {
     try {
       const decoded = Buffer.from(header.slice(6), 'base64').toString('utf-8');
       const pass = decoded.split(':')[1] ?? '';
-      return pass === key;
+      const a = Buffer.from(pass);
+      const b = Buffer.from(key);
+      return a.length === b.length && timingSafeEqual(a, b);
     } catch {
       return false;
     }
@@ -138,8 +145,8 @@ export class PaymeService {
     return { create_time: createTime, transaction: tx.id, state: 1 };
   }
 
-  private async performTransaction(_tenantId: string, params: Record<string, unknown>) {
-    const tx = await this.findTx(String(params.id));
+  private async performTransaction(tenantId: string, params: Record<string, unknown>) {
+    const tx = await this.findTx(tenantId, String(params.id));
     if (tx.state === 2) {
       return { transaction: tx.id, perform_time: Number(tx.performTime), state: 2 };
     }
@@ -159,8 +166,8 @@ export class PaymeService {
     return { transaction: tx.id, perform_time: performTime, state: 2 };
   }
 
-  private async cancelTransaction(_tenantId: string, params: Record<string, unknown>) {
-    const tx = await this.findTx(String(params.id));
+  private async cancelTransaction(tenantId: string, params: Record<string, unknown>) {
+    const tx = await this.findTx(tenantId, String(params.id));
     const reason = typeof params.reason === 'number' ? params.reason : null;
     if (tx.state === 1 || tx.state === 2) {
       const cancelTime = Date.now();
@@ -184,8 +191,8 @@ export class PaymeService {
     };
   }
 
-  private async checkTransaction(params: Record<string, unknown>) {
-    const tx = await this.findTx(String(params.id));
+  private async checkTransaction(tenantId: string, params: Record<string, unknown>) {
+    const tx = await this.findTx(tenantId, String(params.id));
     return {
       create_time: Number(tx.createTime) || 0,
       perform_time: Number(tx.performTime) || 0,
@@ -222,11 +229,13 @@ export class PaymeService {
     };
   }
 
-  private async findTx(paymeId: string) {
+  /** Tranzaksiya FAQAT o'sha do'kon (merchant) uchun topiladi — A do'kon
+   *  kaliti bilan B do'kon tranzaksiyasini perform/cancel qilish mumkin emas. */
+  private async findTx(tenantId: string, paymeId: string) {
     const tx = await this.prisma.paymentTransaction.findUnique({
       where: { provider_providerTxId: { provider: 'PAYME', providerTxId: paymeId } },
     });
-    if (!tx) throw PaymeError.TxNotFound;
+    if (!tx || tx.tenantId !== tenantId) throw PaymeError.TxNotFound;
     return tx;
   }
 }

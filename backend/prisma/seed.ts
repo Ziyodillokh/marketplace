@@ -10,6 +10,11 @@ const prisma = new PrismaClient();
  * related rules, store settings) seed qilinmaydi — har bir sotuvchi o'z
  * katalogini admin panelidan o'zi yaratadi.
  */
+// Production'da default parol bilan seed QILINMAYDI — ADMIN_SEED_PASSWORD majburiy.
+if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_SEED_PASSWORD) {
+  throw new Error('ADMIN_SEED_PASSWORD is required in production (refusing to seed a default password)');
+}
+
 async function main(): Promise<void> {
   const adminEmail = (process.env.ADMIN_SEED_EMAIL ?? 'admin@example.com').toLowerCase().trim();
   const adminPassword = process.env.ADMIN_SEED_PASSWORD ?? 'ChangeMe123!';

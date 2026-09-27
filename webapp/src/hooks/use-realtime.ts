@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import { getInitData } from '@/lib/telegram';
+import { getShopSlug } from '@/lib/api';
 import { toast } from '@/stores/toast-store';
 import { useLocaleStore } from '@/stores/locale-store';
 import { getMessages, tr } from '@/i18n';
@@ -33,7 +34,8 @@ export function useRealtime(): void {
       const base = typeof window !== 'undefined' ? window.location.origin : '';
       socket = io(`${base}/user`, {
         path: '/socket.io',
-        auth: { initData },
+        // shop — server initData'ni AYNAN shu do'kon botining tokeni bilan tekshiradi
+        auth: { initData, shop: getShopSlug() ?? undefined },
         transports: ['websocket', 'polling'],
         withCredentials: true,
         reconnection: true,
@@ -43,6 +45,7 @@ export function useRealtime(): void {
 
       socket.on('order:status_changed', (payload: { orderId: string; status: string; orderNumber: string }) => {
         qc.invalidateQueries({ queryKey: ['orders'] });
+        qc.invalidateQueries({ queryKey: ['orders-summary'] });
         qc.invalidateQueries({ queryKey: ['order', payload.orderId] });
         const msg = getMessages(locale);
         const statusLabel = tr(msg, `orders.status.${payload.status}`);
@@ -69,7 +72,9 @@ export function useRealtime(): void {
         qc.invalidateQueries({ queryKey: ['product', payload.productId] });
         qc.invalidateQueries({ queryKey: ['products'] });
         qc.invalidateQueries({ queryKey: ['favorites'] });
+        qc.invalidateQueries({ queryKey: ['favorites-summary'] });
         qc.invalidateQueries({ queryKey: ['cart'] });
+        qc.invalidateQueries({ queryKey: ['cart-summary'] });
       });
 
       socket.on('categories:invalidate', () => {

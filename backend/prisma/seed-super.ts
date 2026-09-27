@@ -125,6 +125,11 @@ const DEFAULT_TARIFFS = [
   },
 ];
 
+// Production'da default parol bilan seed QILINMAYDI — SUPER_SEED_PASSWORD majburiy.
+if (process.env.NODE_ENV === 'production' && !process.env.SUPER_SEED_PASSWORD) {
+  throw new Error('SUPER_SEED_PASSWORD is required in production (refusing to seed a default password)');
+}
+
 async function main(): Promise<void> {
   // Login service'i emailni .toLowerCase() qilib qidiradi, shuning uchun
   // DB'da ham faqat lowercase shaklda saqlaymiz. Aks holda mixed-case email

@@ -85,7 +85,11 @@ export async function api<T>(path: string, options: RequestOptions = {}, isRetry
     credentials: 'include',
   });
 
-  if (res.status === 401 && !isRetry && !path.includes('/auth/')) {
+  // Faqat login/refresh so'rovlarining o'zida refresh qilinmaydi; /auth/me kabi
+  // so'rovlarda ham refresh bo'lishi kerak — aks holda sahifa yangilanganda
+  // access token muddati o'tgan bo'lsa admin (valid refresh cookie bilan) chiqib ketardi.
+  const NO_REFRESH = ['/auth/login', '/auth/refresh', '/auth/telegram', '/auth/verify-2fa', '/auth/logout'];
+  if (res.status === 401 && !isRetry && !NO_REFRESH.some((p) => path.includes(p))) {
     try {
       await refreshToken();
       return api<T>(path, options, true);

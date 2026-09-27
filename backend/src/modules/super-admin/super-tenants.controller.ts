@@ -26,7 +26,7 @@ import { Type } from 'class-transformer';
 import type { PlatformAdmin } from '@prisma/client';
 import type { Request } from 'express';
 import { TariffPlan, TenantStatus } from '@prisma/client';
-import { SuperTenantsService } from './super-tenants.service';
+import { SuperTenantsService, publicTenant } from './super-tenants.service';
 import { SuperJwtGuard, CurrentPlatformAdmin, PlatformRoles, PlatformRolesGuard } from './super-jwt.guard';
 import { SuperAuditService } from './super-audit.service';
 
@@ -120,7 +120,7 @@ export class SuperTenantsController {
       ipAddress: ip,
       userAgent: ua,
     });
-    return tenant;
+    return publicTenant(tenant);
   }
 
   @Post('bulk')

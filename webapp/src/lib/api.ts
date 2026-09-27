@@ -150,13 +150,35 @@ export async function apiUploadForm<T>(path: string, file: File, field = 'file')
   return payload as T;
 }
 
-export async function sendBeaconBatch(path: string, events: unknown[]): Promise<void> {
+/**
+ * Sahifa yopilayotganda analitika hodisalarini yuboradi.
+ *
+ * `navigator.sendBeacon` header qo'ya olmaydi — backend esa initData'ni faqat
+ * `X-Telegram-Init-Data` header'idan, do'konni `X-Tenant-Slug` dan oladi;
+ * body'dagi initData DTO whitelist'da o'chib ketadi → 401 va hodisalar yo'qolardi.
+ * `fetch(..., { keepalive: true })` ham sahifa yopilgandan keyin yetib boradi
+ * va header'larni saqlaydi.
+ */
+export function sendBeaconBatch(path: string, events: unknown[]): void {
+  if (typeof window === 'undefined' || events.length === 0) return;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept-Language': currentLocale,
+    'bypass-tunnel-reminder': '1',
+  };
   const initData = getInitData();
-  const url = buildUrl(path);
-  if (typeof navigator === 'undefined' || !navigator.sendBeacon) {
-    void api(path, { method: 'POST', body: { events } }).catch(() => undefined);
-    return;
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  const shop = getShopSlug();
+  if (shop) headers['X-Tenant-Slug'] = shop;
+  try {
+    void fetch(buildUrl(path), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ events }),
+      keepalive: true,
+      credentials: 'omit',
+    }).catch(() => undefined);
+  } catch {
+    // sahifa yopilayotganda xato bo'lsa — jim
   }
-  const blob = new Blob([JSON.stringify({ events, initData })], { type: 'application/json' });
-  navigator.sendBeacon(url, blob);
 }

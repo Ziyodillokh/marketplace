@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import type { User } from '@prisma/client';
 import { TelegramAuthGuard } from '../auth/telegram-auth.guard';
@@ -19,7 +19,10 @@ class ListProductsQuery {
   @IsOptional() @IsIn(['newest', 'price_asc', 'price_desc', 'bestsellers', 'discount']) sort?: ProductSort;
   @IsOptional() @IsString() cursor?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
-  @IsOptional() @Type(() => Boolean) featuredOnly?: boolean;
+  // Boolean('false') === true — shuning uchun Transform.
+  @IsOptional()
+  @Transform(({ value }) => (value === 'true' || value === true || value === '1' ? true : false))
+  featuredOnly?: boolean;
 }
 
 @Controller('products')

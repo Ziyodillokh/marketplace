@@ -16,6 +16,7 @@ import {
   apiUploadImage,
 } from '@/lib/endpoints';
 import { toast } from '@/stores/toast-store';
+import { LocationPicker } from '@/components/settings/location-picker';
 import { SettingsHeader, useStore } from '../_shared';
 
 export default function StoreSettingsPage() {
@@ -24,13 +25,23 @@ export default function StoreSettingsPage() {
   const tenant = data?.tenant ?? null;
 
   // Do'kon ma'lumotlari
-  const [store, setStore] = useState({ name: '', phone: '', address: '', workingHours: '', about: '' });
+  const [store, setStore] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
+    workingHours: '',
+    about: '',
+  });
   useEffect(() => {
     if (tenant) {
       setStore({
         name: tenant.shopName ?? '',
         phone: tenant.phone ?? '',
         address: tenant.address ?? '',
+        latitude: tenant.latitude ?? null,
+        longitude: tenant.longitude ?? null,
         workingHours: tenant.workingHours ?? '',
         about: tenant.about ?? '',
       });
@@ -160,9 +171,19 @@ export default function StoreSettingsPage() {
               <Field label="Telefon">
                 <Input value={store.phone} onChange={(e) => setStore({ ...store, phone: e.target.value })} />
               </Field>
-              <Field label="Manzil">
-                <Input value={store.address} onChange={(e) => setStore({ ...store, address: e.target.value })} />
+              <Field label="Manzil" hint="Yozing, yoki pastdagi haritadan / GPS bilan tanlang">
+                <Input
+                  value={store.address}
+                  onChange={(e) => setStore({ ...store, address: e.target.value })}
+                  placeholder="Manzilni yozing yoki haritadan tanlang"
+                />
               </Field>
+              <LocationPicker
+                latitude={store.latitude}
+                longitude={store.longitude}
+                onChange={(lat, lng) => setStore((s) => ({ ...s, latitude: lat, longitude: lng }))}
+                onAddress={(addr) => setStore((s) => ({ ...s, address: addr }))}
+              />
               <Field label="Ish vaqti">
                 <Input value={store.workingHours} onChange={(e) => setStore({ ...store, workingHours: e.target.value })} />
               </Field>

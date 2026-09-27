@@ -254,7 +254,9 @@ export class OrdersService {
         });
       }
 
-      await tx.cartItem.deleteMany({ where: { userId } });
+      // Faqat SHU buyurtmaga kirgan savat qatorlari — mijozning boshqa
+      // do'konlardagi savati saqlanib qolsin.
+      await tx.cartItem.deleteMany({ where: { id: { in: cartItems.map((i) => i.id) } } });
       return order;
     });
 
@@ -442,6 +444,15 @@ export class OrdersService {
           events: { create: { status: OrderStatus.CANCELLED, comment: 'Cancelled by user' } },
         },
       });
+      // Promokod ishlatilgan bo'lsa — limitni qaytaramiz
+      const usage = await tx.promoCodeUsage.findUnique({ where: { orderId: id } });
+      if (usage) {
+        await tx.promoCodeUsage.delete({ where: { id: usage.id } });
+        await tx.promoCode.updateMany({
+          where: { id: usage.promoCodeId, usageCount: { gt: 0 } },
+          data: { usageCount: { decrement: 1 } },
+        });
+      }
       // Restore stock
       const items = await tx.orderItem.findMany({ where: { orderId: id } });
       for (const i of items) {

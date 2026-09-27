@@ -8,7 +8,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsIn,
@@ -42,12 +42,16 @@ class CreateBroadcastDto {
   @IsOptional() @IsString() @MaxLength(500) link?: string | null;
 }
 
+// Query-string'da `@Type(() => Boolean)` xato: Boolean('false') === true.
+const toBool = ({ value }: { value: unknown }) =>
+  value === true || value === 'true' || value === '1' ? true : value === false || value === 'false' || value === '0' ? false : value;
+
 class PreviewQueryDto {
-  @IsOptional() @Type(() => Boolean) @IsBoolean() hasOrders?: boolean;
+  @IsOptional() @Transform(toBool) @IsBoolean() hasOrders?: boolean;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) noOrdersInDays?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) activeInDays?: number;
   @IsOptional() @IsIn(['uz', 'ru']) language?: 'uz' | 'ru';
-  @IsOptional() @Type(() => Boolean) @IsBoolean() excludeBlocked?: boolean;
+  @IsOptional() @Transform(toBool) @IsBoolean() excludeBlocked?: boolean;
 }
 
 @Controller('admin/broadcasts')

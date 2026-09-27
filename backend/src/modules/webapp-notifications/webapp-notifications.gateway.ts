@@ -3,6 +3,8 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
+import { TenantScopeService } from '@/common/tenant-scope/tenant-scope.service';
+import { corsOriginFn } from '@/common/helpers/cors-origins';
 
 /**
  * Foydalanuvchi WebApp uchun real-time gateway.
@@ -14,7 +16,7 @@ import { AuthService } from '../auth/auth.service';
  */
 @WebSocketGateway({
   namespace: '/user',
-  cors: { origin: true, credentials: true },
+  cors: { origin: corsOriginFn, credentials: true },
 })
 @Injectable()
 export class WebAppNotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -22,21 +24,31 @@ export class WebAppNotificationsGateway implements OnGatewayConnection, OnGatewa
 
   @WebSocketServer() server!: Server;
 
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly tenantScope: TenantScopeService,
+  ) {}
 
   async handleConnection(client: Socket): Promise<void> {
     try {
       const initData =
         (client.handshake.auth?.initData as string | undefined) ??
         (client.handshake.query?.initData as string | undefined);
+      // Do'kon slug'i — initData shu do'kon botining tokeni bilan imzolangan,
+      // shuning uchun tekshiruv ham o'sha token bilan bo'lishi kerak (HTTP
+      // guard'dagi x-tenant-slug bilan bir xil mantiq).
+      const shop =
+        (client.handshake.auth?.shop as string | undefined) ??
+        (client.handshake.query?.shop as string | undefined);
 
       let userId: string | null = null;
       if (initData) {
         try {
-          const user = await this.auth.authenticate(initData);
+          const scope = await this.tenantScope.resolve(shop);
+          const user = await this.auth.authenticate(initData, scope?.botToken ?? undefined);
           userId = user.id;
-        } catch {
-          // Dev mode bypass — devLogin via guard
+        } catch (err) {
+          this.logger.debug(`User socket initData rejected: ${(err as Error).message}`);
         }
       }
 

@@ -383,6 +383,43 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /** Buyurtmani do'kon egasiga DM qiladi (tugmalar bilan) va message_id qaytaradi. */
+  async sendOrderDM(
+    telegramId: bigint | number,
+    text: string,
+    replyMarkup?: InlineKeyboard,
+  ): Promise<{ messageId: number }> {
+    if (!this.bot) return { messageId: 0 };
+    try {
+      const msg = await this.bot.api.sendMessage(Number(telegramId), text, {
+        parse_mode: 'HTML',
+        reply_markup: replyMarkup,
+      });
+      return { messageId: msg.message_id };
+    } catch (err) {
+      this.logger.warn(`Failed to send order DM to ${telegramId}: ${(err as Error).message}`);
+      return { messageId: 0 };
+    }
+  }
+
+  /** Egasiga yuborilgan buyurtma DM xabarini (status o'zgarganda) tahrirlaydi. */
+  async editOrderDM(
+    telegramId: bigint | number,
+    messageId: number,
+    text: string,
+    replyMarkup?: InlineKeyboard,
+  ): Promise<void> {
+    if (!this.bot) return;
+    try {
+      await this.bot.api.editMessageText(Number(telegramId), messageId, text, {
+        parse_mode: 'HTML',
+        reply_markup: replyMarkup,
+      });
+    } catch (err) {
+      this.logger.warn(`Failed to edit order DM ${telegramId}/${messageId}: ${(err as Error).message}`);
+    }
+  }
+
   async sendToSupportChat(text: string, replyMarkup?: InlineKeyboard): Promise<void> {
     if (!this.bot) return;
     // Support tiketlar faqat admin panelda ko'rinadi (DB'da saqlanadi). Telegram'ga

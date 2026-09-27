@@ -1,9 +1,19 @@
-import { BadRequestException, Body, Controller, Get, Module, Patch, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Module,
+  NotFoundException,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import { IsIn, IsObject, IsString } from 'class-validator';
 import { AdminRole, Prisma } from '@prisma/client';
+import type { Admin } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AdminJwtGuard } from '../admin-auth/admin-jwt.guard';
-import { Roles, RolesGuard } from '../admin-auth/roles.guard';
+import { CurrentAdmin, Roles, RolesGuard } from '../admin-auth/roles.guard';
 import { BOSS_ROLES } from '@/common/role-groups';
 import { AdminAuthModule } from '../admin-auth/admin-auth.module';
 
@@ -38,7 +48,13 @@ class AdminSettingsController {
 
   @Patch()
   @Roles(AdminRole.SUPERADMIN, AdminRole.ADMIN)
-  async upsert(@Body() dto: UpsertSettingDto) {
+  async upsert(@CurrentAdmin() admin: Admin, @Body() dto: UpsertSettingDto) {
+    // `Settings` jadvali PLATFORMA darajasida (tenantId yo'q): `business`
+    // (minOrderAmount, currency) hamma do'konning checkout'ida ishlatiladi.
+    // Do'kon admini uni o'zgartirsa boshqa do'konlar buziladi — faqat
+    // platforma (tenantId=null) admini yozishi mumkin. 404 — mavjudligini
+    // ham oshkor qilmaymiz.
+    if (admin.tenantId) throw new NotFoundException();
     // DTO darajasida @IsIn tekshirgan, lekin sub'-payload xavfsiz bo'lishi
     // uchun JSON o'lchamiga ham cheklov qo'yamiz (~64KB).
     const serialized = JSON.stringify(dto.value);

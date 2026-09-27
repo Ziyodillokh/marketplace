@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -157,7 +158,7 @@ export class SuperTeamController {
     @CurrentPlatformAdmin() actor: PlatformAdmin,
     @Req() req: Request,
   ) {
-    if (id === actor.id) throw new Error('Cannot deactivate yourself');
+    if (id === actor.id) throw new BadRequestException('Cannot deactivate yourself');
     const admin = await this.service.deactivate(id);
     const { ip, ua } = clientMeta(req);
     await this.audit.log(actor, {
