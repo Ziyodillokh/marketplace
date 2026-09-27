@@ -240,14 +240,28 @@ export class AdminProductsService {
   }
 
   /** RelatedRule(sourceProductId=productId, targetProductId IN ids) ro'yxatini almashtiradi. */
-  private async replaceRelatedRules(productId: string, targetIds: string[]): Promise<void> {
+  private async replaceRelatedRules(
+    productId: string,
+    targetIds: string[],
+    tenantId?: TenantId,
+  ): Promise<void> {
     // Avval mavjud product-to-product qoidalarini o'chiramiz
     await this.prisma.relatedRule.deleteMany({
       where: { sourceProductId: productId, targetProductId: { not: null } },
     });
     if (targetIds.length === 0) return;
     // Self-reference va dublikatlarni filtrlaymiz
-    const unique = Array.from(new Set(targetIds.filter((id) => id && id !== productId)));
+    const requested = Array.from(new Set(targetIds.filter((id) => id && id !== productId)));
+    if (requested.length === 0) return;
+    // Faqat SHU do'konga tegishli (va mavjud) mahsulotlar — boshqa do'kon
+    // mahsulotini "o'xshash" qilib ulash cross-tenant o'qishga yo'l ochardi,
+    // mavjud bo'lmagan id esa FK xatosi (500) berardi.
+    const owned = await this.prisma.product.findMany({
+      where: { id: { in: requested }, ...(tenantId !== undefined ? { tenantId } : {}) },
+      select: { id: true },
+    });
+    const ownedIds = new Set(owned.map((p) => p.id));
+    const unique = requested.filter((id) => ownedIds.has(id));
     if (unique.length === 0) return;
     await this.prisma.relatedRule.createMany({
       data: unique.map((targetProductId, position) => ({
@@ -329,7 +343,7 @@ export class AdminProductsService {
       },
     });
     if (input.relatedProductIds !== undefined) {
-      await this.replaceRelatedRules(created.id, input.relatedProductIds);
+      await this.replaceRelatedRules(created.id, input.relatedProductIds, tenantId);
     }
 
     this.events.emit('product.created', { productId: created.id });
@@ -442,7 +456,7 @@ export class AdminProductsService {
     }
 
     if (input.relatedProductIds !== undefined) {
-      await this.replaceRelatedRules(id, input.relatedProductIds);
+      await this.replaceRelatedRules(id, input.relatedProductIds, tenantId);
     }
 
     this.events.emit('product.updated', { productId: id });

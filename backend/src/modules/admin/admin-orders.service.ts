@@ -136,6 +136,15 @@ export class AdminOrdersService {
         },
       });
       if (status === OrderStatus.CANCELLED && o.status !== OrderStatus.CANCELLED) {
+        // Promokod limitini qaytaramiz
+        const usage = await tx.promoCodeUsage.findUnique({ where: { orderId: id } });
+        if (usage) {
+          await tx.promoCodeUsage.delete({ where: { id: usage.id } });
+          await tx.promoCode.updateMany({
+            where: { id: usage.promoCodeId, usageCount: { gt: 0 } },
+            data: { usageCount: { decrement: 1 } },
+          });
+        }
         const items = await tx.orderItem.findMany({ where: { orderId: id } });
         for (const i of items) {
           if (i.variantId) {

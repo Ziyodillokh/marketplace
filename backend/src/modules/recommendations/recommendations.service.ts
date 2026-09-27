@@ -184,9 +184,23 @@ export class RecommendationsService {
     let replyMarkup: InlineKeyboard | undefined;
     if (firstProductId) {
       const label = lang === 'ru' ? '🛍 Посмотреть товары' : '🛍 Mahsulotlarni ko\'rish';
-      replyMarkup = this.webappUrl.startsWith('https://')
-        ? new InlineKeyboard().webApp(label, this.webappUrl)
-        : new InlineKeyboard().url(label, this.webappUrl);
+      // Multi-tenant: tugma AYNAN shu do'konni ochsin (?shop=slug), aks holda
+      // mijoz umumiy (tenantsiz) katalogga tushib qoladi.
+      let storeUrl = this.webappUrl;
+      if (order.tenantId) {
+        const t = await this.prisma.tenant.findUnique({
+          where: { id: order.tenantId },
+          select: { slug: true },
+        });
+        if (t?.slug) {
+          const u = new URL(this.webappUrl);
+          u.searchParams.set('shop', t.slug);
+          storeUrl = u.toString();
+        }
+      }
+      replyMarkup = storeUrl.startsWith('https://')
+        ? new InlineKeyboard().webApp(label, storeUrl)
+        : new InlineKeyboard().url(label, storeUrl);
     }
 
     // Tavsiya xabari mijozга do'kon (sotuvchi) boti orqali boradi — Sellio global boti emas.

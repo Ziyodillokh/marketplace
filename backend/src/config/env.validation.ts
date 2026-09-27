@@ -1,14 +1,15 @@
 import { plainToInstance } from 'class-transformer';
-import { IsBooleanString, IsOptional, IsString, validateSync } from 'class-validator';
+import { IsBooleanString, IsNotEmpty, IsOptional, IsString, validateSync } from 'class-validator';
 
 class EnvSchema {
   @IsString() NODE_ENV!: string;
   @IsString() PORT!: string;
-  @IsString() DATABASE_URL!: string;
+  @IsString() @IsNotEmpty() DATABASE_URL!: string;
   @IsOptional() @IsString() REDIS_URL?: string;
 
-  @IsString() JWT_ACCESS_SECRET!: string;
-  @IsString() JWT_REFRESH_SECRET!: string;
+  // Bo'sh secret bilan jsonwebtoken.sign() so'rov vaqtida 500 beradi — boot'da ushlaymiz.
+  @IsString() @IsNotEmpty() JWT_ACCESS_SECRET!: string;
+  @IsString() @IsNotEmpty() JWT_REFRESH_SECRET!: string;
   @IsString() JWT_ACCESS_TTL!: string;
   @IsString() JWT_REFRESH_TTL!: string;
 
@@ -16,7 +17,7 @@ class EnvSchema {
   @IsString() TELEGRAM_BOT_USERNAME!: string;
   @IsString() TELEGRAM_ORDERS_CHANNEL_ID!: string;
   @IsOptional() @IsString() TELEGRAM_SUPPORT_CHAT_ID?: string;
-  @IsString() TELEGRAM_WEBHOOK_SECRET!: string;
+  @IsString() @IsNotEmpty() TELEGRAM_WEBHOOK_SECRET!: string;
   @IsBooleanString() TELEGRAM_USE_WEBHOOK!: string;
 
   @IsString() UPLOAD_DIR!: string;

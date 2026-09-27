@@ -9,6 +9,7 @@ import { resolve, isAbsolute } from 'path';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TraceIdInterceptor } from './common/interceptors/trace-id.interceptor';
+import { corsOriginFn } from './common/helpers/cors-origins';
 
 // JSON.stringify BigInt'larni qanday serialize qilishni bilmaydi —
 // Prisma'dagi BigInt maydonlar (masalan, Tenant.ownerTelegramId,
@@ -29,33 +30,22 @@ async function bootstrap(): Promise<void> {
   });
   app.useLogger(app.get(Logger));
 
-  const webappUrl = process.env.WEBAPP_URL ?? 'http://localhost:5174';
-  const adminUrl = process.env.ADMIN_URL ?? 'http://localhost:5175';
-  const superAdminUrl = process.env.SUPERADMIN_URL ?? 'http://localhost:5180';
-  const landingUrl = process.env.LANDING_URL ?? 'http://localhost:5173';
+  // Nginx orqasida turamiz: req.ip / X-Forwarded-Proto to'g'ri bo'lsin
+  // (rate-limit, audit log IP, secure cookie). Bitta proxy hop.
+  app.set('trust proxy', 1);
 
+  // Origin ro'yxati bitta joyda (HTTP + Socket.IO): common/helpers/cors-origins.ts.
+  // Dev tunnel/localhost origin'lari production'da yopiq.
   app.enableCors({
-    origin: [
-      webappUrl,
-      adminUrl,
-      superAdminUrl,
-      landingUrl,
-      // Production: selliostore.uz va uning barcha subdomenlari
-      /^https:\/\/(.+\.)?selliostore\.uz$/,
-      // Dev tunnellar
-      /\.ngrok-free\.app$/,
-      /\.ngrok\.io$/,
-      /\.trycloudflare\.com$/,
-      /\.loca\.lt$/,
-      /^http:\/\/localhost(:\d+)?$/,
-      /^http:\/\/127\.0\.0\.1(:\d+)?$/,
-    ],
+    origin: corsOriginFn,
     credentials: true,
     allowedHeaders: [
       'Content-Type',
       'Accept',
       'Accept-Language',
+      'Authorization',
       'X-Telegram-Init-Data',
+      'X-Tenant-Slug',
       'bypass-tunnel-reminder',
     ],
   });

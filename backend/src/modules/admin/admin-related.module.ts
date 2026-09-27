@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   Module,
   NotFoundException,
@@ -45,7 +44,7 @@ class AdminRelatedController {
     if (productIds.length) {
       const ok = await this.prisma.product.count({ where: { id: { in: productIds }, tenantId } });
       if (ok !== productIds.length) {
-        throw new ForbiddenException('Mahsulot sizning do\'koningizga tegishli emas');
+        throw new NotFoundException('Mahsulot topilmadi');
       }
     }
     if (categoryIds.length) {
@@ -54,7 +53,7 @@ class AdminRelatedController {
         where: { id: { in: categoryIds }, OR: [{ tenantId }, { tenantId: null }] },
       });
       if (ok !== categoryIds.length) {
-        throw new ForbiddenException('Kategoriya sizning do\'koningizga tegishli emas');
+        throw new NotFoundException('Kategoriya topilmadi');
       }
     }
   }
@@ -110,7 +109,7 @@ class AdminRelatedController {
     if (!rule) throw new NotFoundException('Qoida topilmadi');
     if (tenantId) {
       const owner = rule.sourceProduct?.tenantId ?? rule.sourceCategory?.tenantId ?? null;
-      if (owner !== tenantId) throw new ForbiddenException('Bu qoida sizning do\'koningizga tegishli emas');
+      if (owner !== tenantId) throw new NotFoundException('Qoida topilmadi');
     }
     return rule;
   }

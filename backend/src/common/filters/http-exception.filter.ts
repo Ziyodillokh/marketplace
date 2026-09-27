@@ -37,8 +37,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
         if (Array.isArray(obj.message)) details = obj.message;
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
-      this.logger.error(exception.stack);
+      // Ichki xato matni (Prisma ustun/constraint nomlari va h.k.) mijozga
+      // chiqmasin — faqat server jurnaliga. Production'dan tashqarida esa
+      // debug uchun ko'rsatamiz.
+      this.logger.error(exception.stack ?? exception.message);
+      if (process.env.NODE_ENV !== 'production') message = exception.message;
     }
 
     const payload: ErrorResponseBody = {

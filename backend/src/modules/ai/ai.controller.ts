@@ -30,6 +30,29 @@ class EnhanceDto {
   @IsOptional() @IsString() @MaxLength(500) imageUrl?: string;
 }
 
+/** enhance-image uchun ruxsat etilgan manbalar: o'z uploads'imiz + Telegram fayl CDN. */
+function isAllowedImageUrl(raw: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+  if (u.hostname === 'api.telegram.org' && u.pathname.startsWith('/file/')) return true;
+  const own = [process.env.PUBLIC_UPLOADS_URL, process.env.APP_URL, process.env.WEBAPP_URL]
+    .filter((v): v is string => Boolean(v))
+    .map((v) => {
+      try {
+        return new URL(v).host;
+      } catch {
+        return '';
+      }
+    })
+    .filter(Boolean);
+  return own.includes(u.host) && u.pathname.startsWith('/uploads/');
+}
+
 @Controller('admin/ai')
 @UseGuards(AdminJwtGuard)
 export class AiController {
@@ -143,17 +166,23 @@ export class AiController {
     )
     file?: Express.Multer.File,
   ) {
+    // Kvota — tashqi URL'ni yuklashdan OLDIN (aks holda limitsiz fetch).
+    await this.assertQuota(admin.tenantId, AIOperation.IMAGE_ENHANCE, 'aiImageEnhance');
     let source: Buffer;
     if (file) {
       source = file.buffer;
     } else if (dto.imageUrl?.trim()) {
-      const r = await fetch(dto.imageUrl.trim());
+      const url = dto.imageUrl.trim();
+      // SSRF: faqat o'zimizning /uploads va Telegram CDN — ichki tarmoq/metadata yo'q.
+      if (!isAllowedImageUrl(url)) {
+        throw new BadRequestException('Faqat yuklangan rasm yoki Telegram rasmi URL\'iga ruxsat');
+      }
+      const r = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(15_000) });
       if (!r.ok) throw new BadRequestException('Rasmni yuklab bo\'lmadi');
       source = Buffer.from(await r.arrayBuffer());
     } else {
       throw new BadRequestException('Rasm kerak');
     }
-    await this.assertQuota(admin.tenantId, AIOperation.IMAGE_ENHANCE, 'aiImageEnhance');
     const { buffer, model } = await this.openai.enhanceImage(source);
     const saved = await this.uploads.saveImage(buffer);
     await this.record(admin.tenantId, AIOperation.IMAGE_ENHANCE, model, { imagesCount: 1 });

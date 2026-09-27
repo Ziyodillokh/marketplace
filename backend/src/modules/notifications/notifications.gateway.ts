@@ -3,12 +3,21 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '../admin-auth/jwt.service';
+import { PrismaService } from '@/prisma/prisma.service';
+import { corsOriginFn } from '@/common/helpers/cors-origins';
 
-const ADMIN_ROOM = 'admin-live';
+/**
+ * Har do'kon o'z xonasida: `admin-live:<tenantId>`; platforma (tenantId=null)
+ * adminlari `admin-live:platform` da. Ilgari bitta umumiy xona bo'lgani uchun
+ * har do'kon admini BARCHA do'konlarning buyurtma/hodisalarini ko'rardi.
+ */
+const PLATFORM_ROOM = 'admin-live:platform';
+const roomFor = (tenantId: string | null | undefined): string =>
+  tenantId ? `admin-live:${tenantId}` : PLATFORM_ROOM;
 
 @WebSocketGateway({
   namespace: '/admin',
-  cors: { origin: true, credentials: true },
+  cors: { origin: corsOriginFn, credentials: true },
 })
 @Injectable()
 export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -16,7 +25,10 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
   @WebSocketServer() server!: Server;
 
-  constructor(private readonly jwt: JwtService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   private extractToken(client: Socket): string | undefined {
     const authToken = client.handshake.auth?.token as string | undefined;
@@ -28,7 +40,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     return match?.[1];
   }
 
-  handleConnection(client: Socket): void {
+  async handleConnection(client: Socket): Promise<void> {
     const token = this.extractToken(client);
     if (!token) {
       this.logger.warn(`Socket reject (no token): ${client.id}`);
@@ -37,10 +49,24 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     }
     try {
       const payload = this.jwt.verifyAccess(token);
-      client.data.adminId = payload.sub;
+      // Tenant JWT'dan emas, bazadan — token ichidagi qiymatga ishonmaymiz va
+      // o'chirilgan admin ulanib qolmasin.
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: payload.sub },
+        select: { id: true, tenantId: true, isActive: true },
+      });
+      if (!admin || !admin.isActive) {
+        this.logger.warn(`Socket reject (admin inactive/missing): ${client.id}`);
+        client.disconnect(true);
+        return;
+      }
+      client.data.adminId = admin.id;
       client.data.role = payload.role;
-      client.join(ADMIN_ROOM);
-      this.logger.debug(`Admin socket connected: ${client.id} (admin=${payload.sub})`);
+      client.data.tenantId = admin.tenantId;
+      client.join(roomFor(admin.tenantId));
+      this.logger.debug(
+        `Admin socket connected: ${client.id} (admin=${admin.id}, tenant=${admin.tenantId ?? 'platform'})`,
+      );
       client.emit('connected', { ok: true });
     } catch {
       this.logger.warn(`Socket reject (invalid token): ${client.id}`);
@@ -52,27 +78,45 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     this.logger.debug(`Admin socket disconnected: ${client.id}`);
   }
 
+  /** Faqat o'sha do'kon adminlariga (tenantId=null → platforma xonasi). */
+  emitToTenant(tenantId: string | null | undefined, event: string, payload: unknown): void {
+    this.server?.to(roomFor(tenantId)).emit(event, payload);
+  }
+
+  /** Eski API (hammaga) — faqat platforma xonasiga yuboradi. */
   emitToAdmins(event: string, payload: unknown): void {
-    this.server?.to(ADMIN_ROOM).emit(event, payload);
+    this.emitToTenant(null, event, payload);
+  }
+
+  private async orderTenant(orderId: string | undefined): Promise<string | null> {
+    if (!orderId) return null;
+    const o = await this.prisma.order.findUnique({ where: { id: orderId }, select: { tenantId: true } });
+    return o?.tenantId ?? null;
   }
 
   @OnEvent('user.event')
-  onUserEvent(payload: unknown): void {
-    this.emitToAdmins('user-event', payload);
+  onUserEvent(payload: { tenantId?: string | null } & Record<string, unknown>): void {
+    this.emitToTenant(payload?.tenantId ?? null, 'user-event', payload);
   }
 
   @OnEvent('order.created')
-  onOrderCreated(payload: unknown): void {
-    this.emitToAdmins('order-created', payload);
+  async onOrderCreated(payload: { orderId: string }): Promise<void> {
+    this.emitToTenant(await this.orderTenant(payload?.orderId), 'order-created', payload);
   }
 
   @OnEvent('order.status_changed')
-  onOrderStatusChanged(payload: unknown): void {
-    this.emitToAdmins('order-status-changed', payload);
+  async onOrderStatusChanged(payload: { orderId: string; status: string }): Promise<void> {
+    this.emitToTenant(await this.orderTenant(payload?.orderId), 'order-status-changed', payload);
   }
 
   @OnEvent('support.ticket_created')
-  onSupportTicket(payload: unknown): void {
-    this.emitToAdmins('support-new-ticket', payload);
+  async onSupportTicket(payload: { ticketId: string }): Promise<void> {
+    const t = payload?.ticketId
+      ? await this.prisma.supportTicket.findUnique({
+          where: { id: payload.ticketId },
+          select: { tenantId: true },
+        })
+      : null;
+    this.emitToTenant(t?.tenantId ?? null, 'support-new-ticket', payload);
   }
 }

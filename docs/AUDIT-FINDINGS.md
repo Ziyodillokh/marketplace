@@ -6,6 +6,37 @@ Legend: ✅ fixed · 🔧 recommended fix below · ⚠️ needs a design decisio
 
 ---
 
+## ✅ Fixed (2026-09-28)
+
+Re-audit + remediation pass (2 agents, backend + frontends/deploy). Backend `tsc`, all three frontends `tsc` and `next build` clean.
+
+| # | Item | Fix |
+|---|---|---|
+| **NEW-1 [CRITICAL]** | Super-admin `GET /super/tenants`, `/:id`, `/export`, create/suspend/resume/tariff/trial returned **full `Tenant` rows incl. `botToken`, `paymeKey`, `clickSecretKey`, `clickMerchantUserId`, `manualCardNumber`** to any platform admin. | `super-tenants.service.ts` `publicTenant()` strips those keys (adds `hasBotToken`) on every response path. |
+| **F-orderpaid [HIGH]** | `order.paid` (Payme/Click) had no listener → paid orders stayed `PENDING`, no customer DM. | `telegram-orders.listener.ts` `@OnEvent('order.paid')`: `PENDING → CONFIRMED` + `OrderEvent`, `order.status_changed` + `user.order.status_changed`, customer DM via the store bot (mirrors the manual `paycfm:approve` path). Non-PENDING orders are left untouched. |
+| **F6 [HIGH]** | `NotificationsGateway` (`/admin`) had one global room → every store admin saw every tenant's orders/events. Also `cors.origin: true`. | Per-tenant rooms `admin-live:<tenantId>` / `admin-live:platform`; admin re-read from DB on connect (inactive rejected); each event resolves its tenant (order/ticket lookup, `user.event.tenantId`). CORS from `common/helpers/cors-origins.ts`. |
+| **WebApp `/user` socket [HIGH]** | `authenticate(initData)` used the **global** bot token → tenant-store customers never joined `user:<id>`. | Client sends `auth.shop`; gateway resolves via `TenantScopeService` and verifies with the store's bot token. `webapp/src/hooks/use-realtime.ts` also invalidates `*-summary` keys. |
+| **Payme tenant binding [HIGH]** | `Perform/Cancel/CheckTransaction` looked up the tx globally → merchant A could act on merchant B's tx; Prisma errors (string `code`) were returned as JSON-RPC errors; `===` key compare. | `findTx(tenantId, id)` requires `tx.tenantId === tenantId`; only numeric `code` errors are forwarded; `timingSafeEqual`. |
+| **admin-settings [HIGH]** | Any store ADMIN could `PATCH /admin/settings` and overwrite the **platform-wide** `business` row (min order / currency for every tenant). | Tenant admins get 404; only platform (`tenantId=null`) admins may write. |
+| **enhance-image SSRF [HIGH]** | `fetch(dto.imageUrl)` with no allow-list, and before the quota check. | Quota first; URL must be our `/uploads/` (PUBLIC_UPLOADS_URL/APP_URL/WEBAPP_URL host) or `api.telegram.org/file/`; `redirect: 'error'`, 15 s timeout. |
+| **Telegram order buttons [HIGH]** | `handleCallback` ignored `ctx.from` and had no status guard → double "cancel" restored stock twice. | Actor must be `Tenant.ownerTelegramId` for tenant orders; no-op on same/terminal status. |
+| **Env validation [HIGH]** | Empty `JWT_*_SECRET`/`DATABASE_URL`/`TELEGRAM_WEBHOOK_SECRET` passed `@IsString()` → 500 on first login. | `@IsNotEmpty()` on those four. |
+| **F3 (remaining) [MEDIUM]** | `replaceRelatedRules` accepted arbitrary product ids (cross-tenant read via related-products; FK 500 on bogus id); cross-tenant checks returned 403. | Targets filtered to `product.tenantId === tenantId`; 403 → 404 in `admin-related.module.ts`. |
+| **Cart wipe [MEDIUM]** | Placing an order deleted the user's cart rows for **all** tenants. | Deletes only the ordered `cartItem.id`s. |
+| **Promo refund [MEDIUM]** | Cancel (user or admin) never released the promo usage. | `PromoCodeUsage` row deleted + `usageCount` decremented inside the cancel transaction. |
+| **Tenant suspend cache [MEDIUM]** | `TenantScopeService` cache never invalidated on suspend/resume/delete/bulk → suspended stores kept working until restart. | `invalidate(slug)` on every status change. |
+| **Recommendation button [MEDIUM]** | Opened bare `WEBAPP_URL` (legacy null-tenant catalog). | Appends `?shop=<slug>`. |
+| **Query-string booleans [MEDIUM]** | `@Type(() => Boolean)` → `'false'` became `true` (`hasOrders`, `excludeBlocked` broadcast preview; `featuredOnly`). | `@Transform` string→bool. |
+| **`sendBeacon` analytics [MEDIUM]** | Beacon body carried `initData`, but the guard reads it only from the header → every page-hide flush 401'd. | `fetch(..., { keepalive: true })` with the same headers as `api()`. |
+| **Admin/superadmin re-login on reload [MEDIUM]** | 401 on `/auth/me` skipped the refresh (`path.includes('/auth/')`). | Only `/auth/login|refresh|telegram|verify-2fa|logout` skip refresh. |
+| **CORS / trust proxy [LOW]** | localhost/tunnel origins allowed in prod; no `trust proxy`; `allowedHeaders` lacked `Authorization`/`X-Tenant-Slug`. | `app.set('trust proxy', 1)`; dev origins only when `NODE_ENV !== 'production'`; headers added. |
+| **HttpExceptionFilter [LOW]** | Unhandled errors returned `exception.message` (Prisma internals). | Generic message in production, logged server-side. |
+| Misc [LOW] | `super-team` self-deactivate threw `Error` (500); tenant webhook swallowed errors silently; seeds shipped default passwords; landing referenced expired `lh3.googleusercontent.com` fallbacks; webapp dev had no `/socket.io` rewrite; obsolete `X-Frame-Options: ALLOW-FROM`. | `BadRequestException`; `logger.warn`; seeds throw in production without `*_SEED_PASSWORD`; fallbacks removed (local `slide*.jpg` are the real src); rewrite added; header removed. |
+
+**Still open (deliberately not blind-patched):** F-throttle (needs load test), F1 `admin/admins` (product decision: remove or scope), static per-tenant webhook secret, `tenant-bot.service` boot-time null-tenant backfill, `Tenant.totalRevenue/totalOrders` never written (super-admin KPIs read 0), AI `costUsd` always 0, `viewCount` write on GET, `WeeklyStat`/`WEEKLY_AGGREGATION_CRON` dead but required, Click `sign_time` freshness, `clickServiceId` not unique.
+
+---
+
 ## ✅ Fixed (2026-06-24)
 
 ### F2 — super-admin team privilege escalation `[CRITICAL]`
